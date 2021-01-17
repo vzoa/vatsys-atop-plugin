@@ -1,0 +1,6 @@
+C:\Users\jakes\source\repos\AuroraLabelItemsPlugin\bin\Release\AuroraLabelItemsPlugin.dll
+C:\Users\jakes\source\repos\AuroraLabelItemsPlugin\bin\Release\AuroraLabelItemsPlugin.pdb
+C:\Users\jakes\source\repos\AuroraLabelItemsPlugin\obj\Release\AuroraLabelItemsPlugin.csproj.CoreCompileInputs.cache
+C:\Users\jakes\source\repos\AuroraLabelItemsPlugin\obj\Release\AuroraLabelItemsPlugin.dll
+C:\Users\jakes\source\repos\AuroraLabelItemsPlugin\obj\Release\AuroraLabelItemsPlugin.pdb
+C:\Users\jakes\source\repos\AuroraLabelItemsPlugin\obj\Release\AuroraLabelItemsPlugin.csprojAssemblyReference.cache
