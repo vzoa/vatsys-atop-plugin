@@ -11,14 +11,14 @@ using System.ComponentModel.Composition; //<--Need to add a reference to System.
 namespace AuroraLabelItemsPlugin
 {
     [Export(typeof(IPlugin))]
-    public class AuroraLabelItemsPlugin : IPlugin
+    public class AuroraLabelItemsPlugin : ILabelPlugin
     {
         /// The name of the custom label item we've added to Labels.xml in the Profile
         const string LABEL_ITEM_LEVEL = "AURORA_LEVEL";
-        static CustomColour EastboundColour = new CustomColour(255, 125, 0);
-        static CustomColour WestboundColour = new CustomColour(0, 125, 255);
-
-        ConcurrentDictionary<string, bool> eastboundCallsigns = new ConcurrentDictionary<string, bool>();
+        const string LABEL_ITEM_3DIGIT_GROUNDSPEED = "AURORA_GROUNDSPEED";
+        readonly static CustomColour EastboundColour = new CustomColour(255, 125, 0);
+        readonly static CustomColour WestboundColour = new CustomColour(0, 125, 255);
+        readonly ConcurrentDictionary<string, bool> eastboundCallsigns = new ConcurrentDictionary<string, bool>();
 
         /// Plugin Name
         public string Name { get => "Aurora Label Items"; }
@@ -71,6 +71,13 @@ namespace AuroraLabelItemsPlugin
                     {
                         Text = sLevel
                     };
+                case LABEL_ITEM_3DIGIT_GROUNDSPEED:
+                    //get groundspeed value from either FDR or radarTrack if coupled
+                    var gs = radarTrack == null ? flightDataRecord.PredictedPosition.Groundspeed : radarTrack.GroundSpeed;
+                    return new CustomLabelItem()
+                    {
+                        Text = gs.ToString("000")//format as 3 digits (with leading zeros)
+                    };
                 default:
                     return null;
             }
@@ -78,10 +85,17 @@ namespace AuroraLabelItemsPlugin
 
         public CustomColour SelectASDTrackColour(Track track)
         {
-            string fdrCallsign = track.GetFDR()?.Callsign;
+            //only apply East/West colour to jurisdiction state
+            if (track.State != MMI.HMIStates.Jurisdiction)
+                return null;
 
-            bool east;
-            if(!string.IsNullOrEmpty(fdrCallsign) && eastboundCallsigns.TryGetValue(fdrCallsign, out east))
+            var fdr = track.GetFDR();
+            //if track doesn't have an FDR coupled do nothing
+            if (fdr == null)
+                return null;
+
+            //read our dictionary of stored bools (true means is easterly) and return the correct colour
+            if (eastboundCallsigns.TryGetValue(fdr.Callsign, out bool east))
             {
                 if (east)
                     return EastboundColour;
