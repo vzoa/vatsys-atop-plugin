@@ -25,12 +25,17 @@ namespace AuroraLabelItemsPlugin
         const string LABEL_ITEM_ANNOT_IND = "AURORA_ANNOT_IND"; //field e(1)
         const string LABEL_ITEM_RESTR = "AURORA_RESTR"; //field f(1)
         const string LABEL_ITEM_VMI = "AURORA_VMI"; //field h(1)
+        const string LABEL_ITEM_CLEARED_LEVEL = "AURORA_CLEARED_LEVEL"; //field i(7)
         const string LABEL_ITEM_RADAR_IND = "AURORA_RADAR_IND"; //field k(1)
         const string LABEL_ITEM_3DIGIT_GROUNDSPEED = "AURORA_GROUNDSPEED";
         const string STRIP_ITEM_CALLSIGN = "AURORA_CALLSIGN";
         const string STRIP_ITEM_SEP_FLAG = "AURORA_SEP_FLAG";
         readonly static CustomColour EastboundColour = new CustomColour(240, 255, 255);
-        readonly static CustomColour WestboundColour = new CustomColour(240, 231, 140);    
+        readonly static CustomColour WestboundColour = new CustomColour(240, 231, 140);
+        readonly static CustomColour NonRVSM = new CustomColour(242, 133, 0);
+        readonly static CustomColour SepFlags = new CustomColour(0, 196, 253);
+        readonly static CustomColour Probe = new CustomColour(0, 255, 0);
+        readonly static CustomColour NotCDA = new CustomColour(100, 0, 100);
         readonly ConcurrentDictionary<string, bool> eastboundCallsigns = new ConcurrentDictionary<string, bool>();
         readonly ConcurrentDictionary<string, char> pbnValues = new ConcurrentDictionary<string, char>();
 
@@ -101,6 +106,9 @@ namespace AuroraLabelItemsPlugin
 
         public CustomLabelItem GetCustomLabelItem(string itemType, Track track, FDP2.FDR flightDataRecord, RDP.RadarTrack radarTrack)
         {
+            if (flightDataRecord == null)
+                return null;
+
             Match pbn = Regex.Match(flightDataRecord.Remarks, @"PBN\/\w+\s");
             //bool inmarsat = updated.Remarks.Contains("NAV/RNP2") || updated.Remarks.Contains("NAV/GLS RNP2");
             bool cpdlc = Regex.IsMatch(flightDataRecord.AircraftEquip, @"J5") || Regex.IsMatch(flightDataRecord.AircraftEquip, @"J7");
@@ -118,8 +126,7 @@ namespace AuroraLabelItemsPlugin
             var pos = AlertTypes.MPR;
             var spd = AlertTypes.ETO;
 
-            if (flightDataRecord == null)
-                return null;
+
 
 
             switch (itemType)
@@ -152,7 +159,7 @@ namespace AuroraLabelItemsPlugin
 
                         return new CustomLabelItem()
                         {
-                            BackColourIdentity = Colours.Identities.VSCSButtonDepressed,
+                            CustomForeColour = NotCDA,
                             Text = "*"           
                         };
                     else if (cpdlc)
@@ -179,20 +186,11 @@ namespace AuroraLabelItemsPlugin
 
                 case LABEL_ITEM_ANNOT_IND:
 
-                    if (flightDataRecord.GlobalOpData == "")
-
                     return new CustomLabelItem()
                     {
-                        Text = "◦"
-                        //Action < CustomLabelItemMouseClickEventArgs > OnMouseClick;
+                        Text = "◦&"
                     };
 
-                    else 
-
-                    return new CustomLabelItem()
-                    {
-                        Text = "&"
-                    };
 
                 case LABEL_ITEM_RESTR:
 
@@ -211,33 +209,46 @@ namespace AuroraLabelItemsPlugin
                     bool isCfl = Int32.TryParse(flightDataRecord.CFLString, out cfl);
                     string sLevel = level.ToString("D3");
 
-                    if (radarTrack.CorrectedAltitude - flightDataRecord.PRL >= 300)//deviating above
+                    if (radarTrack.CorrectedAltitude - flightDataRecord.RFL >= 300)//deviating above
 
                         return new CustomLabelItem()
                         {
                             Text = "+"
                         };
 
-                    else if (radarTrack.CorrectedAltitude - flightDataRecord.PRL <= 300)//deviating below
+                    else if (radarTrack.CorrectedAltitude - flightDataRecord.RFL <= -300)//deviating below
 
                         return new CustomLabelItem()
                         {
                             Text = "-"
                         };
 
-                    else if (radarTrack.VerticalSpeed > 300 | cfl > flightDataRecord.PRL)//Issued or trending climb
+                    else if (cfl > flightDataRecord.RFL | radarTrack.VerticalSpeed > 300)//Issued or trending climb
 
                         return new CustomLabelItem()
                         {
-                            Text = "↑"
+                            Text = "↑",
+                            CustomForeColour = flightDataRecord.RVSM ? NonRVSM : null,
                         };
 
-                    else if (radarTrack.VerticalSpeed < 300 | cfl < flightDataRecord.PRL)//Issued or trending descent
+                    else if (cfl < flightDataRecord.RFL | radarTrack.VerticalSpeed < -300 )//Issued or trending descent
 
                         return new CustomLabelItem()
                         {
-                            Text = "↓"
+                            Text = "↓",
+                            CustomForeColour = flightDataRecord.RVSM ? NonRVSM : null,
                         };
+
+                    //else if (Track.TrackTypes.TRACK_TYPE_FP & flightDataRecord.PRL > 0)//Manually entered PRL
+                    //
+                    //    return new CustomLabelItem()
+                    //    {
+                    //        Text = "R"
+                    //    };
+
+                    else if (radarTrack.CorrectedAltitude == cfl | radarTrack.CorrectedAltitude == flightDataRecord.RFL)//level
+
+                        return null;
 
                     return null;
 
@@ -245,9 +256,10 @@ namespace AuroraLabelItemsPlugin
 
                     return new CustomLabelItem()
                     {
-                        Text = "◦★"
-                        //OnMouseClick = (e) =>.
+                        Text = "◦★",
+                        //OnMouseClick = e
                     };
+
 
                 case LABEL_ITEM_3DIGIT_GROUNDSPEED:
                     //get groundspeed value from either FDR or radarTrack if coupled
@@ -261,7 +273,12 @@ namespace AuroraLabelItemsPlugin
                     return null;
             }
         }
-
+        private void ItemMouseClick(CustomLabelItemMouseClickEventArgs e)
+        {
+            e.Track.IQL = !e.Track.IQL;
+            //MMI.ClickspotTypes.Label_Toggle;
+            e.Handled = true;
+        }
 
         public CustomColour SelectASDTrackColour(Track track)
         {
@@ -317,7 +334,6 @@ namespace AuroraLabelItemsPlugin
             bool rnp10 = Regex.IsMatch(pbn.Value, @"A1");
             bool rnp4 = Regex.IsMatch(pbn.Value, @"L1");
             bool isEastBound = true;
-
 
             if (flightDataRecord is null)
                 return null;
@@ -387,14 +403,14 @@ namespace AuroraLabelItemsPlugin
                     if (adsc & cpdlc & rnp4 | rnp10)
                         return new CustomStripItem()
                         {
-                            Text = "D"
+                            Text = rnp4 ? "    3" : "    D"
                         };
                     return null;
-    
+
                     if (flightDataRecord.RVSM)
                         return new CustomStripItem()
                         {
-                            BackColourIdentity = Colours.Identities.JurisdictionIQL,
+                            CustomBackColour = SepFlags,
                             Text = "    W"
                         };
                     return null;
@@ -402,5 +418,9 @@ namespace AuroraLabelItemsPlugin
                 default: return null;
         }
     }
-}
+        public void Test()
+        {
+            throw new NotImplementedException();
+        }
+    }
 }
