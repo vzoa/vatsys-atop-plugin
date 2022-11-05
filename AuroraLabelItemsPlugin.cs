@@ -264,7 +264,7 @@ namespace AuroraLabelItemsPlugin
 
                     return new CustomLabelItem()
                     {
-                        Text = level == cfl ? null : flightDataRecord.CFLString, // flightDataRecord.CFLLower + "B" + flightDataRecord.CFLUpper
+                        Text = level == cfl ? "" : flightDataRecord.CFLString, // flightDataRecord.CFLLower + "B" + flightDataRecord.CFLUpper
                         ForeColourIdentity = Colours.Identities.Custom,
                         CustomForeColour = !flightDataRecord.RVSM ? NonRVSM : track.NewCFL ? Probe : null,
                     };
