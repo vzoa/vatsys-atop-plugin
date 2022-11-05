@@ -213,7 +213,7 @@ namespace AuroraLabelItemsPlugin
 
                         return new CustomLabelItem()
                         {
-                            Text = null
+                            Text = ""
                         };
 
                     else if (cfl > level && track.NewCFL || radarTrack.VerticalSpeed > 300)//Issued or trending climb
