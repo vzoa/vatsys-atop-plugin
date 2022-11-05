@@ -337,10 +337,10 @@ namespace AuroraLabelItemsPlugin
 
             return null;
         }
-        public void MachNumberTech(string itemType, PerformanceData mnt)
+        public static bool MachNumberTech(PerformanceData mnt)
         {
-            mnt.IsJet = true;
-
+            if (mnt == null) return false;
+            return mnt.IsJet;
         }
 
         //public void Estimates(FDP2.FDR.ExtractedRoute.Segment estimate)
@@ -426,23 +426,22 @@ namespace AuroraLabelItemsPlugin
                     return null;
 
                 case STRIP_ITEM_DIST_FLAG:
+                    string stripText = "";
 
-
-                    //if (MachNumberTech.isJet;)
-                    //    return new CustomStripItem()
-                    //    {
-                    //        Text = "M" + "R"
-                    //    };
-                    //return null;
+                    if (MachNumberTech(flightDataRecord.PerformanceData))
+                    {
+                        stripText += "MR";
+                    }
 
                     if (adsc & cpdlc & rnp4 || rnp10)
+                    {
+                        stripText += rnp4 ? "3" : "D";
+                    }
 
-                        return new CustomStripItem()
-                        {
-                            Text = rnp4 ? "3" : "D"
-                        };
-
-                    return null;
+                    return new CustomStripItem()
+                    {
+                        Text = stripText
+                    };
 
                 case STRIP_ITEM_RVSM_FLAG:
 
