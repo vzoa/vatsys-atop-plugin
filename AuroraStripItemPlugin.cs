@@ -88,6 +88,12 @@ namespace AuroraStripItemsPlugin
         //{ 
         //    estimate.IsPETO = true;
         //}
+
+        private void ItemMouseClick(CustomLabelItemMouseClickEventArgs e)
+        {
+            e.Item.CustomForeColour = SepFlags;
+            e.Handled = true;
+        }
         public CustomStripItem GetCustomStripItem(string itemType, Track track, FDP2.FDR flightDataRecord, RDP.RadarTrack radarTrack)
 
         {
@@ -173,7 +179,8 @@ namespace AuroraStripItemsPlugin
                         return new CustomStripItem()
                         {
                             //BackColourIdentity = Colours.Identities.Custom,
-                            Text = "M"
+                            Text = "M",
+                            OnMouseClick = ItemMouseClick
                         };
 
                     return null;
@@ -185,7 +192,8 @@ namespace AuroraStripItemsPlugin
                         return new CustomStripItem()
                         {
                             //BackColourIdentity = Colours.Identities.Custom,
-                            Text = "R"
+                            Text = "R",
+                            OnMouseClick = ItemMouseClick
                         };
 
                     return null;
@@ -198,7 +206,8 @@ namespace AuroraStripItemsPlugin
                         return new CustomStripItem()
                         {
                             //BackColourIdentity = Colours.Identities.Custom,
-                            Text = rnp4 ? "3" : "D"
+                            Text = rnp4 ? "3" : "D",
+                            OnMouseClick = ItemMouseClick
                         };
                     return null;
 
@@ -265,7 +274,8 @@ namespace AuroraStripItemsPlugin
                         return new CustomStripItem()
                         {
                             //BackColourIdentity = Colours.Identities.Custom,
-                            Text = rnp4 ? "4" : "R"
+                            Text = rnp4 ? "4" : "R",
+                            OnMouseClick = ItemMouseClick
                         };
                     return null;
 
