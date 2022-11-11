@@ -15,7 +15,7 @@ namespace AuroraLabelItemsPlugin
 {
     [Export(typeof(IPlugin))]
 
-    public class AuroraLabelItemsPlugin : ILabelPlugin, IStripPlugin
+    public class AuroraLabelItemsPlugin : ILabelPlugin
     {
 
         /// The name of the custom label item we've added to Labels
@@ -29,10 +29,6 @@ namespace AuroraLabelItemsPlugin
         const string LABEL_ITEM_CLEARED_LEVEL = "AURORA_CLEARED_LEVEL"; //field i(7)
         const string LABEL_ITEM_RADAR_IND = "AURORA_RADAR_IND"; //field k(1)
         const string LABEL_ITEM_3DIGIT_GROUNDSPEED = "AURORA_GROUNDSPEED";
-        const string STRIP_ITEM_CALLSIGN = "AURORA_CALLSIGN";
-        const string STRIP_ITEM_DIST_FLAG = "AURORA_DIST_FLAG";
-        const string STRIP_ITEM_RVSM_FLAG = "AURORA_RVSM_FLAG";
-        const string STRIP_ITEM_MAN_EST = "AURORA_MAN_EST";
         readonly static CustomColour EastboundColour = new CustomColour(240, 255, 255);
         readonly static CustomColour WestboundColour = new CustomColour(240, 231, 140);
         readonly static CustomColour NonRVSM = new CustomColour(242, 133, 0);
@@ -40,8 +36,6 @@ namespace AuroraLabelItemsPlugin
         readonly static CustomColour Probe = new CustomColour(0, 255, 0);
         readonly static CustomColour NotCDA = new CustomColour(100, 0, 100);
         readonly ConcurrentDictionary<string, bool> eastboundCallsigns = new ConcurrentDictionary<string, bool>();
-        readonly ConcurrentDictionary<string, char> pbnValues = new ConcurrentDictionary<string, char>();
-
         /// Plugin Name
         public string Name { get => "Aurora Label Items"; }
 
@@ -49,7 +43,7 @@ namespace AuroraLabelItemsPlugin
         /// Here we are updating the eastbound callsigns dictionary with each flight data record
         /// When the FDR is updated we check if it still exists in the Flight Data Processor and remove from our dictionary if not. Otherwise we do some simple regex matching to find 
         /// the flight planned PBN category and store the character we want to display in the label in the dictionary.
-        
+
         public void OnFDRUpdate(FDP2.FDR updated)
         {
             if (FDP2.GetFDRIndex(updated.Callsign) == -1) //FDR was removed (that's what triggered the update)
@@ -95,22 +89,17 @@ namespace AuroraLabelItemsPlugin
         /// itemType is the value of the Type attribute in Labels.xml
         /// If it's not our item being called (another plugins, for example), return null.
         /// As a general rule, don't do processing in here as you'll slow down the ASD refresh. In the case of parsing a level to a string though, that's fine.
-        public CustomLabelItem GetPrivateMessage(RadioMessage downLink, FDP2.FDR flightDataRecord)
-        {
 
-            if (downLink.Request & downLink.Address == flightDataRecord.Callsign)
-                return new CustomLabelItem()
-                {
-                    Type = LABEL_ITEM_ADSB_CPDLC,
-                    Text = "⬜▼⟏"
-                };
-                    return null;
-        }
+        //public static event EventHandler<GenericMessageEventArgs> PrivateMessagesChanged;
+        
 
         public CustomLabelItem GetCustomLabelItem(string itemType, Track track, FDP2.FDR flightDataRecord, RDP.RadarTrack radarTrack)
         {
 
             if (flightDataRecord == null)
+                return null;
+
+            if (track == null)
                 return null;
 
             Match pbn = Regex.Match(flightDataRecord.Remarks, @"PBN\/\w+\s");
@@ -138,144 +127,145 @@ namespace AuroraLabelItemsPlugin
             switch (itemType)
             {
                 case LABEL_ITEM_COMM_ICON:
-                    
-                         return new CustomLabelItem()
-                         {
-                             Text = "⬜"
-                         };
-
+                
+                    return new CustomLabelItem()
+                    {
+                        Text = "⬜"  //⬜▼⟏
+                    };
+                
                 case LABEL_ITEM_ADSB_CPDLC:
+                
+                
+                   if (!adsb & cpdlc)
+                
+                       return new CustomLabelItem()
+                       {
+                           Text = "⧆"
+                       };
+                
+                   else if (!adsb)
+                
+                       return new CustomLabelItem()
+                       {
+                           Text = "⎕"
+                       };
+                
+                   else if (cpdlc & track.State == MMI.HMIStates.Preactive | track.State is MMI.HMIStates.Announced)
+                
+                       return new CustomLabelItem()
+                       {
+                           ForeColourIdentity = Colours.Identities.Custom,
+                           CustomForeColour = NotCDA,
+                           Text = "*"
+                       };
 
-
-                    if (!adsb & cpdlc)
-
-                        return new CustomLabelItem()
-                        {
-                            Text = "⧆"
-                        };
-
-                    else if (!adsb)
-
-                        return new CustomLabelItem()
-                        {
-                            Text = "⎕"
-                        };
-
-                    else if (cpdlc & track.State == MMI.HMIStates.Preactive | track.State is MMI.HMIStates.Announced)
-
-                        return new CustomLabelItem()
-                        {
-                            ForeColourIdentity = Colours.Identities.Custom,
-                            CustomForeColour = NotCDA,
-                            Text = "*"           
-                        };
-                    else if (cpdlc)
-
-                        return new CustomLabelItem()
-                        {
-                            Text = "*"
-                        };
-
-                    return null;
-
-
-                //case LABEL_ITEM_SCC:
-                //
-                //        return new CustomLabelItem()
-                //        {
-                //            Text = pos //| ca | la | ra | rcf | dup | spd 
-                //        };                
-                                                  
-                                         
-                case LABEL_ITEM_ANNOT_IND:
-                                         
-                    return new CustomLabelItem()
-                    {
-                        Text = "◦" //&
-                    };
-
-
-                case LABEL_ITEM_RESTR:
-
-                    if (Regex.IsMatch(flightDataRecord.GlobalOpData, @"AT \d\d\d\d"))
-
-                    return new CustomLabelItem()
-                    {
-                        Text = "x"
-                    };
-
-                    return null;
-
-                case LABEL_ITEM_VMI:
-
+                   else if (cpdlc)
+                
+                       return new CustomLabelItem()
+                       {
+                           Text = "*"
+                       };
+                
+                   return null;
+               
+               
+               //case LABEL_ITEM_SCC:
+               //
+               //        return new CustomLabelItem()
+               //        {
+               //            Text = pos //| ca | la | ra | rcf | dup | spd 
+               //        };                
+               
+               
+               case LABEL_ITEM_ANNOT_IND:
+               
+                   return new CustomLabelItem()
+                   {
+                       Text = "◦" //&
+                   };
+               
+               
+               case LABEL_ITEM_RESTR:
+               
+                   if (Regex.IsMatch(flightDataRecord.GlobalOpData, @"AT \d\d\d\d"))
+               
+                       return new CustomLabelItem()
+                       {
+                           Text = "x"
+                       };
+               
+                   return null;
+               
+               case LABEL_ITEM_VMI:
+                    var vs = radarTrack == null ? flightDataRecord.PredictedPosition.VerticalSpeed : radarTrack.VerticalSpeed;
 
                     if (level == cfl || level == flightDataRecord.RFL)//level
+               
+                   return new CustomLabelItem()
+                   {
+                       Text = ""
+                   };
+               
+               else if (cfl > level && track.NewCFL || vs > 300)//Issued or trending climb
+               
+                   return new CustomLabelItem()
+                   {
+                       Text = "↑",
+                       ForeColourIdentity = Colours.Identities.Custom,
+                       CustomForeColour = !rvsm ? NonRVSM : track.NewCFL ? Probe : default
+                   };
+               
+               else if (cfl > 0 && cfl < level && track.NewCFL || vs < -300)//Issued or trending descent
+               
+                   return new CustomLabelItem()
+                   {
+                       Text = "↓",
+                       ForeColourIdentity = Colours.Identities.Custom,
+                       CustomForeColour = !rvsm ? NonRVSM : track.NewCFL ? Probe : default
+                   };
+               
+               else if (level - flightDataRecord.RFL / 100 >= 3)//deviating above
+               
+                   return new CustomLabelItem()
+                   {
+                       Text = "+"
+                   };
+               
+               else if (level - flightDataRecord.RFL / 100 <= -3)//deviating below
+               
+                   return new CustomLabelItem()
+                   {
+                       Text = "-"
+                   };
 
-                        return new CustomLabelItem()
-                        {
-                            Text = ""
-                        };
 
-                    else if (cfl > level && track.NewCFL || radarTrack.VerticalSpeed > 300)//Issued or trending climb
-
-                        return new CustomLabelItem()
-                        {
-                            Text = "↑",
-                            ForeColourIdentity = Colours.Identities.Custom,
-                            CustomForeColour = !flightDataRecord.RVSM ? NonRVSM : track.NewCFL ? Probe : null,
-                        };
-
-                    else if (cfl > 0 && cfl < level && track.NewCFL || radarTrack.VerticalSpeed < -300)//Issued or trending descent
-
-                        return new CustomLabelItem()
-                        {
-                            Text = "↓",
-                            ForeColourIdentity = Colours.Identities.Custom,
-                            CustomForeColour = !flightDataRecord.RVSM ? NonRVSM : track.NewCFL ? Probe : null,
-                        };
-
-                    else if (level - flightDataRecord.RFL / 100 >= 3)//deviating above
-
-                        return new CustomLabelItem()
-                        {
-                            Text = "+"
-                        };
-
-                    else if (level - flightDataRecord.RFL / 100 <= -3)//deviating below
-
-                        return new CustomLabelItem()
-                        {
-                            Text = "-"
-                        };
+                    //else if (Track.TrackTypes.TRACK_TYPE_FP)//Manually entered PRL
+                    //
+                    //    return new CustomLabelItem()
+                    //    {
+                    //        Text = "R"
+                    //    };
 
                     return null;
-
-                //else if (Track.TrackTypes.TRACK_TYPE_FP & flightDataRecord.PRL > 0)//Manually entered PRL
-                //
-                //    return new CustomLabelItem()
-                //    {
-                //        Text = "R"
-                //    };
-
 
 
 
                 case LABEL_ITEM_CLEARED_LEVEL:
-
-                    return new CustomLabelItem()
-                    {
-                        Text = level == cfl ? "" : flightDataRecord.CFLString, // flightDataRecord.CFLLower + "B" + flightDataRecord.CFLUpper
-                        ForeColourIdentity = Colours.Identities.Custom,
-                        CustomForeColour = !flightDataRecord.RVSM ? NonRVSM : track.NewCFL ? Probe : null,
-                    };
-
-                case LABEL_ITEM_RADAR_IND:
-
-                    return new CustomLabelItem()
-                    {
-                        Text = "◦",//★
-                        //OnMouseClick = 
-                    };
+               
+                   return new CustomLabelItem()
+                   {
+                       Text = level == cfl ? "" : flightDataRecord.CFLString,
+                       ForeColourIdentity = Colours.Identities.Custom,
+                       CustomForeColour = !rvsm ? NonRVSM : Probe
+                   };
+               
+               case LABEL_ITEM_RADAR_IND:
+               
+                   return new CustomLabelItem()
+                   {
+                       Text = "◦"//★
+                       //OnMouseClick = 
+                   };
 
 
                 case LABEL_ITEM_3DIGIT_GROUNDSPEED:
@@ -290,12 +280,12 @@ namespace AuroraLabelItemsPlugin
                     return null;
             }
         }
-        private void ItemMouseClick(CustomLabelItemMouseClickEventArgs e)
-        {
-            e.Track.IQL = !e.Track.IQL;
-            //MMI.ClickspotTypes.Label_Toggle;
-            e.Handled = true;
-        }
+       // private void ItemMouseClick(CustomLabelItemMouseClickEventArgs e)
+       // {
+       //     e.Track.IQL = !e.Track.IQL;
+       //     //MMI.ClickspotTypes.Label_Toggle;
+       //     e.Handled = true;
+       // }
         public CustomLabelItem TrackSelectBox(Track a, MMI.ClickspotCategories b)  //box around selected tracks
         {
             //if (MMI.ClickspotTypes.Track_Select)
@@ -304,7 +294,7 @@ namespace AuroraLabelItemsPlugin
                 Border = MMI.SelectedTrack != null ? BorderFlags.All : BorderFlags.None,
             };
         }
-                          
+
         public CustomColour SelectASDTrackColour(Track track)
         {
             //only apply East/West colour to jurisdiction state
@@ -337,135 +327,5 @@ namespace AuroraLabelItemsPlugin
 
             return null;
         }
-        public static bool MachNumberTech(PerformanceData mnt)
-        {
-            if (mnt == null) return false;
-            return mnt.IsJet;
-        }
-
-        //public void Estimates(FDP2.FDR.ExtractedRoute.Segment estimate)
-        //{ 
-        //    estimate.IsPETO = true;
-        //}
-        public CustomStripItem GetCustomStripItem(string itemType, Track track, FDP2.FDR flightDataRecord, RDP.RadarTrack radarTrack)
-          
-        {
-            Match pbn = Regex.Match(flightDataRecord.Remarks, @"PBN\/\w+\s");
-            bool cpdlc = Regex.IsMatch(flightDataRecord.AircraftEquip, @"J5") || Regex.IsMatch(flightDataRecord.AircraftEquip, @"J7");
-            bool adsc = Regex.IsMatch(flightDataRecord.AircraftSurvEquip, @"D1");
-            bool adsb = flightDataRecord.ADSB; //Regex.IsMatch(flightDataRecord.AircraftSurvEquip, @"B\d");
-            bool rnp10 = Regex.IsMatch(pbn.Value, @"A1");
-            bool rnp4 = Regex.IsMatch(pbn.Value, @"L1");
-            bool rvsm = flightDataRecord.RVSM;
-            int level = radarTrack == null ? flightDataRecord.PRL / 100 : radarTrack.CorrectedAltitude / 100;
-            int cfl;
-            bool isCfl = Int32.TryParse(flightDataRecord.CFLString, out cfl);
-            bool isEastBound = true;
-
-            if (flightDataRecord is null)
-                return null;
-
-            switch (itemType)
-            {
-                case STRIP_ITEM_CALLSIGN:
-
-                    eastboundCallsigns.TryGetValue(flightDataRecord.Callsign, out isEastBound);
-
-                    if (isEastBound)
-                    {
-                        return new CustomStripItem()
-                        {
-                            BackColourIdentity = Colours.Identities.StripText,
-                            ForeColourIdentity = Colours.Identities.StripBackground,
-                            Text = flightDataRecord.Callsign
-                        };
-                    }
-                    else
-                    {
-                        return new CustomStripItem()
-                        {
-                            BackColourIdentity = Colours.Identities.StripBackground,
-                            ForeColourIdentity = Colours.Identities.StripText,
-                            Text = flightDataRecord.Callsign
-                        };
-                    }
-                case LABEL_ITEM_ADSB_CPDLC:
-
-
-                    if (isEastBound & !adsb & cpdlc)
-
-                            return new CustomStripItem()
-                            {
-                                BackColourIdentity = Colours.Identities.StripText,
-                                ForeColourIdentity = Colours.Identities.StripBackground,
-                                Text = "⧆"
-                            }; 
-
-                    else if (!adsb & cpdlc)
-
-                        return new CustomStripItem()
-                        {
-                            Text = "⧆"
-                        };
-
-
-                    else if (!adsb)
-
-                        return new CustomStripItem()
-                        {
-                            Text = "⎕"
-                        };
-
-                    else if (cpdlc)
-
-                        return new CustomStripItem()
-                        {
-                            Text = "*"
-                        };
-
-                    return null;
-
-                case STRIP_ITEM_DIST_FLAG:
-                    string stripText = "";
-
-                    if (MachNumberTech(flightDataRecord.PerformanceData))
-                    {
-                        stripText += "MR";
-                    }
-
-                    if (adsc & cpdlc & rnp4 || rnp10)
-                    {
-                        stripText += rnp4 ? "3" : "D";
-                    }
-
-                    return new CustomStripItem()
-                    {
-                        Text = stripText
-                    };
-
-                case STRIP_ITEM_RVSM_FLAG:
-
-                    if (rvsm)
-
-                        return new CustomStripItem()
-                        {
-                            BackColourIdentity = Colours.Identities.Custom,
-                            CustomBackColour = SepFlags,
-                            Text = "W"
-                        };
-                    return null;
-
-                //case STRIP_ITEM_MAN_EST:
-
-                    //if (Estimates)
-                    //    return new CustomStripItem()
-                    //    {
-                    //        BackColourIdentity = Colours.Identities.HighlightedText
-                    //    };
-                    //return null;
-
-                default: return null;
-            }
-    }
     }
 }
