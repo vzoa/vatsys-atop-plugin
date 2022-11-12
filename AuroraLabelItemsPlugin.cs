@@ -46,20 +46,14 @@ namespace AuroraLabelItemsPlugin
         /// Here we are updating the eastbound callsigns dictionary with each flight data record
         /// When the FDR is updated we check if it still exists in the Flight Data Processor and remove from our dictionary if not. Otherwise we do some simple regex matching to find 
         /// the flight planned PBN category and store the character we want to display in the label in the dictionary.
-
         public void OnFDRUpdate(FDP2.FDR updated)
         {
-            if (FDP2.GetFDRIndex(updated.Callsign) == -1) //FDR was removed (that's what triggered the update)
+            if (FDP2.GetFDRIndex(updated.Callsign) == -1)
+            {
                 eastboundCallsigns.TryRemove(updated.Callsign, out _);
-                              
-            if (FDP2.GetFDRIndex(updated.Callsign) == -1)
                 adsbcpdlcValues.TryRemove(updated.Callsign, out _);
-
-            if (FDP2.GetFDRIndex(updated.Callsign) == -1)
                 altValues.TryRemove(updated.Callsign, out _);
-
-            else
-
+            } else
             {
                 bool cpdlc = Regex.IsMatch(updated.AircraftEquip, @"J5") || Regex.IsMatch(updated.AircraftEquip, @"J7");
                 bool adsc = Regex.IsMatch(updated.AircraftSurvEquip, @"D1");
@@ -69,9 +63,9 @@ namespace AuroraLabelItemsPlugin
                 int level = updated.PRL / 100;
 
 
-                char c4 = '\0';
+                char c4 = default;
 
-                if (!updated.ADSB & cpdlc)
+                if (!updated.ADSB && cpdlc)
 
                     c4 = '⧆';
 
@@ -86,10 +80,10 @@ namespace AuroraLabelItemsPlugin
 
                 adsbcpdlcValues.AddOrUpdate(updated.Callsign, c4, (k, v) => c4);
 
-                char h1 = '\0';
+                char h1 = default;
 
                 if (level == updated.RFL)//level
-                    h1 = '\0';
+                    h1 = default;
 
                 else if (cfl > level || vs > 300)//Issued or trending climb
                     h1 = '↑';
@@ -120,24 +114,8 @@ namespace AuroraLabelItemsPlugin
             }
         }
 
-        //internal void SendContactMe(NetworkPilot pilot, VSCSFrequency freq)
-        //{
-        //    if (validATC && HaveConnection && !((DateTime.UtcNow - pilot.LastContactMe).TotalMinutes < 1.0))
-        //    {
-        //        string text = "Please contact me on " + Conversions.FrequencyToString(freq.Frequency);
-        //        if (freq.AliasFrequency != VSCSFrequency.None.Frequency)
-        //        {
-        //            text = text + " (" + Conversions.FrequencyToString(freq.AliasFrequency) + ")";
-        //        }
-        //
-        //        SendTextMessage(pilot.Callsign, text);
-        //        pilot.LastContactMe = DateTime.UtcNow;
-        //    }
-        //}
-
         ///  Could use the new position of the radar track or its change in state (cancelled, etc.) to do some processing. 
         public void OnRadarTrackUpdate(RDP.RadarTrack updated)
-
         {
 
         }
@@ -146,36 +124,16 @@ namespace AuroraLabelItemsPlugin
         /// itemType is the value of the Type attribute in Labels.xml
         /// If it's not our item being called (another plugins, for example), return null.
         /// As a general rule, don't do processing in here as you'll slow down the ASD refresh. In the case of parsing a level to a string though, that's fine.
-
-        //public static event EventHandler<GenericMessageEventArgs> PrivateMessagesChanged;
-        
-
         public CustomLabelItem GetCustomLabelItem(string itemType, Track track, FDP2.FDR flightDataRecord, RDP.RadarTrack radarTrack)
         {
 
-            if (flightDataRecord == null)
+            if (flightDataRecord == null || track == null)
                 return null;
-
-            if (track == null)
-                return null;
-
-
 
             char c4;
             adsbcpdlcValues.TryGetValue(flightDataRecord.Callsign, out c4);
             char h1;
             altValues.TryGetValue(flightDataRecord.Callsign, out h1);
-            //string sLevel = level.ToString("D3");
-            //string ca = AlertTypes.STCA.ToString(@"CA");
-            //string la = AlertTypes.MSAW.ToString(@"LA");
-            //string ra = AlertTypes.DAIW.ToString(@"RA");
-            //string rcf = AlertTypes.RAD.ToString(@"RCF");
-            //string dup = AlertTypes.DAIW.ToString(@"DUP");
-            //string pos = AlertTypes.MPR.ToString("POS");
-            //string spd = AlertTypes.ETO.ToString(@"SPD");
-            //var mti = transponder.TransponderCode = 7777;
-
-
 
             switch (itemType)
             {
@@ -187,15 +145,25 @@ namespace AuroraLabelItemsPlugin
                     };
                 
                 case LABEL_ITEM_ADSB_CPDLC:
-                               
-                    return new CustomLabelItem()
+
+                    bool useCustomForeColour = track.State == MMI.HMIStates.Preactive || track.State == MMI.HMIStates.Announced;
+
+                    if (useCustomForeColour)
                     {
-                        ForeColourIdentity = Colours.Identities.Custom,
-                        CustomForeColour = track.State == MMI.HMIStates.Preactive | track.State is MMI.HMIStates.Announced ? NotCDA : default,
-                        Text = c4.ToString()
-                    };
-               
-               
+                        return new CustomLabelItem()
+                        {
+                            ForeColourIdentity = Colours.Identities.Custom,
+                            CustomForeColour = NotCDA,
+                            Text = c4.ToString()
+                        };
+                    } else
+                    {
+                        return new CustomLabelItem()
+                        {
+                            Text = c4.ToString()
+                        };
+                    }
+
                //case LABEL_ITEM_SCC:
                //
                //        return new CustomLabelItem()
@@ -224,20 +192,31 @@ namespace AuroraLabelItemsPlugin
                //    return null;
                
               case LABEL_ITEM_VMI:
-             
-             
-                  return new CustomLabelItem()
-                  {
-                      Text = h1.ToString(),
-                      ForeColourIdentity = Colours.Identities.Custom,
-                      CustomForeColour = !flightDataRecord.RVSM ? NonRVSM : track.NewCFL ? Probe : default
-                  };
+                    bool isNonRVSMOrNewCFL = !flightDataRecord.RVSM || track.NewCFL;
 
+                    if (isNonRVSMOrNewCFL)
+                    {
+                        return new CustomLabelItem()
+                        {
+                            Text = h1.ToString(),
+                            ForeColourIdentity = Colours.Identities.Custom,
+                            CustomForeColour = !flightDataRecord.RVSM ? NonRVSM : Probe
+                        };
+                    }
+                    else
+                    {
+                        return new CustomLabelItem()
+                        {
+                            Text = h1.ToString()
+                        };
+                    }
+             
+                  
                case LABEL_ITEM_CLEARED_LEVEL:
               
                   return new CustomLabelItem()
                   {
-                      Text = track.NewCFL && radarTrack.ReachedCFL ? "" : flightDataRecord.CFLString,
+                      Text = (track.NewCFL && radarTrack.ReachedCFL) ? string.Empty : flightDataRecord.CFLString,
                       ForeColourIdentity = Colours.Identities.Custom,
                       CustomForeColour = !flightDataRecord.RVSM ? NonRVSM : Probe
                   };
@@ -247,7 +226,6 @@ namespace AuroraLabelItemsPlugin
                    return new CustomLabelItem()
                    {
                        Text = "◦"//★
-                       //OnMouseClick = 
                    };
 
                 case LABEL_ITEM_FIELD_SPEED:
@@ -268,10 +246,7 @@ namespace AuroraLabelItemsPlugin
                     return null;
             }
         }
-        private void ItemMouseClick(CustomLabelItemMouseClickEventArgs e)
-        {
 
-        }
         public CustomLabelItem TrackSelectBox(Track a, MMI.ClickspotCategories b)  //box around selected tracks
         {
             //if (MMI.ClickspotTypes.Track_Select)
