@@ -1,12 +1,10 @@
 ﻿using System;
-using System.Collections.Generic;
+using System.Collections.Concurrent;
+using System.ComponentModel.Composition; //<--Need to add a reference to System.ComponentModel.Composition
 using System.Text.RegularExpressions;
 using vatsys;
 using vatsys.Plugin;
-using System.Collections.Concurrent;
-using System.ComponentModel.Composition; //<--Need to add a reference to System.ComponentModel.Composition
 using static vatsys.Performance;
-using static vatsys.Network;
 
 namespace AuroraStripItemsPlugin
 {

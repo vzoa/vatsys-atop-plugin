@@ -1,12 +1,9 @@
 ﻿using System;
-using System.Collections.Generic;
+using System.Collections.Concurrent;
+using System.ComponentModel.Composition; //<--Need to add a reference to System.ComponentModel.Composition
 using System.Text.RegularExpressions;
 using vatsys;
 using vatsys.Plugin;
-using System.Collections.Concurrent;
-using System.ComponentModel.Composition; //<--Need to add a reference to System.ComponentModel.Composition
-using static vatsys.Performance;
-using static vatsys.Network;
 
 
 //Note the reference to vatsys (set Copy Local to false) ----->
@@ -53,7 +50,8 @@ namespace AuroraLabelItemsPlugin
                 eastboundCallsigns.TryRemove(updated.Callsign, out _);
                 adsbcpdlcValues.TryRemove(updated.Callsign, out _);
                 altValues.TryRemove(updated.Callsign, out _);
-            } else
+            }
+            else
             {
                 bool cpdlc = Regex.IsMatch(updated.AircraftEquip, @"J5") || Regex.IsMatch(updated.AircraftEquip, @"J7");
                 bool adsc = Regex.IsMatch(updated.AircraftSurvEquip, @"D1");
@@ -138,12 +136,12 @@ namespace AuroraLabelItemsPlugin
             switch (itemType)
             {
                 case LABEL_ITEM_COMM_ICON:
-                
+
                     return new CustomLabelItem()
                     {
                         Text = "⬜"  //⬜▼⟏
                     };
-                
+
                 case LABEL_ITEM_ADSB_CPDLC:
 
                     bool useCustomForeColour = track.State == MMI.HMIStates.Preactive || track.State == MMI.HMIStates.Announced;
@@ -156,7 +154,8 @@ namespace AuroraLabelItemsPlugin
                             CustomForeColour = NotCDA,
                             Text = c4.ToString()
                         };
-                    } else
+                    }
+                    else
                     {
                         return new CustomLabelItem()
                         {
@@ -164,34 +163,34 @@ namespace AuroraLabelItemsPlugin
                         };
                     }
 
-               //case LABEL_ITEM_SCC:
-               //
-               //        return new CustomLabelItem()
-               //        {
-               //            Text = pos //| ca | la | ra | rcf | dup | spd 
-               //        };                
-               
-               
-               case LABEL_ITEM_ANNOT_IND:
-               
-                   return new CustomLabelItem()
-                   {
-                       Text = "◦" //&
-                   };
-               
-               
-               //case LABEL_ITEM_RESTR:
-               //
-               //    if (Regex.IsMatch(flightDataRecord.GlobalOpData, @"AT \d\d\d\d"))
-               //
-               //        return new CustomLabelItem()
-               //        {
-               //            Text = "x"
-               //        };
-               //
-               //    return null;
-               
-              case LABEL_ITEM_VMI:
+                //case LABEL_ITEM_SCC:
+                //
+                //        return new CustomLabelItem()
+                //        {
+                //            Text = pos //| ca | la | ra | rcf | dup | spd 
+                //        };                
+
+
+                case LABEL_ITEM_ANNOT_IND:
+
+                    return new CustomLabelItem()
+                    {
+                        Text = "◦" //&
+                    };
+
+
+                //case LABEL_ITEM_RESTR:
+                //
+                //    if (Regex.IsMatch(flightDataRecord.GlobalOpData, @"AT \d\d\d\d"))
+                //
+                //        return new CustomLabelItem()
+                //        {
+                //            Text = "x"
+                //        };
+                //
+                //    return null;
+
+                case LABEL_ITEM_VMI:
                     bool isNonRVSMOrNewCFL = !flightDataRecord.RVSM || track.NewCFL;
 
                     if (isNonRVSMOrNewCFL)
@@ -210,23 +209,23 @@ namespace AuroraLabelItemsPlugin
                             Text = h1.ToString()
                         };
                     }
-             
-                  
-               case LABEL_ITEM_CLEARED_LEVEL:
-              
-                  return new CustomLabelItem()
-                  {
-                      Text = (track.NewCFL && radarTrack.ReachedCFL) ? string.Empty : flightDataRecord.CFLString,
-                      ForeColourIdentity = Colours.Identities.Custom,
-                      CustomForeColour = !flightDataRecord.RVSM ? NonRVSM : Probe
-                  };
-               
-               case LABEL_ITEM_RADAR_IND:
-               
-                   return new CustomLabelItem()
-                   {
-                       Text = "◦"//★
-                   };
+
+
+                case LABEL_ITEM_CLEARED_LEVEL:
+
+                    return new CustomLabelItem()
+                    {
+                        Text = (track.NewCFL && radarTrack.ReachedCFL) ? string.Empty : flightDataRecord.CFLString,
+                        ForeColourIdentity = Colours.Identities.Custom,
+                        CustomForeColour = !flightDataRecord.RVSM ? NonRVSM : Probe
+                    };
+
+                case LABEL_ITEM_RADAR_IND:
+
+                    return new CustomLabelItem()
+                    {
+                        Text = "◦"//★
+                    };
 
                 case LABEL_ITEM_FIELD_SPEED:
                     return new CustomLabelItem()
