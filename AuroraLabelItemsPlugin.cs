@@ -5,7 +5,6 @@ using System.Text.RegularExpressions;
 using vatsys;
 using vatsys.Plugin;
 
-
 //Note the reference to vatsys (set Copy Local to false) ----->
 
 namespace AuroraLabelItemsPlugin
@@ -25,7 +24,7 @@ namespace AuroraLabelItemsPlugin
         const string LABEL_ITEM_VMI = "AURORA_VMI"; //field h(1)
         const string LABEL_ITEM_CLEARED_LEVEL = "AURORA_CLEARED_LEVEL"; //field i(7)
         const string LABEL_ITEM_RADAR_IND = "AURORA_RADAR_IND"; //field k(1)
-        const string LABEL_ITEM_FIELD_SPEED = "AURORA_FILEDSPEED"; //field m(4)
+        const string LABEL_ITEM_FILED_SPEED = "AURORA_FILEDSPEED"; //field m(4)
         const string LABEL_ITEM_3DIGIT_GROUNDSPEED = "AURORA_GROUNDSPEED"; //field n(5)
         readonly static CustomColour EastboundColour = new CustomColour(240, 255, 255);
         readonly static CustomColour WestboundColour = new CustomColour(240, 231, 140);
@@ -111,6 +110,7 @@ namespace AuroraLabelItemsPlugin
                 }
             }
         }
+
 
         ///  Could use the new position of the radar track or its change in state (cancelled, etc.) to do some processing. 
         public void OnRadarTrackUpdate(RDP.RadarTrack updated)
@@ -227,7 +227,7 @@ namespace AuroraLabelItemsPlugin
                         Text = "◦"//★
                     };
 
-                case LABEL_ITEM_FIELD_SPEED:
+                case LABEL_ITEM_FILED_SPEED:
                     return new CustomLabelItem()
                     {
                         Text = "N" + flightDataRecord.TAS
