@@ -1,10 +1,12 @@
 ﻿using System;
-using System.Collections.Concurrent;
-using System.ComponentModel.Composition; //<--Need to add a reference to System.ComponentModel.Composition
+using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using vatsys;
 using vatsys.Plugin;
+using System.Collections.Concurrent;
+using System.ComponentModel.Composition; //<--Need to add a reference to System.ComponentModel.Composition
 using static vatsys.Performance;
+using static vatsys.Network;
 
 namespace AuroraStripItemsPlugin
 {
@@ -17,6 +19,8 @@ namespace AuroraStripItemsPlugin
         /// in the Profile
         const string LABEL_ITEM_ADSB_CPDLC = "AURORA_ADSB_CPDLC"; //field c(4)
         const string STRIP_ITEM_CALLSIGN = "AURORA_CALLSIGN";
+        const string STRIP_ITEM_CTLSECTOR = "AURORA_CDA";
+        const string STRIP_ITEM_NXTSECTOR = "AURORA_NDA";
         const string STRIP_ITEM_T10_FLAG = "AURORA_T10_FLAG";
         const string STRIP_ITEM_MNT_FLAG = "AURORA_MNT_FLAG";
         const string STRIP_ITEM_DIST_FLAG = "AURORA_DIST_FLAG";
@@ -25,20 +29,22 @@ namespace AuroraStripItemsPlugin
         const string STRIP_ITEM_MAN_EST = "AURORA_MAN_EST";
         const string STRIP_ITEM_LATERAL_FLAG = "AURORA_LATERAL_FLAG";
         const string STRIP_ITEM_ANNOT_IND = "AURORA_ANNOT_STRIP";
-        readonly static CustomColour EastboundColour = new CustomColour(240, 255, 255);
-        readonly static CustomColour WestboundColour = new CustomColour(240, 231, 140);
         readonly static CustomColour NonRVSM = new CustomColour(242, 133, 0);
         readonly static CustomColour SepFlags = new CustomColour(0, 196, 253);
-        readonly static CustomColour Probe = new CustomColour(0, 255, 0);
+        readonly static CustomColour Pending = new CustomColour(46, 139, 87);
         readonly static CustomColour NotCDA = new CustomColour(100, 0, 100);
         readonly ConcurrentDictionary<string, bool> eastboundCallsigns = new ConcurrentDictionary<string, bool>();
+        readonly ConcurrentDictionary<string, byte> flagtoggle = new ConcurrentDictionary<string, byte>();
         /// Plugin Name
         public string Name { get => "Aurora Label Items"; }
 
         public void OnFDRUpdate(FDP2.FDR updated)
         {
             if (FDP2.GetFDRIndex(updated.Callsign) == -1) //FDR was removed (that's what triggered the update)
+            {
                 eastboundCallsigns.TryRemove(updated.Callsign, out _);
+                flagtoggle.TryRemove(updated.Callsign, out _);
+            }
 
             else
 
@@ -55,27 +61,11 @@ namespace AuroraStripItemsPlugin
             }
         }
 
-        //internal void SendContactMe(NetworkPilot pilot, VSCSFrequency freq)
-        //{
-        //    if (validATC && HaveConnection && !((DateTime.UtcNow - pilot.LastContactMe).TotalMinutes < 1.0))
-        //    {
-        //        string text = "Please contact me on " + Conversions.FrequencyToString(freq.Frequency);
-        //        if (freq.AliasFrequency != VSCSFrequency.None.Frequency)
-        //        {
-        //            text = text + " (" + Conversions.FrequencyToString(freq.AliasFrequency) + ")";
-        //        }
-        //
-        //        SendTextMessage(pilot.Callsign, text);
-        //        pilot.LastContactMe = DateTime.UtcNow;
-        //    }
-        //}
-
         /// This is called each time a radar track is updated
         public void OnRadarTrackUpdate(RDP.RadarTrack updated)
         {
 
         }
-
         public static bool MachNumberTech(PerformanceData mnt)
         {
             if (mnt == null) return false;
@@ -89,7 +79,16 @@ namespace AuroraStripItemsPlugin
 
         private void ItemMouseClick(CustomLabelItemMouseClickEventArgs e)
         {
-            e.Item.CustomForeColour = SepFlags;
+            bool flagToggled = flagtoggle.TryGetValue(e.Track.GetFDR().Callsign, out _);
+
+            if (flagToggled)
+            {
+                flagtoggle.TryRemove(e.Track.GetFDR().Callsign, out _);
+            }
+            else
+            {
+                flagtoggle.TryAdd(e.Track.GetFDR().Callsign, 0);
+            }
             e.Handled = true;
         }
         public CustomStripItem GetCustomStripItem(string itemType, Track track, FDP2.FDR flightDataRecord, RDP.RadarTrack radarTrack)
@@ -98,7 +97,7 @@ namespace AuroraStripItemsPlugin
             Match pbn = Regex.Match(flightDataRecord.Remarks, @"PBN\/\w+\s");
             bool cpdlc = Regex.IsMatch(flightDataRecord.AircraftEquip, @"J5") || Regex.IsMatch(flightDataRecord.AircraftEquip, @"J7");
             bool adsc = Regex.IsMatch(flightDataRecord.AircraftSurvEquip, @"D1");
-            bool adsb = flightDataRecord.ADSB; //Regex.IsMatch(flightDataRecord.AircraftSurvEquip, @"B\d");
+            bool adsb = flightDataRecord.ADSB;
             bool rnp10 = Regex.IsMatch(pbn.Value, @"A1");
             bool rnp4 = Regex.IsMatch(pbn.Value, @"L1");
             bool rvsm = flightDataRecord.RVSM;
@@ -106,8 +105,9 @@ namespace AuroraStripItemsPlugin
             int cfl;
             bool isCfl = Int32.TryParse(flightDataRecord.CFLString, out cfl);
             bool isEastBound = true;
+            bool flagToggled = flagtoggle.TryGetValue(flightDataRecord.Callsign, out _);
 
-            if (flightDataRecord is null)
+                if (flightDataRecord is null)
                 return null;
 
             switch (itemType)
@@ -134,6 +134,30 @@ namespace AuroraStripItemsPlugin
                             Text = flightDataRecord.Callsign
                         };
                     }
+
+              case STRIP_ITEM_CTLSECTOR:
+             
+                    bool pendingCoordination = track.State == MMI.HMIStates.Preactive || track.State == MMI.HMIStates.Announced;
+
+                        return new CustomStripItem()
+                        {
+                            ForeColourIdentity = pendingCoordination ? Colours.Identities.Custom : default,
+                            CustomForeColour = Pending,
+                            Text = flightDataRecord.ControllingSector != null ? flightDataRecord.ControllingSector.Name : null
+                        };
+
+             
+            // case STRIP_ITEM_NXTSECTOR:
+            //
+            //       return new CustomStripItem()
+            //       {
+            //           ForeColourIdentity = Colours.Identities.Custom,
+            //           CustomForeColour = Pending,
+            //           Text = 
+            //       };
+                  
+
+
                 case LABEL_ITEM_ADSB_CPDLC:
 
 
@@ -176,7 +200,8 @@ namespace AuroraStripItemsPlugin
 
                         return new CustomStripItem()
                         {
-                            //BackColourIdentity = Colours.Identities.Custom,
+                            BackColourIdentity = flagToggled ? Colours.Identities.Custom : default,
+                            CustomBackColour = SepFlags,
                             Text = "M",
                             OnMouseClick = ItemMouseClick
                         };
@@ -189,7 +214,8 @@ namespace AuroraStripItemsPlugin
 
                         return new CustomStripItem()
                         {
-                            //BackColourIdentity = Colours.Identities.Custom,
+                            BackColourIdentity = flagToggled ? Colours.Identities.Custom : default,
+                            CustomBackColour = SepFlags,
                             Text = "R",
                             OnMouseClick = ItemMouseClick
                         };
@@ -203,7 +229,8 @@ namespace AuroraStripItemsPlugin
 
                         return new CustomStripItem()
                         {
-                            //BackColourIdentity = Colours.Identities.Custom,
+                            BackColourIdentity = flagToggled ? Colours.Identities.Custom : default,
+                            CustomBackColour = SepFlags,
                             Text = rnp4 ? "3" : "D",
                             OnMouseClick = ItemMouseClick
                         };
@@ -280,5 +307,14 @@ namespace AuroraStripItemsPlugin
                 default: return null;
             }
         }
+       //private CustomColour PETOColor(FDP2.FDR.ExtractedRoute.Segment estimate, Colours.Identities state)
+       //{
+       //    if (estimate.IsPETO)
+       //    {
+       //        return state = state;
+       //    }
+       //
+       //    return null;
+       //}
     }
 }

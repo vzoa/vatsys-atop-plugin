@@ -5,6 +5,7 @@ using System.Text.RegularExpressions;
 using vatsys;
 using vatsys.Plugin;
 
+
 //Note the reference to vatsys (set Copy Local to false) ----->
 
 namespace AuroraLabelItemsPlugin
@@ -16,8 +17,12 @@ namespace AuroraLabelItemsPlugin
 
         /// The name of the custom label item we've added to Labels
         /// in the Profile
+        const string LABEL_ITEM_SELECT_HORI = "SELECT_HORI";
+        const string LABEL_ITEM_SELECT_VERT = "SELECT_VERT";
         const string LABEL_ITEM_COMM_ICON = "AURORA_COMM_ICON"; //field a(2)
         const string LABEL_ITEM_ADSB_CPDLC = "AURORA_ADSB_CPDLC"; //field c(4)
+        const string LABEL_ITEM_ADS_FLAGS = "AURORA_ADS_FLAGS"; //field c(4)
+        const string LABEL_ITEM_MNT_FLAGS = "AURORA_MNT_FLAGS"; //field c(4)
         const string LABEL_ITEM_SCC = "AURORA_SCC";  //field c(5)
         const string LABEL_ITEM_ANNOT_IND = "AURORA_ANNOT_IND"; //field e(1)
         const string LABEL_ITEM_RESTR = "AURORA_RESTR"; //field f(1)
@@ -33,8 +38,56 @@ namespace AuroraLabelItemsPlugin
         readonly static CustomColour NotCDA = new CustomColour(100, 0, 100);
         readonly ConcurrentDictionary<string, bool> eastboundCallsigns = new ConcurrentDictionary<string, bool>();
         readonly ConcurrentDictionary<string, char> adsbcpdlcValues = new ConcurrentDictionary<string, char>();
-        readonly ConcurrentDictionary<string, char> rvsmValues = new ConcurrentDictionary<string, char>();
+        readonly ConcurrentDictionary<string, char> adsflagValues = new ConcurrentDictionary<string, char>();
+        readonly ConcurrentDictionary<string, char> mntflagValues = new ConcurrentDictionary<string, char>();
         readonly ConcurrentDictionary<string, char> altValues = new ConcurrentDictionary<string, char>();
+        readonly ConcurrentDictionary<string, byte> radartoggle = new ConcurrentDictionary<string, byte>();
+        readonly ConcurrentDictionary<string, byte> adsflagtoggle = new ConcurrentDictionary<string, byte>();
+        readonly ConcurrentDictionary<string, byte> mntflagtoggle = new ConcurrentDictionary<string, byte>();
+        readonly ConcurrentDictionary<string, byte> downlink = new ConcurrentDictionary<string, byte>();
+        readonly ConcurrentDictionary<string, byte> trackselect = new ConcurrentDictionary<string, byte>();
+
+        public AuroraLabelItemsPlugin()
+        {
+            Network.PrivateMessagesChanged += Network_PrivateMessagesChanged;
+            Network.RadioMessageAcknowledged += Network_RadioMessageAcknowledged;
+            //MMI.SelectedTrackChanged += MMI_SelectedTrackChanged;
+        }
+
+        //private void MMI_SelectedTrackChanged(object sender, EventArgs e)
+        //{
+        //    var callsign = MMI.SelectedTrack?.GetFDR()?.Callsign;
+        //    if (callsign != null)
+        //    {
+        //        trackselect.TryRemove(callsign, out _);
+        //        
+        //    }
+        //    else
+        //    {
+        //        trackselect.TryAdd(callsign, 0);
+        //    }
+        //}
+
+        private void Network_RadioMessageAcknowledged(object sender, RadioMessageEventArgs e)
+        {
+            throw new NotImplementedException();
+        }
+
+        private void Network_PrivateMessagesChanged(object sender, Network.GenericMessageEventArgs e)
+        {
+            bool downLink = e.Message.Sent == true;
+
+            if (downLink)
+            {
+                downlink.TryRemove(e.Message.Address, out _);
+            }
+            else
+            {
+                downlink.TryAdd(e.Message.Address, 0);
+            }
+
+        }
+
         /// Plugin Name
         public string Name { get => "Aurora Label Items"; }
 
@@ -48,10 +101,20 @@ namespace AuroraLabelItemsPlugin
             {
                 eastboundCallsigns.TryRemove(updated.Callsign, out _);
                 adsbcpdlcValues.TryRemove(updated.Callsign, out _);
+                adsflagValues.TryRemove(updated.Callsign, out _);
+                mntflagValues.TryRemove(updated.Callsign, out _);
                 altValues.TryRemove(updated.Callsign, out _);
+                radartoggle.TryRemove(updated.Callsign, out _);
+                adsflagtoggle.TryRemove(updated.Callsign, out _);
+                mntflagtoggle.TryRemove(updated.Callsign, out _);
+                downlink.TryRemove(updated.Callsign, out _);
+                trackselect.TryRemove(updated.Callsign, out _);
             }
             else
             {
+                Match pbn = Regex.Match(updated.Remarks, @"PBN\/\w+\s");
+                bool rnp10 = Regex.IsMatch(pbn.Value, @"A1");
+                bool rnp4 = Regex.IsMatch(pbn.Value, @"L1");
                 bool cpdlc = Regex.IsMatch(updated.AircraftEquip, @"J5") || Regex.IsMatch(updated.AircraftEquip, @"J7");
                 bool adsc = Regex.IsMatch(updated.AircraftSurvEquip, @"D1");
                 int cfl;
@@ -59,27 +122,44 @@ namespace AuroraLabelItemsPlugin
                 var vs = updated.PredictedPosition.VerticalSpeed;
                 int level = updated.PRL / 100;
 
-
-                char c4 = default;
+                char c1 = default;
 
                 if (!updated.ADSB && cpdlc)
 
-                    c4 = '⧆';
+                    c1 = '⧆';
 
                 else if (!updated.ADSB)
 
-                    c4 = '⎕';
+                    c1 = '⎕';
 
                 else if (cpdlc)
 
-                    c4 = '*';
+                    c1 = '*';
 
 
-                adsbcpdlcValues.AddOrUpdate(updated.Callsign, c4, (k, v) => c4);
+                adsbcpdlcValues.AddOrUpdate(updated.Callsign, c1, (k, v) => c1);
+
+                char c2 = default;
+
+                if (adsc & cpdlc & rnp4)
+                    c2 = '3';
+
+                else if (adsc & cpdlc & rnp10)
+                    c2 = 'D';
+
+                adsflagValues.AddOrUpdate(updated.Callsign, c2, (k, v) => c2);
+
+                char c3 = default;
+
+                if (AuroraStripItemsPlugin.AuroraStripItemsPlugin.MachNumberTech(updated.PerformanceData))
+                    c3 = 'M';
+
+                mntflagValues.AddOrUpdate(updated.Callsign, c3, (k, v) => c3);
+
 
                 char h1 = default;
 
-                if (level == updated.RFL)//level
+                if (level == cfl || level == updated.RFL)//level
                     h1 = default;
 
                 else if (cfl > level || vs > 300)//Issued or trending climb
@@ -94,7 +174,6 @@ namespace AuroraLabelItemsPlugin
                 else if (level - updated.RFL / 100 <= -3)//deviating below
                     h1 = '-';
 
-                //Track.TrackTypes.TRACK_TYPE_FP
 
                 altValues.AddOrUpdate(updated.Callsign, h1, (k, v) => h1);
 
@@ -118,6 +197,50 @@ namespace AuroraLabelItemsPlugin
 
         }
 
+
+        private void HandleRadarFlagClick(CustomLabelItemMouseClickEventArgs e)
+        {
+            bool radarToggled = radartoggle.TryGetValue(e.Track.GetFDR().Callsign, out _);
+
+            if (radarToggled)
+            {
+                radartoggle.TryRemove(e.Track.GetFDR().Callsign, out _);
+            }
+            else
+            {
+                radartoggle.TryAdd(e.Track.GetFDR().Callsign, 0);
+            }
+            e.Handled = true;
+        }
+        private void HandleADSFlagClick(CustomLabelItemMouseClickEventArgs e)
+        {
+            bool adsflagToggled = radartoggle.TryGetValue(e.Track.GetFDR().Callsign, out _);
+
+            if (adsflagToggled)
+            {
+                adsflagtoggle.TryRemove(e.Track.GetFDR().Callsign, out _);
+            }
+            else
+            {
+                adsflagtoggle.TryAdd(e.Track.GetFDR().Callsign, 0);
+            }
+            e.Handled = true;
+        }
+
+        private void HandleMNTFlagClick(CustomLabelItemMouseClickEventArgs e)
+        {
+            bool mntflagToggled = radartoggle.TryGetValue(e.Track.GetFDR().Callsign, out _);
+
+            if (mntflagToggled)
+            {
+                mntflagtoggle.TryRemove(e.Track.GetFDR().Callsign, out _);
+            }
+            else
+            {
+                mntflagtoggle.TryAdd(e.Track.GetFDR().Callsign, 0);
+            }
+            e.Handled = true;
+        }
         /// vatSys calls this function when it encounters a custom label item (defined in Labels.xml) during the label rendering.
         /// itemType is the value of the Type attribute in Labels.xml
         /// If it's not our item being called (another plugins, for example), return null.
@@ -128,20 +251,65 @@ namespace AuroraLabelItemsPlugin
             if (flightDataRecord == null || track == null)
                 return null;
 
-            char c4;
-            adsbcpdlcValues.TryGetValue(flightDataRecord.Callsign, out c4);
+            char c1;
+            adsbcpdlcValues.TryGetValue(flightDataRecord.Callsign, out c1);
+            char c2;
+            adsflagValues.TryGetValue(flightDataRecord.Callsign, out c2);
+            char c3;
+            mntflagValues.TryGetValue(flightDataRecord.Callsign, out c3);
             char h1;
             altValues.TryGetValue(flightDataRecord.Callsign, out h1);
 
+            bool radarToggled = radartoggle.TryGetValue(flightDataRecord.Callsign, out _);
+            bool adsflagToggled = adsflagtoggle.TryGetValue(flightDataRecord.Callsign, out _);
+            bool mntflagToggled = mntflagtoggle.TryGetValue(flightDataRecord.Callsign, out _);
+            bool downLink = downlink.TryGetValue(flightDataRecord.Callsign, out _);
+            bool trackSelect = trackselect.TryGetValue(flightDataRecord.Callsign, out _);
+          
+
             switch (itemType)
             {
+                case LABEL_ITEM_SELECT_HORI:
+
+                    if (trackSelect)
+                    {
+                        return new CustomLabelItem()
+                        {
+                            Border = BorderFlags.Horizontal
+                        };
+                    }
+
+                    else return null;
+
+                case LABEL_ITEM_SELECT_VERT:
+
+                    if (trackSelect)
+                    {
+                        return new CustomLabelItem()
+                        {
+                            Border = BorderFlags.Vertical
+                        };
+                    }
+
+                    else return null;
+
                 case LABEL_ITEM_COMM_ICON:
 
-                    return new CustomLabelItem()
+                    if (downLink)
+                    { 
+                        return new CustomLabelItem()
+                        {
+                            Text = "▼", 
+                            Border = BorderFlags.All
+                        };
+                    }
+                    else
                     {
-                        Text = "⬜"  //⬜▼⟏
-                    };
-
+                        return new CustomLabelItem()
+                        {
+                            Text = "⬜" 
+                        };
+                    }
                 case LABEL_ITEM_ADSB_CPDLC:
 
                     bool useCustomForeColour = track.State == MMI.HMIStates.Preactive || track.State == MMI.HMIStates.Announced;
@@ -152,16 +320,53 @@ namespace AuroraLabelItemsPlugin
                         {
                             ForeColourIdentity = Colours.Identities.Custom,
                             CustomForeColour = NotCDA,
-                            Text = c4.ToString()
+                            Text = c1.ToString()
                         };
                     }
                     else
                     {
                         return new CustomLabelItem()
                         {
-                            Text = c4.ToString()
+                            Text = c1.ToString()
                         };
                     }
+
+                case LABEL_ITEM_ADS_FLAGS:
+
+                    if (adsflagToggled)
+                    {
+                        return new CustomLabelItem()
+                        {
+                            Text = c2.ToString(),
+                            OnMouseClick = HandleADSFlagClick,
+                        };
+                    }
+
+                    else
+                        return new CustomLabelItem()
+                        {
+                            Text = "",
+                            OnMouseClick = HandleADSFlagClick,
+                        };
+
+                case LABEL_ITEM_MNT_FLAGS:
+
+                    if (mntflagToggled)
+                    {
+                        return new CustomLabelItem()
+                        {
+                            Text = c3.ToString(),
+                            OnMouseClick = HandleMNTFlagClick,
+                        };
+                    }
+
+                    else
+                        return new CustomLabelItem()
+                        {
+                            Text = "",
+                            OnMouseClick = HandleMNTFlagClick,
+                        };
+
 
                 //case LABEL_ITEM_SCC:
                 //
@@ -172,23 +377,34 @@ namespace AuroraLabelItemsPlugin
 
 
                 case LABEL_ITEM_ANNOT_IND:
+                    bool scratch = String.IsNullOrEmpty(flightDataRecord.LabelOpData);
 
-                    return new CustomLabelItem()
+                    if (scratch)
                     {
-                        Text = "◦" //&
-                    };
+                        return new CustomLabelItem()
+                        {
+                            Text = "◦"
+                        };
+                    }
 
+                    else
+                    {
+                        return new CustomLabelItem()
+                        {
+                            Text = "&"
+                        };
+                    }
 
-                //case LABEL_ITEM_RESTR:
-                //
-                //    if (Regex.IsMatch(flightDataRecord.GlobalOpData, @"AT \d\d\d\d"))
-                //
-                //        return new CustomLabelItem()
-                //        {
-                //            Text = "x"
-                //        };
-                //
-                //    return null;
+                case LABEL_ITEM_RESTR:
+                
+                    if (flightDataRecord.LabelOpData.Contains ("AT") || flightDataRecord.LabelOpData.Contains("BY") || flightDataRecord.LabelOpData.Contains("CLEARED TO"))
+                
+                        return new CustomLabelItem()
+                        {
+                            Text = "x"
+                        };
+                
+                    return null;
 
                 case LABEL_ITEM_VMI:
                     bool isNonRVSMOrNewCFL = !flightDataRecord.RVSM || track.NewCFL;
@@ -222,10 +438,24 @@ namespace AuroraLabelItemsPlugin
 
                 case LABEL_ITEM_RADAR_IND:
 
-                    return new CustomLabelItem()
+
+                    if (radarToggled)
                     {
-                        Text = "◦"//★
-                    };
+                        return new CustomLabelItem()
+                        {
+                            Text = "★",
+                            OnMouseClick = HandleRadarFlagClick,
+                        };
+                    }
+
+                    else
+                    {
+                        return new CustomLabelItem()
+                        {
+                            Text = "◦",
+                            OnMouseClick = HandleRadarFlagClick,
+                        };
+                    }
 
                 case LABEL_ITEM_FILED_SPEED:
                     return new CustomLabelItem()
@@ -244,15 +474,6 @@ namespace AuroraLabelItemsPlugin
                 default:
                     return null;
             }
-        }
-
-        public CustomLabelItem TrackSelectBox(Track a, MMI.ClickspotCategories b)  //box around selected tracks
-        {
-            //if (MMI.ClickspotTypes.Track_Select)
-            return new CustomLabelItem()
-            {
-                Border = MMI.SelectedTrack != null ? BorderFlags.All : BorderFlags.None,
-            };
         }
 
         public CustomColour SelectASDTrackColour(Track track)
