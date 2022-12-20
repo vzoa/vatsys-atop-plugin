@@ -45,28 +45,13 @@ namespace AuroraLabelItemsPlugin
         readonly ConcurrentDictionary<string, byte> adsflagtoggle = new ConcurrentDictionary<string, byte>();
         readonly ConcurrentDictionary<string, byte> mntflagtoggle = new ConcurrentDictionary<string, byte>();
         readonly ConcurrentDictionary<string, byte> downlink = new ConcurrentDictionary<string, byte>();
-        readonly ConcurrentDictionary<string, byte> trackselect = new ConcurrentDictionary<string, byte>();
 
         public AuroraLabelItemsPlugin()
         {
             Network.PrivateMessagesChanged += Network_PrivateMessagesChanged;
             Network.RadioMessageAcknowledged += Network_RadioMessageAcknowledged;
-            //MMI.SelectedTrackChanged += MMI_SelectedTrackChanged;
         }
 
-        //private void MMI_SelectedTrackChanged(object sender, EventArgs e)
-        //{
-        //    var callsign = MMI.SelectedTrack?.GetFDR()?.Callsign;
-        //    if (callsign != null)
-        //    {
-        //        trackselect.TryRemove(callsign, out _);
-        //        
-        //    }
-        //    else
-        //    {
-        //        trackselect.TryAdd(callsign, 0);
-        //    }
-        //}
 
         private void Network_RadioMessageAcknowledged(object sender, RadioMessageEventArgs e)
         {
@@ -108,7 +93,6 @@ namespace AuroraLabelItemsPlugin
                 adsflagtoggle.TryRemove(updated.Callsign, out _);
                 mntflagtoggle.TryRemove(updated.Callsign, out _);
                 downlink.TryRemove(updated.Callsign, out _);
-                trackselect.TryRemove(updated.Callsign, out _);
             }
             else
             {
@@ -264,34 +248,50 @@ namespace AuroraLabelItemsPlugin
             bool adsflagToggled = adsflagtoggle.TryGetValue(flightDataRecord.Callsign, out _);
             bool mntflagToggled = mntflagtoggle.TryGetValue(flightDataRecord.Callsign, out _);
             bool downLink = downlink.TryGetValue(flightDataRecord.Callsign, out _);
-            bool trackSelect = trackselect.TryGetValue(flightDataRecord.Callsign, out _);
-          
+            bool selectedCallsign = MMI.SelectedTrack?.GetFDR()?.Callsign == flightDataRecord.Callsign;
+
 
             switch (itemType)
             {
                 case LABEL_ITEM_SELECT_HORI:
 
-                    if (trackSelect)
+                    if (selectedCallsign)
                     {
                         return new CustomLabelItem()
+
                         {
-                            Border = BorderFlags.Horizontal
+                            Border = BorderFlags.Top
                         };
                     }
 
-                    else return null;
+                    else
+                    {
+                        return new CustomLabelItem()
+
+                        {
+                            Border = BorderFlags.None
+                        };
+                    }
 
                 case LABEL_ITEM_SELECT_VERT:
 
-                    if (trackSelect)
+                    if (selectedCallsign)
                     {
                         return new CustomLabelItem()
                         {
-                            Border = BorderFlags.Vertical
+                            Text = "",
+                            Border = BorderFlags.Left
                         };
                     }
 
-                    else return null;
+                    else
+                    {
+                        return new CustomLabelItem()
+                        {
+                            Text = "",
+                            Border = BorderFlags.None
+                        };
+                    }
 
                 case LABEL_ITEM_COMM_ICON:
 
