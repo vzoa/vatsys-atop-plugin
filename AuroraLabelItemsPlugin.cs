@@ -458,9 +458,11 @@ namespace AuroraLabelItemsPlugin
                     }
 
                 case LABEL_ITEM_FILED_SPEED:
+                    var mach = flightDataRecord.TAS / 581.0;
                     return new CustomLabelItem()
                     {
-                        Text = "N" + flightDataRecord.TAS
+                        Text = "M" + Convert.ToDecimal(mach).ToString("F2").Replace(".","")
+                        //Text = "N" + flightDataRecord.TAS
                     };
 
                 case LABEL_ITEM_3DIGIT_GROUNDSPEED:
