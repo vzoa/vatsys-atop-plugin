@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Concurrent;
-using System.ComponentModel.Composition; //<--Need to add a reference to System.ComponentModel.Composition
+using System.ComponentModel.Composition;
+using System.Linq; //<--Need to add a reference to System.ComponentModel.Composition
 using System.Text.RegularExpressions;
 using vatsys;
 using vatsys.Plugin;
@@ -82,6 +83,8 @@ namespace AuroraLabelItemsPlugin
         /// the flight planned PBN category and store the character we want to display in the label in the dictionary.
         public void OnFDRUpdate(FDP2.FDR updated)
         {
+            AutoAssume(updated);
+            // autoDrop(updated);
             if (FDP2.GetFDRIndex(updated.Callsign) == -1)
             {
                 eastboundCallsigns.TryRemove(updated.Callsign, out _);
@@ -174,11 +177,41 @@ namespace AuroraLabelItemsPlugin
             }
         }
 
+        public void ProbeConflict(RDP.RadarTrack rt)
+        {
+            // TODO: implement
+        }
+
+        public void AutoAssume(RDP.RadarTrack rt)
+        {
+            var fdr = rt.CoupledFDR;
+            AutoAssume(fdr);
+        }
+
+        public static void AutoAssume(FDP2.FDR fdr)
+        {
+            if (fdr.ControllingSector == null && MMI.IsMySectorConcerned(fdr))
+            {
+                FDP2.AcceptJurisdiction(fdr, MMI.SectorsControlled.First());
+                FDP2.HandoffFirst(fdr);
+            }
+        }
+
+        public void AutoDrop(FDP2.FDR fdr)
+        {
+            if (fdr.IsTrackedByMe && MMI.SectorsControlled.ToList()
+                    .TrueForAll(s => !s.IsInSector(fdr.GetLocation(), fdr.PRL)))
+            {
+                FDP2.HandoffToNone(fdr);
+            }
+        }
+
 
         ///  Could use the new position of the radar track or its change in state (cancelled, etc.) to do some processing. 
         public void OnRadarTrackUpdate(RDP.RadarTrack updated)
         {
-
+            AutoAssume(updated);
+            ProbeConflict(updated);
         }
 
 
