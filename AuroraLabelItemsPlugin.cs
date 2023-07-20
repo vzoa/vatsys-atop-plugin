@@ -46,6 +46,7 @@ namespace AuroraLabelItemsPlugin
         readonly ConcurrentDictionary<string, byte> adsflagtoggle = new ConcurrentDictionary<string, byte>();
         readonly ConcurrentDictionary<string, byte> mntflagtoggle = new ConcurrentDictionary<string, byte>();
         readonly ConcurrentDictionary<string, byte> downlink = new ConcurrentDictionary<string, byte>();
+        readonly ConcurrentDictionary<string, byte> conflicts = new ConcurrentDictionary<string, byte>();
 
         public AuroraLabelItemsPlugin()
         {
@@ -71,7 +72,6 @@ namespace AuroraLabelItemsPlugin
             {
                 downlink.TryAdd(e.Message.Address, 0);
             }
-
         }
 
         /// Plugin Name
@@ -84,7 +84,7 @@ namespace AuroraLabelItemsPlugin
         public void OnFDRUpdate(FDP2.FDR updated)
         {
             AutoAssume(updated);
-            // autoDrop(updated);
+            AutoDrop(updated);
             if (FDP2.GetFDRIndex(updated.Callsign) == -1)
             {
                 eastboundCallsigns.TryRemove(updated.Callsign, out _);
@@ -177,33 +177,59 @@ namespace AuroraLabelItemsPlugin
             }
         }
 
-        public void ProbeConflict(RDP.RadarTrack rt)
+        private static void ProbeMidTermConflict(RDP.RadarTrack rt)
         {
             // TODO: implement
         }
 
-        public void AutoAssume(RDP.RadarTrack rt)
+        private static void AutoAssume(RDP.RadarTrack rt)
         {
             var fdr = rt.CoupledFDR;
-            AutoAssume(fdr);
-        }
-
-        public static void AutoAssume(FDP2.FDR fdr)
-        {
-            if (fdr.ControllingSector == null && MMI.IsMySectorConcerned(fdr))
+            if (fdr != null)
             {
-                FDP2.AcceptJurisdiction(fdr, MMI.SectorsControlled.First());
-                FDP2.HandoffFirst(fdr);
+                AutoAssume(fdr);
             }
         }
 
-        public void AutoDrop(FDP2.FDR fdr)
+        private static void AutoAssume(FDP2.FDR fdr)
         {
-            if (fdr.IsTrackedByMe && MMI.SectorsControlled.ToList()
-                    .TrueForAll(s => !s.IsInSector(fdr.GetLocation(), fdr.PRL)))
+            if (fdr != null)
             {
-                FDP2.HandoffToNone(fdr);
+                FDP2.CalculateTrajectoryEstimates(fdr);
+                FDP2.CalculateAffectedSectors(fdr);
+                if ((fdr.ControllingSector == null && MMI.IsMySectorConcerned(fdr)) ||
+                    (MMI.SectorsControlled.ToList()
+                        .Exists(s => s.IsInSector(fdr.GetLocation(), fdr.PRL)) && !fdr.IsTrackedByMe && MMI.SectorsControlled.Contains(fdr.ControllingSector)))
+                {
+                    FDP2.AcceptJurisdiction(fdr, MMI.SectorsControlled.First());
+                    FDP2.HandoffFirst(fdr);
+                }
             }
+                
+        }
+
+        private static void AutoDrop(RDP.RadarTrack rt)
+        {
+            var fdr = rt.CoupledFDR;
+            if (fdr != null)
+            {
+                AutoDrop(fdr);
+            }
+        }
+
+        private static void AutoDrop(FDP2.FDR fdr)
+        {
+            if (fdr != null)
+            {
+                FDP2.CalculateAffectedSectors(fdr);
+                FDP2.CalculateTrajectoryEstimates(fdr);
+                if (fdr.IsTrackedByMe && !MMI.IsMySectorConcerned(fdr) && MMI.SectorsControlled.ToList()
+                        .TrueForAll(s => !s.IsInSector(fdr.GetLocation(), fdr.PRL)))
+                {
+                    FDP2.HandoffToNone(fdr);
+                }
+            }
+                
         }
 
 
@@ -211,7 +237,8 @@ namespace AuroraLabelItemsPlugin
         public void OnRadarTrackUpdate(RDP.RadarTrack updated)
         {
             AutoAssume(updated);
-            ProbeConflict(updated);
+            AutoDrop(updated);
+            ProbeMidTermConflict(updated);
         }
 
 
