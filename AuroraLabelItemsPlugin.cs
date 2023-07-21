@@ -1,8 +1,10 @@
 ﻿using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.ComponentModel.Composition;
 using System.Linq; //<--Need to add a reference to System.ComponentModel.Composition
 using System.Text.RegularExpressions;
+using Microsoft.Spatial;
 using vatsys;
 using vatsys.Plugin;
 
@@ -12,19 +14,18 @@ using vatsys.Plugin;
 namespace AuroraLabelItemsPlugin
 {
     [Export(typeof(IPlugin))]
-
     public class AuroraLabelItemsPlugin : ILabelPlugin
     {
-
         /// The name of the custom label item we've added to Labels
         /// in the Profile
         const string LABEL_ITEM_SELECT_HORI = "SELECT_HORI";
+
         const string LABEL_ITEM_SELECT_VERT = "SELECT_VERT";
         const string LABEL_ITEM_COMM_ICON = "AURORA_COMM_ICON"; //field a(2)
         const string LABEL_ITEM_ADSB_CPDLC = "AURORA_ADSB_CPDLC"; //field c(4)
         const string LABEL_ITEM_ADS_FLAGS = "AURORA_ADS_FLAGS"; //field c(4)
         const string LABEL_ITEM_MNT_FLAGS = "AURORA_MNT_FLAGS"; //field c(4)
-        const string LABEL_ITEM_SCC = "AURORA_SCC";  //field c(5)
+        const string LABEL_ITEM_SCC = "AURORA_SCC"; //field c(5)
         const string LABEL_ITEM_ANNOT_IND = "AURORA_ANNOT_IND"; //field e(1)
         const string LABEL_ITEM_RESTR = "AURORA_RESTR"; //field f(1)
         const string LABEL_ITEM_VMI = "AURORA_VMI"; //field h(1)
@@ -75,7 +76,10 @@ namespace AuroraLabelItemsPlugin
         }
 
         /// Plugin Name
-        public string Name { get => "Aurora Label Items"; }
+        public string Name
+        {
+            get => "Aurora Label Items";
+        }
 
         /// This is called each time a flight data record is updated
         /// Here we are updating the eastbound callsigns dictionary with each flight data record
@@ -146,40 +150,83 @@ namespace AuroraLabelItemsPlugin
 
                 char h1 = default;
 
-                if (level == cfl || level == updated.RFL)//level
+                if (level == cfl || level == updated.RFL) //level
                     h1 = default;
 
-                else if (cfl > level || vs > 300)//Issued or trending climb
+                else if (cfl > level || vs > 300) //Issued or trending climb
                     h1 = '↑';
 
-                else if (cfl > 0 && cfl < level || vs < -300)//Issued or trending descent
+                else if (cfl > 0 && cfl < level || vs < -300) //Issued or trending descent
                     h1 = '↓';
 
-                else if (level - updated.RFL / 100 >= 3)//deviating above
+                else if (level - updated.RFL / 100 >= 3) //deviating above
                     h1 = '+';
 
-                else if (level - updated.RFL / 100 <= -3)//deviating below
+                else if (level - updated.RFL / 100 <= -3) //deviating below
                     h1 = '-';
 
 
                 altValues.AddOrUpdate(updated.Callsign, h1, (k, v) => h1);
 
-
-
                 if (updated.ParsedRoute.Count > 1)
                 {
                     //calculate track from first route point to last (Departure point to destination point)
                     var rte = updated.ParsedRoute;
-                    double trk = Conversions.CalculateTrack(rte.First().Intersection.LatLong, rte.Last().Intersection.LatLong);
+                    double trk = Conversions.CalculateTrack(rte.First().Intersection.LatLong,
+                        rte.Last().Intersection.LatLong);
                     bool east = trk >= 0 && trk < 180;
                     eastboundCallsigns.AddOrUpdate(updated.Callsign, east, (c, e) => east);
                 }
             }
         }
 
-        private static void ProbeMidTermConflict(RDP.RadarTrack rt)
+        private static GeographyMultiLineString GetTrajectoryPoints(List<FDP2.FDR.PositionPrediction> trajectory)
         {
-            // TODO: implement
+            var lineString = GeographyFactory.MultiLineString(CoordinateSystem.DefaultGeography);
+            trajectory.ForEach(t =>
+                lineString.LineTo(t.Location.Latitude, t.Location.Longitude));
+
+            return lineString.Build();
+        }
+
+        private static void ProbeStandardConflict(FDP2.FDR fdr)
+        {
+            if (fdr == null) return;
+            int cfl;
+            bool isCfl = Int32.TryParse(fdr.CFLString, out cfl);
+            if (!isCfl) return;
+
+            var isRvsm = fdr.RVSM;
+            var trajectoryPoints = GetTrajectoryPoints(fdr.Trajectory);
+            
+            foreach (var fdr2 in FDP2.GetFDRs)
+            {
+                if (fdr2 == null || MMI.IsMySectorConcerned(fdr)) continue;
+                int cfl2;
+                bool isCfl2 = Int32.TryParse(fdr.CFLString, out cfl2);
+                if (!isCfl2) continue;
+                var isRvsm2 = fdr2.RVSM;
+                var delta = Math.Abs(cfl - cfl2);
+                int requiredAltSep = (cfl > FDP2.RVSM_BAND_LOWER && !isRvsm) ||
+                                     (cfl2 > FDP2.RVSM_BAND_LOWER && !isRvsm2) || cfl > FDP2.RVSM_BAND_UPPER ||
+                                     cfl2 > FDP2.RVSM_BAND_UPPER
+                    ? 2000
+                    : 1000;
+
+                if (delta < requiredAltSep)
+                {
+                    var trajectoryPoints2 = GetTrajectoryPoints(fdr2.Trajectory);
+                    var distance = trajectoryPoints.Distance(trajectoryPoints2);
+                    if (distance != null)
+                    {
+                        var distanceNm = Conversions.MetresToNauticalMiles((double) distance);
+                        if (distanceNm < 23)
+                        {
+                            // TODO: things
+                        }
+                    } 
+                }
+            }
         }
 
         private static void AutoAssume(RDP.RadarTrack rt)
@@ -201,13 +248,12 @@ namespace AuroraLabelItemsPlugin
                 }
 
                 if (MMI.SectorsControlled.ToList()
-                        .Exists(s => s.IsInSector(fdr.GetLocation(), fdr.PRL)) && !fdr.IsTrackedByMe && MMI.SectorsControlled.Contains(fdr.ControllingSector) || fdr.ControllingSector == null)
+                        .Exists(s => s.IsInSector(fdr.GetLocation(), fdr.PRL)) && !fdr.IsTrackedByMe &&
+                    MMI.SectorsControlled.Contains(fdr.ControllingSector) || fdr.ControllingSector == null)
                 {
                     MMI.AcceptJurisdiction(fdr);
                 }
-                
             }
-                
         }
 
         private static void AutoDrop(RDP.RadarTrack rt)
@@ -222,14 +268,13 @@ namespace AuroraLabelItemsPlugin
         private static void AutoDrop(FDP2.FDR fdr)
         {
             if (fdr != null)
-            {                
+            {
                 if (fdr.IsTrackedByMe && MMI.SectorsControlled.ToList()
                         .TrueForAll(s => !s.IsInSector(fdr.GetLocation(), fdr.PRL)))
-                {                    
-                    MMI.HandoffToNone(fdr); 
+                {
+                    MMI.HandoffToNone(fdr);
                 }
             }
-                
         }
 
 
@@ -238,7 +283,6 @@ namespace AuroraLabelItemsPlugin
         {
             AutoAssume(updated);
             AutoDrop(updated);
-            ProbeMidTermConflict(updated);
         }
 
 
@@ -254,8 +298,10 @@ namespace AuroraLabelItemsPlugin
             {
                 radartoggle.TryAdd(e.Track.GetFDR().Callsign, 0);
             }
+
             e.Handled = true;
         }
+
         private void HandleADSFlagClick(CustomLabelItemMouseClickEventArgs e)
         {
             bool adsflagToggled = radartoggle.TryGetValue(e.Track.GetFDR().Callsign, out _);
@@ -268,6 +314,7 @@ namespace AuroraLabelItemsPlugin
             {
                 adsflagtoggle.TryAdd(e.Track.GetFDR().Callsign, 0);
             }
+
             e.Handled = true;
         }
 
@@ -283,15 +330,17 @@ namespace AuroraLabelItemsPlugin
             {
                 mntflagtoggle.TryAdd(e.Track.GetFDR().Callsign, 0);
             }
+
             e.Handled = true;
         }
+
         /// vatSys calls this function when it encounters a custom label item (defined in Labels.xml) during the label rendering.
         /// itemType is the value of the Type attribute in Labels.xml
         /// If it's not our item being called (another plugins, for example), return null.
         /// As a general rule, don't do processing in here as you'll slow down the ASD refresh. In the case of parsing a level to a string though, that's fine.
-        public CustomLabelItem GetCustomLabelItem(string itemType, Track track, FDP2.FDR flightDataRecord, RDP.RadarTrack radarTrack)
+        public CustomLabelItem GetCustomLabelItem(string itemType, Track track, FDP2.FDR flightDataRecord,
+            RDP.RadarTrack radarTrack)
         {
-
             if (flightDataRecord == null || track == null)
                 return null;
 
@@ -356,10 +405,10 @@ namespace AuroraLabelItemsPlugin
                 case LABEL_ITEM_COMM_ICON:
 
                     if (downLink)
-                    { 
+                    {
                         return new CustomLabelItem()
                         {
-                            Text = "▼", 
+                            Text = "▼",
                             Border = BorderFlags.All
                         };
                     }
@@ -367,12 +416,13 @@ namespace AuroraLabelItemsPlugin
                     {
                         return new CustomLabelItem()
                         {
-                            Text = "⬜" 
+                            Text = "⬜"
                         };
                     }
                 case LABEL_ITEM_ADSB_CPDLC:
 
-                    bool useCustomForeColour = track.State == MMI.HMIStates.Preactive || track.State == MMI.HMIStates.Announced;
+                    bool useCustomForeColour =
+                        track.State == MMI.HMIStates.Preactive || track.State == MMI.HMIStates.Announced;
 
                     if (useCustomForeColour)
                     {
@@ -456,14 +506,15 @@ namespace AuroraLabelItemsPlugin
                     }
 
                 case LABEL_ITEM_RESTR:
-                
-                    if (flightDataRecord.LabelOpData.Contains ("AT") || flightDataRecord.LabelOpData.Contains("BY") || flightDataRecord.LabelOpData.Contains("CLEARED TO"))
-                
+
+                    if (flightDataRecord.LabelOpData.Contains("AT") || flightDataRecord.LabelOpData.Contains("BY") ||
+                        flightDataRecord.LabelOpData.Contains("CLEARED TO"))
+
                         return new CustomLabelItem()
                         {
                             Text = "x"
                         };
-                
+
                     return null;
 
                 case LABEL_ITEM_VMI:
@@ -521,16 +572,18 @@ namespace AuroraLabelItemsPlugin
                     var mach = flightDataRecord.TAS / 581.0;
                     return new CustomLabelItem()
                     {
-                        Text = "M" + Convert.ToDecimal(mach).ToString("F2").Replace(".","")
+                        Text = "M" + Convert.ToDecimal(mach).ToString("F2").Replace(".", "")
                         //Text = "N" + flightDataRecord.TAS
                     };
 
                 case LABEL_ITEM_3DIGIT_GROUNDSPEED:
                     //get groundspeed value from either FDR or radarTrack if coupled
-                    var gs = radarTrack == null ? flightDataRecord.PredictedPosition.Groundspeed : radarTrack.GroundSpeed;
+                    var gs = radarTrack == null
+                        ? flightDataRecord.PredictedPosition.Groundspeed
+                        : radarTrack.GroundSpeed;
                     return new CustomLabelItem()
                     {
-                        Text = "N" + gs.ToString("000")//format as 3 digits (with leading zeros)
+                        Text = "N" + gs.ToString("000") //format as 3 digits (with leading zeros)
                     };
 
                 default:
