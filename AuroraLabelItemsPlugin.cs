@@ -195,15 +195,17 @@ namespace AuroraLabelItemsPlugin
         {
             if (fdr != null)
             {
-                FDP2.CalculateTrajectoryEstimates(fdr);
-                FDP2.CalculateAffectedSectors(fdr);
-                if ((fdr.ControllingSector == null && MMI.IsMySectorConcerned(fdr)) ||
-                    (MMI.SectorsControlled.ToList()
-                        .Exists(s => s.IsInSector(fdr.GetLocation(), fdr.PRL)) && !fdr.IsTrackedByMe && MMI.SectorsControlled.Contains(fdr.ControllingSector)))
+                if (!fdr.ESTed && fdr.ControllingSector == null && MMI.IsMySectorConcerned(fdr))
                 {
-                    FDP2.AcceptJurisdiction(fdr, MMI.SectorsControlled.First());
-                    FDP2.HandoffFirst(fdr);
+                    MMI.EstFDR(fdr);
                 }
+
+                if (MMI.SectorsControlled.ToList()
+                        .Exists(s => s.IsInSector(fdr.GetLocation(), fdr.PRL)) && !fdr.IsTrackedByMe && MMI.SectorsControlled.Contains(fdr.ControllingSector) || fdr.ControllingSector == null)
+                {
+                    MMI.AcceptJurisdiction(fdr);
+                }
+                
             }
                 
         }
@@ -220,13 +222,11 @@ namespace AuroraLabelItemsPlugin
         private static void AutoDrop(FDP2.FDR fdr)
         {
             if (fdr != null)
-            {
-                FDP2.CalculateAffectedSectors(fdr);
-                FDP2.CalculateTrajectoryEstimates(fdr);
-                if (fdr.IsTrackedByMe && !MMI.IsMySectorConcerned(fdr) && MMI.SectorsControlled.ToList()
+            {                
+                if (fdr.IsTrackedByMe && MMI.SectorsControlled.ToList()
                         .TrueForAll(s => !s.IsInSector(fdr.GetLocation(), fdr.PRL)))
-                {
-                    FDP2.HandoffToNone(fdr);
+                {                    
+                    MMI.HandoffToNone(fdr); 
                 }
             }
                 
