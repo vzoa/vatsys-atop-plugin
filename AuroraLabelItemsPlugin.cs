@@ -47,7 +47,8 @@ namespace AuroraLabelItemsPlugin
         readonly ConcurrentDictionary<string, byte> adsflagtoggle = new ConcurrentDictionary<string, byte>();
         readonly ConcurrentDictionary<string, byte> mntflagtoggle = new ConcurrentDictionary<string, byte>();
         readonly ConcurrentDictionary<string, byte> downlink = new ConcurrentDictionary<string, byte>();
-        readonly ConcurrentDictionary<string, byte> conflicts = new ConcurrentDictionary<string, byte>();
+        // key: callsign, value: acknowledged status
+        readonly ConcurrentDictionary<string, bool> acknowledgedConflicts = new ConcurrentDictionary<string, bool>();
 
         public AuroraLabelItemsPlugin()
         {
@@ -89,6 +90,7 @@ namespace AuroraLabelItemsPlugin
         {
             AutoAssume(updated);
             AutoDrop(updated);
+            ProbeStandardConflict(updated, 23);
             if (FDP2.GetFDRIndex(updated.Callsign) == -1)
             {
                 eastboundCallsigns.TryRemove(updated.Callsign, out _);
@@ -179,17 +181,136 @@ namespace AuroraLabelItemsPlugin
                 }
             }
         }
-
-        private static GeographyMultiLineString GetTrajectoryPoints(List<FDP2.FDR.PositionPrediction> trajectory)
+        
+        public class Segment
         {
-            var lineString = GeographyFactory.MultiLineString(CoordinateSystem.DefaultGeography);
-            trajectory.ForEach(t =>
-                lineString.LineTo(t.Location.Latitude, t.Location.Longitude));
-
-            return lineString.Build();
+            public string callsign;
+            public Coordinate startLatlong;
+            public Coordinate endLatlong;
+            public DateTime startTime = DateTime.MaxValue;
+            public DateTime endTime = DateTime.MaxValue;
+            public FDP2.FDR.ExtractedRoute.Segment routeSegment;
+        }
+        
+        private static List<Coordinate> CreatePolygon(Coordinate point1, Coordinate point2, int value)
+        {
+            List<Coordinate> polygon = new List<Coordinate>();
+            double track = Conversions.CalculateTrack(point1, point2);
+            double num1 = track - 90.0;
+            for (int index = 0; index <= 180; index += 10)
+            {
+                double heading = num1 - (double)index;
+                Coordinate fromBearingRange = Conversions.CalculateLLFromBearingRange(point1, (double)value, heading);
+                polygon.Add(fromBearingRange);
+            }
+            double num2 = track + 90.0;
+            for (int index = 0; index <= 180; index += 10)
+            {
+                double heading = num2 - (double)index;
+                Coordinate fromBearingRange = Conversions.CalculateLLFromBearingRange(point2, (double)value, heading);
+                polygon.Add(fromBearingRange);
+            }
+            polygon.Add(polygon[0]);
+            return polygon;
+        }
+        
+        private static List<Coordinate> CalculatePolygonIntersections(
+            List<Coordinate> polygon,
+            Coordinate point1,
+            Coordinate point2)
+        {
+            List<Coordinate> polygonIntersections = new List<Coordinate>();
+            for (int index = 1; index < polygon.Count; ++index)
+            {
+                List<Coordinate> gcIntersectionLl = Conversions.CalculateAllGCIntersectionLL(polygon[index - 1], polygon[index], point1, point2);
+                if (gcIntersectionLl != null)
+                    polygonIntersections.AddRange(gcIntersectionLl);
+            }
+            for (int index = 0; index < polygonIntersections.Count; ++index)
+            {
+                Coordinate intsect = polygonIntersections[index];
+                polygonIntersections.RemoveAll(c => c != intsect && Conversions.CalculateDistance(intsect, c) < 0.01);
+            }
+            return polygonIntersections;
         }
 
-        private static void ProbeStandardConflict(FDP2.FDR fdr)
+        private static List<Segment> CalculateAreaOfConflict(FDP2.FDR fdr1, FDP2.FDR fdr2, int value)
+        {
+            List<Segment> segs = new List<Segment>();
+            List<FDP2.FDR.ExtractedRoute.Segment> route1waypoints = fdr1.ParsedRoute.ToList().Where(s => s.Type == FDP2.FDR.ExtractedRoute.Segment.SegmentTypes.WAYPOINT).ToList();
+            List<FDP2.FDR.ExtractedRoute.Segment> route2waypoints = fdr2.ParsedRoute.ToList().Where(s => s.Type == FDP2.FDR.ExtractedRoute.Segment.SegmentTypes.WAYPOINT).ToList();
+            for (int wp1index = 1; wp1index < route1waypoints.Count; ++wp1index)
+            {
+                List<Coordinate> route1Segment = CreatePolygon(route1waypoints[wp1index - 1].Intersection.LatLong, route1waypoints[wp1index].Intersection.LatLong, value);
+                for (int wp2index = 1; wp2index < route2waypoints.Count; wp2index++)
+                {
+                    List<Coordinate> source = new List<Coordinate>();
+                    List<Coordinate> intersectionPoints = new List<Coordinate>();
+                    source.AddRange((IEnumerable<Coordinate>)CalculatePolygonIntersections(route1Segment, route2waypoints[wp2index - 1].Intersection.LatLong, route2waypoints[wp2index].Intersection.LatLong));
+                    int num1 = 0;
+                    int num2 = 0;
+                    foreach (Coordinate coordinate in source.ToList<Coordinate>())
+                    {
+                        if (Conversions.IsLatLonOnGC(route2waypoints[wp2index - 1].Intersection.LatLong, route2waypoints[wp2index].Intersection.LatLong, coordinate))
+                        {
+                            intersectionPoints.Add(coordinate);
+                        }
+                        else
+                        {
+                            double track = Conversions.CalculateTrack(route2waypoints[wp2index - 1].Intersection.LatLong, route2waypoints[wp2index].Intersection.LatLong);
+                            if (Math.Abs(track - Conversions.CalculateTrack(route2waypoints[wp2index - 1].Intersection.LatLong, coordinate)) > 90.0)
+                                ++num1;
+                            if (Math.Abs(track - Conversions.CalculateTrack(coordinate, route2waypoints[wp2index].Intersection.LatLong)) > 90.0)
+                                ++num2;
+                        }
+                    }
+                    if (num1 % 2 != 0 && num2 % 2 != 0)
+                    {
+                        intersectionPoints.Clear();
+                        intersectionPoints.Add(route2waypoints[wp2index - 1].Intersection.LatLong);
+                        intersectionPoints.Add(route2waypoints[wp2index].Intersection.LatLong);
+                    }
+                    else if (num2 % 2 != 0)
+                        intersectionPoints.Add(route2waypoints[wp2index].Intersection.LatLong);
+                    else if (num1 % 2 != 0)
+                        intersectionPoints.Add(route2waypoints[wp2index - 1].Intersection.LatLong);
+                    intersectionPoints.Sort((x, y) => Conversions.CalculateDistance(route2waypoints[wp2index - 1].Intersection.LatLong, x).CompareTo(Conversions.CalculateDistance(route2waypoints[wp2index - 1].Intersection.LatLong, y)));
+                    for (int ipIndex = 1; ipIndex < intersectionPoints.Count; ipIndex += 2)
+                    {
+                        Segment seg = new Segment();
+                        seg.startLatlong = intersectionPoints[ipIndex - 1];
+                        seg.endLatlong = intersectionPoints[ipIndex];
+                        List<Segment> conflictSegments = segs.Where<Segment>((Func<Segment, bool>)(s => s.routeSegment == route2waypoints[wp2index])).Where<Segment>((Func<Segment, bool>)(s => Conversions.CalculateDistance(s.startLatlong, route2waypoints[wp2index - 1].Intersection.LatLong) < Conversions.CalculateDistance(seg.startLatlong, route2waypoints[wp2index - 1].Intersection.LatLong) && Conversions.CalculateDistance(s.endLatlong, route2waypoints[wp2index - 1].Intersection.LatLong) > Conversions.CalculateDistance(seg.startLatlong, route2waypoints[wp2index - 1].Intersection.LatLong) || Conversions.CalculateDistance(s.endLatlong, route2waypoints[wp2index - 1].Intersection.LatLong) > Conversions.CalculateDistance(seg.endLatlong, route2waypoints[wp2index - 1].Intersection.LatLong) && Conversions.CalculateDistance(s.startLatlong, route2waypoints[wp2index - 1].Intersection.LatLong) < Conversions.CalculateDistance(seg.endLatlong, route2waypoints[wp2index - 1].Intersection.LatLong) || Conversions.CalculateDistance(s.startLatlong, route2waypoints[wp2index - 1].Intersection.LatLong) > Conversions.CalculateDistance(seg.startLatlong, route2waypoints[wp2index - 1].Intersection.LatLong) && Conversions.CalculateDistance(s.endLatlong, route2waypoints[wp2index - 1].Intersection.LatLong) < Conversions.CalculateDistance(seg.endLatlong, route2waypoints[wp2index - 1].Intersection.LatLong) || Conversions.CalculateDistance(s.startLatlong, seg.startLatlong) < 0.01 || Conversions.CalculateDistance(s.endLatlong, seg.endLatlong) < 0.01)).ToList<Segment>();
+                        if (conflictSegments.Count > 0)
+                        {
+                            foreach (Segment segment in conflictSegments)
+                            {
+                                if (Conversions.CalculateDistance(segment.endLatlong, route2waypoints[wp2index - 1].Intersection.LatLong) < Conversions.CalculateDistance(seg.endLatlong, route2waypoints[wp2index - 1].Intersection.LatLong))
+                                    segment.endLatlong = seg.endLatlong;
+                                if (Conversions.CalculateDistance(seg.startLatlong, route2waypoints[wp2index - 1].Intersection.LatLong) < Conversions.CalculateDistance(segment.startLatlong, route2waypoints[wp2index - 1].Intersection.LatLong))
+                                    segment.startLatlong = seg.startLatlong;
+                            }
+                        }
+                        else
+                        {
+                            seg.callsign = fdr2.Callsign;
+                            seg.routeSegment = route2waypoints[wp2index];
+                            segs.Add(seg);
+                        }
+                    }
+                }
+            }
+            for (int i = 0; i < segs.Count; i++)
+            {
+                if (!segs.Exists((Predicate<Segment>)(s => Conversions.CalculateDistance(segs[i].startLatlong, s.endLatlong) < 0.01)))
+                    segs[i].startTime = FDP2.GetSystemEstimateAtPosition(fdr2, segs[i].startLatlong, segs[i].routeSegment);
+                if (!segs.Exists((Predicate<Segment>)(s => Conversions.CalculateDistance(segs[i].endLatlong, s.startLatlong) < 0.01)))
+                    segs[i].endTime = FDP2.GetSystemEstimateAtPosition(fdr2, segs[i].endLatlong, segs[i].routeSegment);
+            }
+            return segs;
+        }
+
+        private void ProbeStandardConflict(FDP2.FDR fdr, int value)
         {
             if (fdr == null) return;
             int cfl;
@@ -197,11 +318,12 @@ namespace AuroraLabelItemsPlugin
             if (!isCfl) return;
 
             var isRvsm = fdr.RVSM;
-            var trajectoryPoints = GetTrajectoryPoints(fdr.Trajectory);
-            
+
+            bool never;
+
             foreach (var fdr2 in FDP2.GetFDRs)
             {
-                if (fdr2 == null || MMI.IsMySectorConcerned(fdr)) continue;
+                if (fdr2 == null || fdr.Callsign == fdr2.Callsign || !MMI.IsMySectorConcerned(fdr2)) continue;
                 int cfl2;
                 bool isCfl2 = Int32.TryParse(fdr.CFLString, out cfl2);
                 if (!isCfl2) continue;
@@ -212,19 +334,25 @@ namespace AuroraLabelItemsPlugin
                                      cfl2 > FDP2.RVSM_BAND_UPPER
                     ? 2000
                     : 1000;
-
+                
                 if (delta < requiredAltSep)
                 {
-                    var trajectoryPoints2 = GetTrajectoryPoints(fdr2.Trajectory);
-                    var distance = trajectoryPoints.Distance(trajectoryPoints2);
-                    if (distance != null)
+                    var segments1 = CalculateAreaOfConflict(fdr, fdr2, value);
+                    // var segments2 = CalculateAreaOfConflict(fdr2, fdr, value);
+                    if (segments1.Count > 0)
                     {
-                        var distanceNm = Conversions.MetresToNauticalMiles((double) distance);
-                        if (distanceNm < 23)
-                        {
-                            // TODO: things
-                        }
-                    } 
+                        // auto acknowledge
+                        acknowledgedConflicts.AddOrUpdate(fdr.Callsign, true, (k, v) => true);
+                        acknowledgedConflicts.AddOrUpdate(fdr.Callsign, true, (k, v) => true);
+                    }
+                    else
+                    {
+                        acknowledgedConflicts.TryRemove(fdr.Callsign, out never);
+                    }
+                }
+                else
+                {
+                    acknowledgedConflicts.TryRemove(fdr.Callsign, out never);
                 }
             }
         }
