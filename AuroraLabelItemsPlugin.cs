@@ -1,11 +1,15 @@
 ﻿using System;
+using System.Threading;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.ComponentModel.Composition;
+using System.Diagnostics;
 using System.Linq; //<--Need to add a reference to System.ComponentModel.Composition
+using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
 using vatsys;
 using vatsys.Plugin;
+using static vatsys.FDP2;
 
 
 //Note the reference to vatsys (set Copy Local to false) ----->
@@ -37,17 +41,19 @@ namespace AuroraLabelItemsPlugin
         readonly static CustomColour NonRVSM = new CustomColour(242, 133, 0);
         readonly static CustomColour Probe = new CustomColour(0, 255, 0);
         readonly static CustomColour NotCDA = new CustomColour(100, 0, 100);
+        readonly static CustomColour Advisory = new CustomColour(255, 0, 0);
+        readonly static CustomColour Imminent = new CustomColour(255, 165, 0);
         readonly ConcurrentDictionary<string, bool> eastboundCallsigns = new ConcurrentDictionary<string, bool>();
         readonly ConcurrentDictionary<string, char> adsbcpdlcValues = new ConcurrentDictionary<string, char>();
         readonly ConcurrentDictionary<string, char> adsflagValues = new ConcurrentDictionary<string, char>();
         readonly ConcurrentDictionary<string, char> mntflagValues = new ConcurrentDictionary<string, char>();
         readonly ConcurrentDictionary<string, char> altValues = new ConcurrentDictionary<string, char>();
         readonly ConcurrentDictionary<string, byte> radartoggle = new ConcurrentDictionary<string, byte>();
-        readonly ConcurrentDictionary<string, byte> adsflagtoggle = new ConcurrentDictionary<string, byte>();
         readonly ConcurrentDictionary<string, byte> mntflagtoggle = new ConcurrentDictionary<string, byte>();
         readonly ConcurrentDictionary<string, byte> downlink = new ConcurrentDictionary<string, byte>();
         // key: callsign, value: acknowledged status
-        readonly ConcurrentDictionary<string, bool> acknowledgedConflicts = new ConcurrentDictionary<string, bool>();
+        readonly ConcurrentDictionary<string, bool> advisoryConflict = new ConcurrentDictionary<string, bool>();
+        readonly ConcurrentDictionary<string, bool> imminentConflict = new ConcurrentDictionary<string, bool>();
 
         public AuroraLabelItemsPlugin()
         {
@@ -98,9 +104,11 @@ namespace AuroraLabelItemsPlugin
                 mntflagValues.TryRemove(updated.Callsign, out _);
                 altValues.TryRemove(updated.Callsign, out _);
                 radartoggle.TryRemove(updated.Callsign, out _);
-                adsflagtoggle.TryRemove(updated.Callsign, out _);
                 mntflagtoggle.TryRemove(updated.Callsign, out _);
                 downlink.TryRemove(updated.Callsign, out _);
+                advisoryConflict.TryRemove(updated.Callsign, out _);
+                imminentConflict.TryRemove(updated.Callsign, out _);
+
             }
             else
             {
@@ -180,7 +188,7 @@ namespace AuroraLabelItemsPlugin
                 }
             }
         }
-        
+
         public class Segment
         {
             public string callsign;
@@ -190,7 +198,7 @@ namespace AuroraLabelItemsPlugin
             public DateTime endTime = DateTime.MaxValue;
             public FDP2.FDR.ExtractedRoute.Segment routeSegment;
         }
-        
+
         private static List<Coordinate> CreatePolygon(Coordinate point1, Coordinate point2, int value)
         {
             List<Coordinate> polygon = new List<Coordinate>();
@@ -212,7 +220,7 @@ namespace AuroraLabelItemsPlugin
             polygon.Add(polygon[0]);
             return polygon;
         }
-        
+
         private static List<Coordinate> CalculatePolygonIntersections(
             List<Coordinate> polygon,
             Coordinate point1,
@@ -333,25 +341,37 @@ namespace AuroraLabelItemsPlugin
                                      cfl2 > FDP2.RVSM_BAND_UPPER
                     ? 2000
                     : 1000;
-                
+
                 if (delta < requiredAltSep)
                 {
                     var segments1 = CalculateAreaOfConflict(fdr, fdr2, value);
                     // var segments2 = CalculateAreaOfConflict(fdr2, fdr, value);
-                    if (segments1.Count > 0)
+                    segments1.Sort((Comparison<Segment>)((s, t) => s.startTime.CompareTo(t.startTime)));
+                    var firstConflictTime = segments1.FirstOrDefault();                    
+                    var timeDiff = firstConflictTime != null
+                        ? new DateTime().Subtract(firstConflictTime.startTime)
+                        : TimeSpan.MaxValue;
+                    var advisoryConflicts = timeDiff.CompareTo(new TimeSpan(0, 2, 0, 0, 0)) < 31;
+                    var imminentConflicts = timeDiff.CompareTo(new TimeSpan(0, 0, 30, 0, 0)) < 0;
+                    if (advisoryConflicts)                        
                     {
                         // auto acknowledge
-                        acknowledgedConflicts.AddOrUpdate(fdr.Callsign, true, (k, v) => true);
-                        acknowledgedConflicts.AddOrUpdate(fdr.Callsign, true, (k, v) => true);
+                        advisoryConflict.AddOrUpdate(fdr.Callsign, true, (k, v) => true);                        
+                    }
+                    if (imminentConflicts)
+                    {
+                        imminentConflict.AddOrUpdate(fdr.Callsign, true, (k, v) => true);
                     }
                     else
                     {
-                        acknowledgedConflicts.TryRemove(fdr.Callsign, out never);
+                        advisoryConflict.TryRemove(fdr.Callsign, out never);
+                        imminentConflict.TryRemove(fdr.Callsign, out never);
                     }
                 }
                 else
                 {
-                    acknowledgedConflicts.TryRemove(fdr.Callsign, out never);
+                    advisoryConflict.TryRemove(fdr.Callsign, out never);
+                    imminentConflict.TryRemove(fdr.Callsign, out never);
                 }
             }
         }
@@ -362,6 +382,7 @@ namespace AuroraLabelItemsPlugin
             if (fdr != null)
             {
                 AutoAssume(fdr);
+                RDP.Couple(fdr, rt);
             }
         }
 
@@ -371,7 +392,7 @@ namespace AuroraLabelItemsPlugin
             {
                 if (!fdr.ESTed && fdr.ControllingSector == null && MMI.IsMySectorConcerned(fdr))
                 {
-                    MMI.EstFDR(fdr);
+                    MMI.EstFDR(fdr);                    
                 }
 
                 if (MMI.SectorsControlled.ToList()
@@ -394,12 +415,15 @@ namespace AuroraLabelItemsPlugin
 
         private static void AutoDrop(FDP2.FDR fdr)
         {
+            var rt = fdr.CoupledTrack;
             if (fdr != null)
             {
                 if (fdr.IsTrackedByMe && MMI.SectorsControlled.ToList()
                         .TrueForAll(s => !s.IsInSector(fdr.GetLocation(), fdr.PRL)))
                 {
                     MMI.HandoffToNone(fdr);
+                    //Thread.Sleep(300000);                    
+                    //RDP.DeCouple(rt);
                 }
             }
         }
@@ -429,37 +453,37 @@ namespace AuroraLabelItemsPlugin
             e.Handled = true;
         }
 
-        private void HandleADSFlagClick(CustomLabelItemMouseClickEventArgs e)
-        {
-            bool adsflagToggled = radartoggle.TryGetValue(e.Track.GetFDR().Callsign, out _);
-
-            if (adsflagToggled)
-            {
-                adsflagtoggle.TryRemove(e.Track.GetFDR().Callsign, out _);
-            }
-            else
-            {
-                adsflagtoggle.TryAdd(e.Track.GetFDR().Callsign, 0);
-            }
-
-            e.Handled = true;
-        }
-
-        private void HandleMNTFlagClick(CustomLabelItemMouseClickEventArgs e)
-        {
-            bool mntflagToggled = radartoggle.TryGetValue(e.Track.GetFDR().Callsign, out _);
-
-            if (mntflagToggled)
-            {
-                mntflagtoggle.TryRemove(e.Track.GetFDR().Callsign, out _);
-            }
-            else
-            {
-                mntflagtoggle.TryAdd(e.Track.GetFDR().Callsign, 0);
-            }
-
-            e.Handled = true;
-        }
+       //private void HandleADSFlagClick(CustomLabelItemMouseClickEventArgs e)
+       //{
+       //    bool adsflagToggled = radartoggle.TryGetValue(e.Track.GetFDR().Callsign, out _);
+       //
+       //    if (adsflagToggled)
+       //    {
+       //        adsflagtoggle.TryRemove(e.Track.GetFDR().Callsign, out _);
+       //    }
+       //    else
+       //    {
+       //        adsflagtoggle.TryAdd(e.Track.GetFDR().Callsign, 0);
+       //    }
+       //
+       //    e.Handled = true;
+       //}
+       //
+       //private void HandleMNTFlagClick(CustomLabelItemMouseClickEventArgs e)
+       //{
+       //    bool mntflagToggled = radartoggle.TryGetValue(e.Track.GetFDR().Callsign, out _);
+       //
+       //    if (mntflagToggled)
+       //    {
+       //        mntflagtoggle.TryRemove(e.Track.GetFDR().Callsign, out _);
+       //    }
+       //    else
+       //    {
+       //        mntflagtoggle.TryAdd(e.Track.GetFDR().Callsign, 0);
+       //    }
+       //
+       //    e.Handled = true;
+       //}
 
         /// vatSys calls this function when it encounters a custom label item (defined in Labels.xml) during the label rendering.
         /// itemType is the value of the Type attribute in Labels.xml
@@ -481,22 +505,23 @@ namespace AuroraLabelItemsPlugin
             altValues.TryGetValue(flightDataRecord.Callsign, out h1);
 
             bool radarToggled = radartoggle.TryGetValue(flightDataRecord.Callsign, out _);
-            bool adsflagToggled = adsflagtoggle.TryGetValue(flightDataRecord.Callsign, out _);
             bool mntflagToggled = mntflagtoggle.TryGetValue(flightDataRecord.Callsign, out _);
             bool downLink = downlink.TryGetValue(flightDataRecord.Callsign, out _);
             bool selectedCallsign = MMI.SelectedTrack?.GetFDR()?.Callsign == flightDataRecord.Callsign;
-
+            bool isAdvisory = advisoryConflict.TryGetValue(flightDataRecord.Callsign, out _);
+            bool isImminent = imminentConflict.TryGetValue(flightDataRecord.Callsign, out _);
 
             switch (itemType)
             {
                 case LABEL_ITEM_SELECT_HORI:
 
-                    if (selectedCallsign)
+                    if (selectedCallsign)// || isAdvisory || isImminent)
                     {
                         return new CustomLabelItem()
 
                         {
-                            Border = BorderFlags.Top
+                            Border = BorderFlags.Top,
+                            //CustomBorderColour = isAdvisory ? Advisory : null
                         };
                     }
 
@@ -505,18 +530,20 @@ namespace AuroraLabelItemsPlugin
                         return new CustomLabelItem()
 
                         {
-                            Border = BorderFlags.None
+                            Border = BorderFlags.None,
+
                         };
                     }
 
                 case LABEL_ITEM_SELECT_VERT:
 
-                    if (selectedCallsign)
+                    if (selectedCallsign)// || isAdvisory || isImminent)
                     {
                         return new CustomLabelItem()
                         {
                             Text = "",
-                            Border = BorderFlags.Left
+                            Border = BorderFlags.Left,
+                            //CustomBorderColour = isAdvisory ? Advisory : null
                         };
                     }
 
@@ -525,7 +552,7 @@ namespace AuroraLabelItemsPlugin
                         return new CustomLabelItem()
                         {
                             Text = "",
-                            Border = BorderFlags.None
+                            Border = BorderFlags.None,
                         };
                     }
 
@@ -570,21 +597,11 @@ namespace AuroraLabelItemsPlugin
 
                 case LABEL_ITEM_ADS_FLAGS:
 
-                    if (adsflagToggled)
-                    {
                         return new CustomLabelItem()
                         {
-                            Text = c2.ToString(),
-                            OnMouseClick = HandleADSFlagClick,
+                            Text = c2.ToString()
                         };
-                    }
 
-                    else
-                        return new CustomLabelItem()
-                        {
-                            Text = "",
-                            OnMouseClick = HandleADSFlagClick,
-                        };
 
                 case LABEL_ITEM_MNT_FLAGS:
 
@@ -592,8 +609,7 @@ namespace AuroraLabelItemsPlugin
                     {
                         return new CustomLabelItem()
                         {
-                            Text = c3.ToString(),
-                            OnMouseClick = HandleMNTFlagClick,
+                            Text = c3.ToString()
                         };
                     }
 
@@ -601,7 +617,6 @@ namespace AuroraLabelItemsPlugin
                         return new CustomLabelItem()
                         {
                             Text = "",
-                            OnMouseClick = HandleMNTFlagClick,
                         };
 
 
@@ -669,7 +684,7 @@ namespace AuroraLabelItemsPlugin
 
                     return new CustomLabelItem()
                     {
-                        Text = (track.NewCFL && radarTrack.ReachedCFL) ? string.Empty : flightDataRecord.CFLString,
+                        Text = (track.NewCFL == radarTrack.ReachedCFL) ? string.Empty : flightDataRecord.CFLString,
                         ForeColourIdentity = Colours.Identities.Custom,
                         CustomForeColour = !flightDataRecord.RVSM ? NonRVSM : Probe
                     };
@@ -720,17 +735,24 @@ namespace AuroraLabelItemsPlugin
 
         public CustomColour SelectASDTrackColour(Track track)
         {
-            //only apply East/West colour to jurisdiction state
-            if (track.State != MMI.HMIStates.Jurisdiction)
-                return null;
-
             var fdr = track.GetFDR();
             //if track doesn't have an FDR coupled do nothing
             if (fdr == null)
                 return null;
 
-            //read our dictionary of stored bools (true means is easterly) and return the correct colour
-            return GetDirectionColour(fdr.Callsign);
+
+
+            //only apply East/West colour to jurisdiction state
+            if (track.State == MMI.HMIStates.Jurisdiction)
+
+             //read our dictionary of stored bools (true means is easterly) and return the correct colour
+                return GetDirectionColour(fdr.Callsign);
+
+            if (MMI.IsMySectorConcerned(fdr))
+                return GetConflictColour(fdr.Callsign);
+
+            return null;
+
         }
 
         public CustomColour SelectGroundTrackColour(Track track)
@@ -749,6 +771,21 @@ namespace AuroraLabelItemsPlugin
             }
 
             return null;
+        }
+
+        private CustomColour GetConflictColour(string callsign)
+        {
+            if (advisoryConflict.TryGetValue(callsign, out _))
+            {
+                return Advisory;
+            }
+
+            if (imminentConflict.TryGetValue(callsign, out _))
+            {
+                return Imminent;
+            }
+
+                return null; 
         }
     }
 }
