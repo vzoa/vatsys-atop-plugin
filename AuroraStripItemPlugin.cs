@@ -105,7 +105,7 @@ namespace AuroraStripItemsPlugin
             int cfl;
             bool isCfl = Int32.TryParse(flightDataRecord.CFLString, out cfl);
             bool isEastBound = true;
-            bool flagToggled = flagtoggle.TryGetValue(flightDataRecord.Callsign, out _);
+
 
                 if (flightDataRecord is null)
                 return null;
@@ -200,8 +200,8 @@ namespace AuroraStripItemsPlugin
 
                         return new CustomStripItem()
                         {
-                            BackColourIdentity = flagToggled ? Colours.Identities.Custom : default,
-                            CustomBackColour = SepFlags,
+                            //BackColourIdentity = Colours.Identities.Custom,
+                            //CustomBackColour = SepFlags,
                             Text = "M",
                             OnMouseClick = ItemMouseClick
                         };
@@ -214,10 +214,9 @@ namespace AuroraStripItemsPlugin
 
                         return new CustomStripItem()
                         {
-                            BackColourIdentity = flagToggled ? Colours.Identities.Custom : default,
-                            CustomBackColour = SepFlags,
-                            Text = "R",
-                            OnMouseClick = ItemMouseClick
+                            //BackColourIdentity = Colours.Identities.Custom,
+                            //CustomBackColour = SepFlags,
+                            Text = "R"
                         };
 
                     return null;
@@ -229,10 +228,9 @@ namespace AuroraStripItemsPlugin
 
                         return new CustomStripItem()
                         {
-                            BackColourIdentity = flagToggled ? Colours.Identities.Custom : default,
+                            BackColourIdentity = Colours.Identities.Custom,
                             CustomBackColour = SepFlags,
-                            Text = rnp4 ? "3" : "D",
-                            OnMouseClick = ItemMouseClick
+                            Text = rnp4 ? "3" : "D"
                         };
                     return null;
 
