@@ -3,9 +3,7 @@ using System.Threading;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.ComponentModel.Composition;
-using System.Diagnostics;
 using System.Linq; //<--Need to add a reference to System.ComponentModel.Composition
-using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
 using vatsys;
 using vatsys.Plugin;
@@ -22,7 +20,6 @@ namespace AuroraLabelItemsPlugin
         /// The name of the custom label item we've added to Labels
         /// in the Profile
         const string LABEL_ITEM_SELECT_HORI = "SELECT_HORI";
-
         const string LABEL_ITEM_SELECT_VERT = "SELECT_VERT";
         const string LABEL_ITEM_COMM_ICON = "AURORA_COMM_ICON"; //field a(2)
         const string LABEL_ITEM_ADSB_CPDLC = "AURORA_ADSB_CPDLC"; //field c(4)
@@ -41,8 +38,8 @@ namespace AuroraLabelItemsPlugin
         readonly static CustomColour NonRVSM = new CustomColour(242, 133, 0);
         readonly static CustomColour Probe = new CustomColour(0, 255, 0);
         readonly static CustomColour NotCDA = new CustomColour(100, 0, 100);
-        readonly static CustomColour Advisory = new CustomColour(255, 0, 0);
-        readonly static CustomColour Imminent = new CustomColour(255, 165, 0);
+        readonly static CustomColour Advisory = new CustomColour(255, 165, 0);
+        readonly static CustomColour Imminent = new CustomColour(255, 0, 0);
         readonly ConcurrentDictionary<string, bool> eastboundCallsigns = new ConcurrentDictionary<string, bool>();
         readonly ConcurrentDictionary<string, char> adsbcpdlcValues = new ConcurrentDictionary<string, char>();
         readonly ConcurrentDictionary<string, char> adsflagValues = new ConcurrentDictionary<string, char>();
@@ -59,6 +56,7 @@ namespace AuroraLabelItemsPlugin
         {
             Network.PrivateMessagesChanged += Network_PrivateMessagesChanged;
             Network.RadioMessageAcknowledged += Network_RadioMessageAcknowledged;
+            
         }
 
 
@@ -81,6 +79,7 @@ namespace AuroraLabelItemsPlugin
             }
         }
 
+
         /// Plugin Name
         public string Name
         {
@@ -93,9 +92,33 @@ namespace AuroraLabelItemsPlugin
         /// the flight planned PBN category and store the character we want to display in the label in the dictionary.
         public void OnFDRUpdate(FDP2.FDR updated)
         {
+            Match pbn = Regex.Match(updated.Remarks, @"PBN\/\w+\s");
+            bool rnp10 = Regex.IsMatch(pbn.Value, @"A1");
+            bool rnp4 = Regex.IsMatch(pbn.Value, @"L1");
+            bool cpdlc = Regex.IsMatch(updated.AircraftEquip, @"J5") || Regex.IsMatch(updated.AircraftEquip, @"J7");
+            bool adsc = Regex.IsMatch(updated.AircraftSurvEquip, @"D1");
+            bool jet = updated.PerformanceData?.IsJet ?? false;
+            var vs = updated.PredictedPosition.VerticalSpeed;
+            int prl = updated.PRL / 100;
+            int cfl = updated.CFLUpper;
+            int rfl = updated.RFL;
+            int alt = cfl == -1 ? rfl : cfl;
+
             AutoAssume(updated);
             AutoDrop(updated);
-            ProbeStandardConflict(updated, 23);
+            if (jet & rnp4 & cpdlc & adsc)
+            {
+                ConflictProbe(updated, 23);
+            }
+            else if (rnp4 || rnp10)
+            {
+                ConflictProbe(updated, 50);
+            }
+            else
+            {
+                ConflictProbe(updated, 100);
+            }
+
             if (FDP2.GetFDRIndex(updated.Callsign) == -1)
             {
                 eastboundCallsigns.TryRemove(updated.Callsign, out _);
@@ -112,15 +135,7 @@ namespace AuroraLabelItemsPlugin
             }
             else
             {
-                Match pbn = Regex.Match(updated.Remarks, @"PBN\/\w+\s");
-                bool rnp10 = Regex.IsMatch(pbn.Value, @"A1");
-                bool rnp4 = Regex.IsMatch(pbn.Value, @"L1");
-                bool cpdlc = Regex.IsMatch(updated.AircraftEquip, @"J5") || Regex.IsMatch(updated.AircraftEquip, @"J7");
-                bool adsc = Regex.IsMatch(updated.AircraftSurvEquip, @"D1");
-                int cfl;
-                bool isCfl = Int32.TryParse(updated.CFLString, out cfl);
-                var vs = updated.PredictedPosition.VerticalSpeed;
-                int level = updated.PRL / 100;
+
 
                 char c1 = default;
 
@@ -134,7 +149,7 @@ namespace AuroraLabelItemsPlugin
 
                 else if (cpdlc)
 
-                    c1 = '*';
+                    c1 = '✱';
 
 
                 adsbcpdlcValues.AddOrUpdate(updated.Callsign, c1, (k, v) => c1);
@@ -151,7 +166,7 @@ namespace AuroraLabelItemsPlugin
 
                 char c3 = default;
 
-                if (AuroraStripItemsPlugin.AuroraStripItemsPlugin.MachNumberTech(updated.PerformanceData))
+                if (updated.PerformanceData?.IsJet ?? false)
                     c3 = 'M';
 
                 mntflagValues.AddOrUpdate(updated.Callsign, c3, (k, v) => c3);
@@ -159,19 +174,19 @@ namespace AuroraLabelItemsPlugin
 
                 char h1 = default;
 
-                if (level == cfl || level == updated.RFL) //level
+                if (prl == alt) //level flight
                     h1 = default;
 
-                else if (cfl > level || vs > 300) //Issued or trending climb
+                else if (alt / 100 > prl || vs > 300) //Issued or trending climb
                     h1 = '↑';
 
-                else if (cfl > 0 && cfl < level || vs < -300) //Issued or trending descent
+                else if (alt / 100 > 0 && alt < prl || vs < -300) //Issued or trending descent
                     h1 = '↓';
 
-                else if (level - updated.RFL / 100 >= 3) //deviating above
+                else if (prl - alt / 100 >= 3) //deviating above
                     h1 = '+';
 
-                else if (level - updated.RFL / 100 <= -3) //deviating below
+                else if (prl - alt / 100 <= -3) //deviating below
                     h1 = '-';
 
 
@@ -317,63 +332,64 @@ namespace AuroraLabelItemsPlugin
             return segs;
         }
 
-        private void ProbeStandardConflict(FDP2.FDR fdr, int value)
+        public void ConflictProbe(FDP2.FDR fdr, int value)
         {
             if (fdr == null) return;
-            int cfl;
-            bool isCfl = Int32.TryParse(fdr.CFLString, out cfl);
-            if (!isCfl) return;
+            int cfl = fdr.CFLUpper;
+            int rfl = fdr.RFL;
+            int alt = cfl == -1 ? rfl : cfl;
 
+ 
             var isRvsm = fdr.RVSM;
 
-            bool never;
+            bool clean;
 
             foreach (var fdr2 in FDP2.GetFDRs)
             {
                 if (fdr2 == null || fdr.Callsign == fdr2.Callsign || !MMI.IsMySectorConcerned(fdr2)) continue;
-                int cfl2;
-                bool isCfl2 = Int32.TryParse(fdr.CFLString, out cfl2);
-                if (!isCfl2) continue;
+                int cfl2 = fdr2.CFLUpper;
+                int rfl2 = fdr2.RFL;
+                int alt2 = cfl2 == -1 ? rfl2 : cfl2;
                 var isRvsm2 = fdr2.RVSM;
-                var delta = Math.Abs(cfl - cfl2);
-                int requiredAltSep = (cfl > FDP2.RVSM_BAND_LOWER && !isRvsm) ||
-                                     (cfl2 > FDP2.RVSM_BAND_LOWER && !isRvsm2) || cfl > FDP2.RVSM_BAND_UPPER ||
-                                     cfl2 > FDP2.RVSM_BAND_UPPER
+                var delta = Math.Abs(alt - alt2);
+                int verticalSep = (alt > FDP2.RVSM_BAND_LOWER && !isRvsm) ||
+                                     (alt2 > FDP2.RVSM_BAND_LOWER && !isRvsm2) || alt > FDP2.RVSM_BAND_UPPER ||
+                                     alt2 > FDP2.RVSM_BAND_UPPER
                     ? 2000
                     : 1000;
 
-                if (delta < requiredAltSep)
+                if (delta < verticalSep)
                 {
                     var segments1 = CalculateAreaOfConflict(fdr, fdr2, value);
-                    // var segments2 = CalculateAreaOfConflict(fdr2, fdr, value);
-                    segments1.Sort((Comparison<Segment>)((s, t) => s.startTime.CompareTo(t.startTime)));
+                    segments1.Sort((Comparison<Segment>)((s, t) => s.startTime.CompareTo(t.startTime))); //sort by first conflict time
                     var firstConflictTime = segments1.FirstOrDefault();                    
                     var timeDiff = firstConflictTime != null
                         ? new DateTime().Subtract(firstConflictTime.startTime)
-                        : TimeSpan.MaxValue;
-                    var advisoryConflicts = timeDiff.CompareTo(new TimeSpan(0, 2, 0, 0, 0)) < 31;
-                    var imminentConflicts = timeDiff.CompareTo(new TimeSpan(0, 0, 30, 0, 0)) < 0;
-                    if (advisoryConflicts)                        
-                    {
-                        // auto acknowledge
-                        advisoryConflict.AddOrUpdate(fdr.Callsign, true, (k, v) => true);                        
-                    }
+                        : TimeSpan.MaxValue; //how much time before conflict resolution
+                    var advisoryConflicts = timeDiff.CompareTo(new TimeSpan(0, 2, 0, 0, 0)) < 0;  //check if timediff < 2 hours
+                    var imminentConflicts = timeDiff.CompareTo(new TimeSpan(0, 0, 30, 0, 0)) < 0; //check if timediff < 30 mins
+
                     if (imminentConflicts)
                     {
                         imminentConflict.AddOrUpdate(fdr.Callsign, true, (k, v) => true);
+                        imminentConflict.AddOrUpdate(fdr2.Callsign, true, (k, v) => true);
+
                     }
+                    if (advisoryConflicts)                        
+                    {
+                        // auto acknowledge
+                        advisoryConflict.AddOrUpdate(fdr.Callsign, true, (k, v) => true);
+                        advisoryConflict.AddOrUpdate(fdr2.Callsign, true, (k, v) => true);
+                    }
+ }
                     else
                     {
-                        advisoryConflict.TryRemove(fdr.Callsign, out never);
-                        imminentConflict.TryRemove(fdr.Callsign, out never);
-                    }
-                }
-                else
-                {
-                    advisoryConflict.TryRemove(fdr.Callsign, out never);
-                    imminentConflict.TryRemove(fdr.Callsign, out never);
-                }
-            }
+                        advisoryConflict.TryRemove(fdr.Callsign, out clean);
+                        advisoryConflict.TryRemove(fdr2.Callsign, out clean);
+                        imminentConflict.TryRemove(fdr.Callsign, out clean);
+                        imminentConflict.TryRemove(fdr2.Callsign, out clean);
+                     }
+                }          
         }
 
         private static void AutoAssume(RDP.RadarTrack rt)
@@ -390,7 +406,7 @@ namespace AuroraLabelItemsPlugin
         {
             if (fdr != null)
             {
-                if (!fdr.ESTed && fdr.ControllingSector == null && MMI.IsMySectorConcerned(fdr))
+                if (!fdr.ESTed && MMI.IsMySectorConcerned(fdr))
                 {
                     MMI.EstFDR(fdr);                    
                 }
@@ -407,7 +423,7 @@ namespace AuroraLabelItemsPlugin
         private static void AutoDrop(RDP.RadarTrack rt)
         {
             var fdr = rt.CoupledFDR;
-            if (fdr != null)
+            if (fdr != null && rt != null)
             {
                 AutoDrop(fdr);
             }
@@ -416,14 +432,15 @@ namespace AuroraLabelItemsPlugin
         private static void AutoDrop(FDP2.FDR fdr)
         {
             var rt = fdr.CoupledTrack;
-            if (fdr != null)
-            {
-                if (fdr.IsTrackedByMe && MMI.SectorsControlled.ToList()
-                        .TrueForAll(s => !s.IsInSector(fdr.GetLocation(), fdr.PRL)))
+            if (fdr != null && rt != null)
+                {
+                if (fdr.IsTrackedByMe &&  MMI.GetSectorEntryTime(fdr) < DateTime.Now && MMI.SectorsControlled.ToList()
+                        .TrueForAll(s => !s.IsInSector(fdr.GetLocation(), fdr.PRL)))  //MMI.GetSectorEntryTime(fdr) == null
                 {
                     MMI.HandoffToNone(fdr);
-                    //Thread.Sleep(300000);                    
-                    //RDP.DeCouple(rt);
+                    //MMI.Inhibit(fdr);
+                    Thread.Sleep(300000);                    
+                    RDP.DeCouple(rt);
                 }
             }
         }
@@ -453,37 +470,7 @@ namespace AuroraLabelItemsPlugin
             e.Handled = true;
         }
 
-       //private void HandleADSFlagClick(CustomLabelItemMouseClickEventArgs e)
-       //{
-       //    bool adsflagToggled = radartoggle.TryGetValue(e.Track.GetFDR().Callsign, out _);
-       //
-       //    if (adsflagToggled)
-       //    {
-       //        adsflagtoggle.TryRemove(e.Track.GetFDR().Callsign, out _);
-       //    }
-       //    else
-       //    {
-       //        adsflagtoggle.TryAdd(e.Track.GetFDR().Callsign, 0);
-       //    }
-       //
-       //    e.Handled = true;
-       //}
-       //
-       //private void HandleMNTFlagClick(CustomLabelItemMouseClickEventArgs e)
-       //{
-       //    bool mntflagToggled = radartoggle.TryGetValue(e.Track.GetFDR().Callsign, out _);
-       //
-       //    if (mntflagToggled)
-       //    {
-       //        mntflagtoggle.TryRemove(e.Track.GetFDR().Callsign, out _);
-       //    }
-       //    else
-       //    {
-       //        mntflagtoggle.TryAdd(e.Track.GetFDR().Callsign, 0);
-       //    }
-       //
-       //    e.Handled = true;
-       //}
+
 
         /// vatSys calls this function when it encounters a custom label item (defined in Labels.xml) during the label rendering.
         /// itemType is the value of the Type attribute in Labels.xml
@@ -492,7 +479,7 @@ namespace AuroraLabelItemsPlugin
         public CustomLabelItem GetCustomLabelItem(string itemType, Track track, FDP2.FDR flightDataRecord,
             RDP.RadarTrack radarTrack)
         {
-            if (flightDataRecord == null || track == null)
+            if (flightDataRecord == null && track == null)
                 return null;
 
             char c1;
@@ -510,18 +497,22 @@ namespace AuroraLabelItemsPlugin
             bool selectedCallsign = MMI.SelectedTrack?.GetFDR()?.Callsign == flightDataRecord.Callsign;
             bool isAdvisory = advisoryConflict.TryGetValue(flightDataRecord.Callsign, out _);
             bool isImminent = imminentConflict.TryGetValue(flightDataRecord.Callsign, out _);
+            bool isNonRVSM = !flightDataRecord.RVSM;
+            int prl = flightDataRecord.PRL / 100;
+            int cfl = flightDataRecord.CFLUpper / 100;
+            int rfl = flightDataRecord.RFL / 100;
+            int alt = flightDataRecord.CFLUpper == -1 ? rfl : cfl;
 
             switch (itemType)
             {
                 case LABEL_ITEM_SELECT_HORI:
 
-                    if (selectedCallsign)// || isAdvisory || isImminent)
+                    if (selectedCallsign)
                     {
                         return new CustomLabelItem()
 
                         {
                             Border = BorderFlags.Top,
-                            //CustomBorderColour = isAdvisory ? Advisory : null
                         };
                     }
 
@@ -537,13 +528,12 @@ namespace AuroraLabelItemsPlugin
 
                 case LABEL_ITEM_SELECT_VERT:
 
-                    if (selectedCallsign)// || isAdvisory || isImminent)
+                    if (selectedCallsign)
                     {
                         return new CustomLabelItem()
                         {
                             Text = "",
                             Border = BorderFlags.Left,
-                            //CustomBorderColour = isAdvisory ? Advisory : null
                         };
                     }
 
@@ -576,7 +566,7 @@ namespace AuroraLabelItemsPlugin
                 case LABEL_ITEM_ADSB_CPDLC:
 
                     bool useCustomForeColour =
-                        track.State == MMI.HMIStates.Preactive || track.State == MMI.HMIStates.Announced;
+                        flightDataRecord.State == (FDR.FDRStates.STATE_PREACTIVE | FDR.FDRStates.STATE_COORDINATED);
 
                     if (useCustomForeColour)
                     {
@@ -596,11 +586,13 @@ namespace AuroraLabelItemsPlugin
                     }
 
                 case LABEL_ITEM_ADS_FLAGS:
-
+                   
                         return new CustomLabelItem()
                         {
-                            Text = c2.ToString()
+                            Text = c2.ToString(),
+
                         };
+
 
 
                 case LABEL_ITEM_MNT_FLAGS:
@@ -624,7 +616,7 @@ namespace AuroraLabelItemsPlugin
                 //
                 //        return new CustomLabelItem()
                 //        {
-                //            Text = pos //| ca | la | ra | rcf | dup | spd 
+                //            Text = pos | ca | la | ra | rcf | dup | spd 
                 //        };                
 
 
@@ -660,34 +652,44 @@ namespace AuroraLabelItemsPlugin
                     return null;
 
                 case LABEL_ITEM_VMI:
-                    bool isNonRVSMOrNewCFL = !flightDataRecord.RVSM || track.NewCFL;
-
-                    if (isNonRVSMOrNewCFL)
-                    {
+                    
                         return new CustomLabelItem()
                         {
                             Text = h1.ToString(),
-                            ForeColourIdentity = Colours.Identities.Custom,
-                            CustomForeColour = !flightDataRecord.RVSM ? NonRVSM : Probe
+                            ForeColourIdentity = isNonRVSM 
+                            ? Colours.Identities.Custom
+                            : default,
+                            CustomForeColour = NonRVSM
                         };
-                    }
-                    else
-                    {
-                        return new CustomLabelItem()
-                        {
-                            Text = h1.ToString()
-                        };
-                    }
+
 
 
                 case LABEL_ITEM_CLEARED_LEVEL:
 
-                    return new CustomLabelItem()
+                    if (radarTrack != null && radarTrack.ReachedCFL || prl == alt) //track.NewCFL
+                        return new CustomLabelItem()
+                        {
+                            Text = "" 
+                        };
+
+                    else
                     {
-                        Text = (track.NewCFL == radarTrack.ReachedCFL) ? string.Empty : flightDataRecord.CFLString,
-                        ForeColourIdentity = Colours.Identities.Custom,
-                        CustomForeColour = !flightDataRecord.RVSM ? NonRVSM : Probe
-                    };
+                        return new CustomLabelItem()
+                        {
+                            Text = alt.ToString(),
+                            ForeColourIdentity = isNonRVSM
+                            ? Colours.Identities.Custom 
+                            : default,
+                            CustomForeColour = NonRVSM,
+                            Border = flightDataRecord.State == (FDR.FDRStates.STATE_PREACTIVE | FDR.FDRStates.STATE_COORDINATED) 
+                            ? BorderFlags.All 
+                            : BorderFlags.None,
+                            BorderColourIdentity = Colours.Identities.Custom,
+                            CustomBorderColour = NotCDA
+                        };
+                    }
+
+
 
                 case LABEL_ITEM_RADAR_IND:
 
@@ -711,7 +713,7 @@ namespace AuroraLabelItemsPlugin
                     }
 
                 case LABEL_ITEM_FILED_SPEED:
-                    var mach = flightDataRecord.TAS / 581.0;
+                    var mach = Conversions.CalculateMach(flightDataRecord.TAS, GRIB.FindTemperature(flightDataRecord.PRL, track.GetLocation(), true)); 
                     return new CustomLabelItem()
                     {
                         Text = "M" + Convert.ToDecimal(mach).ToString("F2").Replace(".", "")
@@ -740,18 +742,22 @@ namespace AuroraLabelItemsPlugin
             if (fdr == null)
                 return null;
 
-
-
+             
             //only apply East/West colour to jurisdiction state
-            if (track.State == MMI.HMIStates.Jurisdiction)
-
-             //read our dictionary of stored bools (true means is easterly) and return the correct colour
+            if (track.State == MMI.HMIStates.Jurisdiction) //read our dictionary of stored bools (true means is easterly) and return the correct colour
+            {
+                
                 return GetDirectionColour(fdr.Callsign);
+            }
 
-            if (MMI.IsMySectorConcerned(fdr))
+            if (MMI.IsMySectorConcerned(fdr) && fdr.State != (FDR.FDRStates.STATE_PREACTIVE | FDR.FDRStates.STATE_COORDINATED)) //only apply conflict colours if planes are of concern
+            {
                 return GetConflictColour(fdr.Callsign);
+            }
 
-            return null;
+            else
+
+            return default;
 
         }
 

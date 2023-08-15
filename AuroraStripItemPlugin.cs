@@ -7,6 +7,9 @@ using System.Collections.Concurrent;
 using System.ComponentModel.Composition; //<--Need to add a reference to System.ComponentModel.Composition
 using static vatsys.Performance;
 using static vatsys.Network;
+using static vatsys.FDP2;
+using System.Linq;
+using static vatsys.SectorsVolumes;
 
 namespace AuroraStripItemsPlugin
 {
@@ -66,11 +69,6 @@ namespace AuroraStripItemsPlugin
         {
 
         }
-        public static bool MachNumberTech(PerformanceData mnt)
-        {
-            if (mnt == null) return false;
-            return mnt.IsJet;
-        }
 
         //public void Estimates(FDP2.FDR.ExtractedRoute.Segment estimate)
         //{ 
@@ -107,7 +105,7 @@ namespace AuroraStripItemsPlugin
             bool isEastBound = true;
 
 
-                if (flightDataRecord is null)
+                if (flightDataRecord == null)
                 return null;
 
             switch (itemType)
@@ -137,25 +135,46 @@ namespace AuroraStripItemsPlugin
 
               case STRIP_ITEM_CTLSECTOR:
              
-                    bool pendingCoordination = track.State == MMI.HMIStates.Preactive || track.State == MMI.HMIStates.Announced;
+                    bool pendingCoordination = flightDataRecord.State == (FDR.FDRStates.STATE_PREACTIVE | FDR.FDRStates.STATE_COORDINATED);
 
+                    if (pendingCoordination) 
+                    {
                         return new CustomStripItem()
                         {
-                            ForeColourIdentity = pendingCoordination ? Colours.Identities.Custom : default,
+                            ForeColourIdentity = Colours.Identities.Custom,
                             CustomForeColour = Pending,
-                            Text = flightDataRecord.ControllingSector != null ? flightDataRecord.ControllingSector.Name : null
+                            Text = flightDataRecord.ControllingSector.Name ?? null
                         };
+                    }
+                    else
+                    {
+                        return new CustomStripItem()
+                        {
+                            Text = flightDataRecord.ControllingSector.Name ?? null
+                        };
+                    }
+
 
              
-            // case STRIP_ITEM_NXTSECTOR:
-            //
-            //       return new CustomStripItem()
-            //       {
-            //           ForeColourIdentity = Colours.Identities.Custom,
-            //           CustomForeColour = Pending,
-            //           Text = 
-            //       };
-                  
+             //case STRIP_ITEM_NXTSECTOR:
+             //
+             //       var zpoints = flightDataRecord.ParsedRoute.ToList().Where(s => s.Type == FDP2.FDR.ExtractedRoute.Segment.SegmentTypes.ZPOINT);
+             //       
+             //       foreach (var zpoint in zpoints)
+             //
+             //       {
+             //           if (zpoint.ETO > DateTime.UtcNow)
+             //           {
+             //               SectorsVolumes.Sector sector = SectorsVolumes.FindSector();
+             //           }
+             //       }
+             //       return new CustomStripItem()
+             //       {
+             //           ForeColourIdentity = Colours.Identities.Custom,
+             //           CustomForeColour = Pending,
+             //           Text =  
+             //       };
+
 
 
                 case LABEL_ITEM_ADSB_CPDLC:
@@ -196,7 +215,7 @@ namespace AuroraStripItemsPlugin
 
                 case STRIP_ITEM_T10_FLAG:
 
-                    if (MachNumberTech(flightDataRecord.PerformanceData))
+                    if (flightDataRecord.PerformanceData?.IsJet ?? false)
 
                         return new CustomStripItem()
                         {
@@ -210,7 +229,7 @@ namespace AuroraStripItemsPlugin
 
                 case STRIP_ITEM_MNT_FLAG:
 
-                    if (MachNumberTech(flightDataRecord.PerformanceData))
+                    if (flightDataRecord.PerformanceData?.IsJet ?? false)
 
                         return new CustomStripItem()
                         {
