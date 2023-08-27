@@ -1,14 +1,13 @@
 ﻿using System;
 using System.Threading;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.ComponentModel.Composition;
 using System.Linq; //<--Need to add a reference to System.ComponentModel.Composition
 using System.Text.RegularExpressions;
 using vatsys;
 using vatsys.Plugin;
 using static vatsys.FDP2;
-
+using System.Linq.Expressions;
 
 //Note the reference to vatsys (set Copy Local to false) ----->
 
@@ -28,9 +27,12 @@ namespace AuroraLabelItemsPlugin
         const string LABEL_ITEM_SCC = "AURORA_SCC"; //field c(5)
         const string LABEL_ITEM_ANNOT_IND = "AURORA_ANNOT_IND"; //field e(1)
         const string LABEL_ITEM_RESTR = "AURORA_RESTR"; //field f(1)
+        const string LABEL_ITEM_LEVEL = "AURORA_LEVEL"; //field g(3)
         const string LABEL_ITEM_VMI = "AURORA_VMI"; //field h(1)
         const string LABEL_ITEM_CLEARED_LEVEL = "AURORA_CLEARED_LEVEL"; //field i(7)
+        const string LABEL_ITEM_HANDOFF_IND = "AURORA_HO_IND"; //field j(4)
         const string LABEL_ITEM_RADAR_IND = "AURORA_RADAR_IND"; //field k(1)
+        const string LABEL_ITEM_INHIBIT_IND = "AURORA_INHIBIT_IND"; //field l(1)
         const string LABEL_ITEM_FILED_SPEED = "AURORA_FILEDSPEED"; //field m(4)
         const string LABEL_ITEM_3DIGIT_GROUNDSPEED = "AURORA_GROUNDSPEED"; //field n(5)
         readonly static CustomColour EastboundColour = new CustomColour(240, 255, 255);
@@ -49,6 +51,8 @@ namespace AuroraLabelItemsPlugin
         readonly ConcurrentDictionary<string, byte> mntflagtoggle = new ConcurrentDictionary<string, byte>();
         readonly ConcurrentDictionary<string, byte> downlink = new ConcurrentDictionary<string, byte>();
         // key: callsign, value: acknowledged status
+        //readonly ConcurrentDictionary<string, List<string>> advisoryConflict = new ConcurrentDictionary<string, List<string>>();
+        //readonly ConcurrentDictionary<string, List<string>> imminentConflict = new ConcurrentDictionary<string, List<string>>();
         readonly ConcurrentDictionary<string, bool> advisoryConflict = new ConcurrentDictionary<string, bool>();
         readonly ConcurrentDictionary<string, bool> imminentConflict = new ConcurrentDictionary<string, bool>();
 
@@ -56,7 +60,6 @@ namespace AuroraLabelItemsPlugin
         {
             Network.PrivateMessagesChanged += Network_PrivateMessagesChanged;
             Network.RadioMessageAcknowledged += Network_RadioMessageAcknowledged;
-            
         }
 
 
@@ -106,7 +109,8 @@ namespace AuroraLabelItemsPlugin
 
             AutoAssume(updated);
             AutoDrop(updated);
-            if (jet & rnp4 & cpdlc & adsc)
+            //ConflictProbe(updated);                     ///Using TimeOfPassing method
+            if (jet & rnp4 & cpdlc & adsc)                ///Using CalculateAreaofConflict method
             {
                 ConflictProbe(updated, 23);
             }
@@ -204,194 +208,6 @@ namespace AuroraLabelItemsPlugin
             }
         }
 
-        public class Segment
-        {
-            public string callsign;
-            public Coordinate startLatlong;
-            public Coordinate endLatlong;
-            public DateTime startTime = DateTime.MaxValue;
-            public DateTime endTime = DateTime.MaxValue;
-            public FDP2.FDR.ExtractedRoute.Segment routeSegment;
-        }
-
-        private static List<Coordinate> CreatePolygon(Coordinate point1, Coordinate point2, int value)
-        {
-            List<Coordinate> polygon = new List<Coordinate>();
-            double track = Conversions.CalculateTrack(point1, point2);
-            double num1 = track - 90.0;
-            for (int index = 0; index <= 180; index += 10)
-            {
-                double heading = num1 - (double)index;
-                Coordinate fromBearingRange = Conversions.CalculateLLFromBearingRange(point1, (double)value, heading);
-                polygon.Add(fromBearingRange);
-            }
-            double num2 = track + 90.0;
-            for (int index = 0; index <= 180; index += 10)
-            {
-                double heading = num2 - (double)index;
-                Coordinate fromBearingRange = Conversions.CalculateLLFromBearingRange(point2, (double)value, heading);
-                polygon.Add(fromBearingRange);
-            }
-            polygon.Add(polygon[0]);
-            return polygon;
-        }
-
-        private static List<Coordinate> CalculatePolygonIntersections(
-            List<Coordinate> polygon,
-            Coordinate point1,
-            Coordinate point2)
-        {
-            List<Coordinate> polygonIntersections = new List<Coordinate>();
-            for (int index = 1; index < polygon.Count; ++index)
-            {
-                List<Coordinate> gcIntersectionLl = Conversions.CalculateAllGCIntersectionLL(polygon[index - 1], polygon[index], point1, point2);
-                if (gcIntersectionLl != null)
-                    polygonIntersections.AddRange(gcIntersectionLl);
-            }
-            for (int index = 0; index < polygonIntersections.Count; ++index)
-            {
-                Coordinate intsect = polygonIntersections[index];
-                polygonIntersections.RemoveAll(c => c != intsect && Conversions.CalculateDistance(intsect, c) < 0.01);
-            }
-            return polygonIntersections;
-        }
-
-        private static List<Segment> CalculateAreaOfConflict(FDP2.FDR fdr1, FDP2.FDR fdr2, int value)
-        {
-            List<Segment> segs = new List<Segment>();
-            List<FDP2.FDR.ExtractedRoute.Segment> route1waypoints = fdr1.ParsedRoute.ToList().Where(s => s.Type == FDP2.FDR.ExtractedRoute.Segment.SegmentTypes.WAYPOINT).ToList();
-            List<FDP2.FDR.ExtractedRoute.Segment> route2waypoints = fdr2.ParsedRoute.ToList().Where(s => s.Type == FDP2.FDR.ExtractedRoute.Segment.SegmentTypes.WAYPOINT).ToList();
-            for (int wp1index = 1; wp1index < route1waypoints.Count; ++wp1index)
-            {
-                List<Coordinate> route1Segment = CreatePolygon(route1waypoints[wp1index - 1].Intersection.LatLong, route1waypoints[wp1index].Intersection.LatLong, value);
-                for (int wp2index = 1; wp2index < route2waypoints.Count; wp2index++)
-                {
-                    List<Coordinate> source = new List<Coordinate>();
-                    List<Coordinate> intersectionPoints = new List<Coordinate>();
-                    source.AddRange((IEnumerable<Coordinate>)CalculatePolygonIntersections(route1Segment, route2waypoints[wp2index - 1].Intersection.LatLong, route2waypoints[wp2index].Intersection.LatLong));
-                    int num1 = 0;
-                    int num2 = 0;
-                    foreach (Coordinate coordinate in source.ToList<Coordinate>())
-                    {
-                        if (Conversions.IsLatLonOnGC(route2waypoints[wp2index - 1].Intersection.LatLong, route2waypoints[wp2index].Intersection.LatLong, coordinate))
-                        {
-                            intersectionPoints.Add(coordinate);
-                        }
-                        else
-                        {
-                            double track = Conversions.CalculateTrack(route2waypoints[wp2index - 1].Intersection.LatLong, route2waypoints[wp2index].Intersection.LatLong);
-                            if (Math.Abs(track - Conversions.CalculateTrack(route2waypoints[wp2index - 1].Intersection.LatLong, coordinate)) > 90.0)
-                                ++num1;
-                            if (Math.Abs(track - Conversions.CalculateTrack(coordinate, route2waypoints[wp2index].Intersection.LatLong)) > 90.0)
-                                ++num2;
-                        }
-                    }
-                    if (num1 % 2 != 0 && num2 % 2 != 0)
-                    {
-                        intersectionPoints.Clear();
-                        intersectionPoints.Add(route2waypoints[wp2index - 1].Intersection.LatLong);
-                        intersectionPoints.Add(route2waypoints[wp2index].Intersection.LatLong);
-                    }
-                    else if (num2 % 2 != 0)
-                        intersectionPoints.Add(route2waypoints[wp2index].Intersection.LatLong);
-                    else if (num1 % 2 != 0)
-                        intersectionPoints.Add(route2waypoints[wp2index - 1].Intersection.LatLong);
-                    intersectionPoints.Sort((x, y) => Conversions.CalculateDistance(route2waypoints[wp2index - 1].Intersection.LatLong, x).CompareTo(Conversions.CalculateDistance(route2waypoints[wp2index - 1].Intersection.LatLong, y)));
-                    for (int ipIndex = 1; ipIndex < intersectionPoints.Count; ipIndex += 2)
-                    {
-                        Segment seg = new Segment();
-                        seg.startLatlong = intersectionPoints[ipIndex - 1];
-                        seg.endLatlong = intersectionPoints[ipIndex];
-                        List<Segment> conflictSegments = segs.Where<Segment>((Func<Segment, bool>)(s => s.routeSegment == route2waypoints[wp2index])).Where<Segment>((Func<Segment, bool>)(s => Conversions.CalculateDistance(s.startLatlong, route2waypoints[wp2index - 1].Intersection.LatLong) < Conversions.CalculateDistance(seg.startLatlong, route2waypoints[wp2index - 1].Intersection.LatLong) && Conversions.CalculateDistance(s.endLatlong, route2waypoints[wp2index - 1].Intersection.LatLong) > Conversions.CalculateDistance(seg.startLatlong, route2waypoints[wp2index - 1].Intersection.LatLong) || Conversions.CalculateDistance(s.endLatlong, route2waypoints[wp2index - 1].Intersection.LatLong) > Conversions.CalculateDistance(seg.endLatlong, route2waypoints[wp2index - 1].Intersection.LatLong) && Conversions.CalculateDistance(s.startLatlong, route2waypoints[wp2index - 1].Intersection.LatLong) < Conversions.CalculateDistance(seg.endLatlong, route2waypoints[wp2index - 1].Intersection.LatLong) || Conversions.CalculateDistance(s.startLatlong, route2waypoints[wp2index - 1].Intersection.LatLong) > Conversions.CalculateDistance(seg.startLatlong, route2waypoints[wp2index - 1].Intersection.LatLong) && Conversions.CalculateDistance(s.endLatlong, route2waypoints[wp2index - 1].Intersection.LatLong) < Conversions.CalculateDistance(seg.endLatlong, route2waypoints[wp2index - 1].Intersection.LatLong) || Conversions.CalculateDistance(s.startLatlong, seg.startLatlong) < 0.01 || Conversions.CalculateDistance(s.endLatlong, seg.endLatlong) < 0.01)).ToList<Segment>();
-                        if (conflictSegments.Count > 0)
-                        {
-                            foreach (Segment segment in conflictSegments)
-                            {
-                                if (Conversions.CalculateDistance(segment.endLatlong, route2waypoints[wp2index - 1].Intersection.LatLong) < Conversions.CalculateDistance(seg.endLatlong, route2waypoints[wp2index - 1].Intersection.LatLong))
-                                    segment.endLatlong = seg.endLatlong;
-                                if (Conversions.CalculateDistance(seg.startLatlong, route2waypoints[wp2index - 1].Intersection.LatLong) < Conversions.CalculateDistance(segment.startLatlong, route2waypoints[wp2index - 1].Intersection.LatLong))
-                                    segment.startLatlong = seg.startLatlong;
-                            }
-                        }
-                        else
-                        {
-                            seg.callsign = fdr2.Callsign;
-                            seg.routeSegment = route2waypoints[wp2index];
-                            segs.Add(seg);
-                        }
-                    }
-                }
-            }
-            for (int i = 0; i < segs.Count; i++)
-            {
-                if (!segs.Exists((Predicate<Segment>)(s => Conversions.CalculateDistance(segs[i].startLatlong, s.endLatlong) < 0.01)))
-                    segs[i].startTime = FDP2.GetSystemEstimateAtPosition(fdr2, segs[i].startLatlong, segs[i].routeSegment);
-                if (!segs.Exists((Predicate<Segment>)(s => Conversions.CalculateDistance(segs[i].endLatlong, s.startLatlong) < 0.01)))
-                    segs[i].endTime = FDP2.GetSystemEstimateAtPosition(fdr2, segs[i].endLatlong, segs[i].routeSegment);
-            }
-            return segs;
-        }
-
-        public void ConflictProbe(FDP2.FDR fdr, int value)
-        {
-            if (fdr == null) return;
-            int cfl = fdr.CFLUpper;
-            int rfl = fdr.RFL;
-            int alt = cfl == -1 ? rfl : cfl;
-
- 
-            var isRvsm = fdr.RVSM;
-
-            bool clean;
-
-            foreach (var fdr2 in FDP2.GetFDRs)
-            {
-                if (fdr2 == null || fdr.Callsign == fdr2.Callsign || !MMI.IsMySectorConcerned(fdr2)) continue;
-                int cfl2 = fdr2.CFLUpper;
-                int rfl2 = fdr2.RFL;
-                int alt2 = cfl2 == -1 ? rfl2 : cfl2;
-                var isRvsm2 = fdr2.RVSM;
-                var delta = Math.Abs(alt - alt2);
-                int verticalSep = (alt > FDP2.RVSM_BAND_LOWER && !isRvsm) ||
-                                     (alt2 > FDP2.RVSM_BAND_LOWER && !isRvsm2) || alt > FDP2.RVSM_BAND_UPPER ||
-                                     alt2 > FDP2.RVSM_BAND_UPPER
-                    ? 2000
-                    : 1000;
-
-                if (delta < verticalSep)
-                {
-                    var segments1 = CalculateAreaOfConflict(fdr, fdr2, value);
-                    segments1.Sort((Comparison<Segment>)((s, t) => s.startTime.CompareTo(t.startTime))); //sort by first conflict time
-                    var firstConflictTime = segments1.FirstOrDefault();                    
-                    var timeDiff = firstConflictTime != null
-                        ? new DateTime().Subtract(firstConflictTime.startTime)
-                        : TimeSpan.MaxValue; //how much time before conflict resolution
-                    var advisoryConflicts = timeDiff.CompareTo(new TimeSpan(0, 2, 0, 0, 0)) < 0;  //check if timediff < 2 hours
-                    var imminentConflicts = timeDiff.CompareTo(new TimeSpan(0, 0, 30, 0, 0)) < 0; //check if timediff < 30 mins
-
-                    if (imminentConflicts)
-                    {
-                        imminentConflict.AddOrUpdate(fdr.Callsign, true, (k, v) => true);
-                        imminentConflict.AddOrUpdate(fdr2.Callsign, true, (k, v) => true);
-
-                    }
-                    if (advisoryConflicts)                        
-                    {
-                        // auto acknowledge
-                        advisoryConflict.AddOrUpdate(fdr.Callsign, true, (k, v) => true);
-                        advisoryConflict.AddOrUpdate(fdr2.Callsign, true, (k, v) => true);
-                    }
- }
-                    else
-                    {
-                        advisoryConflict.TryRemove(fdr.Callsign, out clean);
-                        advisoryConflict.TryRemove(fdr2.Callsign, out clean);
-                        imminentConflict.TryRemove(fdr.Callsign, out clean);
-                        imminentConflict.TryRemove(fdr2.Callsign, out clean);
-                     }
-                }          
-        }
-
         private static void AutoAssume(RDP.RadarTrack rt)
         {
             var fdr = rt.CoupledFDR;
@@ -408,11 +224,11 @@ namespace AuroraLabelItemsPlugin
             {
                 if (!fdr.ESTed && MMI.IsMySectorConcerned(fdr))
                 {
-                    MMI.EstFDR(fdr);                    
+                    MMI.EstFDR(fdr);
                 }
 
                 if (MMI.SectorsControlled.ToList()
-                        .Exists(s => s.IsInSector(fdr.GetLocation(), fdr.PRL)) && !fdr.IsTrackedByMe &&
+                    .Exists(s => s.IsInSector(fdr.GetLocation(), fdr.PRL)) && !fdr.IsTrackedByMe &&
                     MMI.SectorsControlled.Contains(fdr.ControllingSector) || fdr.ControllingSector == null)
                 {
                     MMI.AcceptJurisdiction(fdr);
@@ -433,17 +249,157 @@ namespace AuroraLabelItemsPlugin
         {
             var rt = fdr.CoupledTrack;
             if (fdr != null && rt != null)
-                {
-                if (fdr.IsTrackedByMe &&  MMI.GetSectorEntryTime(fdr) < DateTime.Now && MMI.SectorsControlled.ToList()
-                        .TrueForAll(s => !s.IsInSector(fdr.GetLocation(), fdr.PRL)))  //MMI.GetSectorEntryTime(fdr) == null
+            {
+                if (MMI.GetSectorEntryTime(fdr) == null && MMI.SectorsControlled.ToList()
+                        .TrueForAll(s => !s.IsInSector(fdr.GetLocation(), fdr.PRL)))
                 {
                     MMI.HandoffToNone(fdr);
                     //MMI.Inhibit(fdr);
-                    Thread.Sleep(300000);                    
+                    Thread.Sleep(300000);
                     RDP.DeCouple(rt);
                 }
             }
         }
+
+        public void ConflictProbe(FDP2.FDR fdr, int value)
+        {
+            if ((fdr == null) || !MMI.IsMySectorConcerned(fdr)) return;
+            int cfl = fdr.CFLUpper;
+            int rfl = fdr.RFL;
+            int alt = cfl == -1 ? rfl : cfl;
+
+            var isRvsm = fdr.RVSM;
+
+            foreach (var fdr2 in FDP2.GetFDRs)
+            {
+                if (fdr2 == null || fdr.Callsign == fdr2.Callsign || !MMI.IsMySectorConcerned(fdr2)) continue;
+                int cfl2 = fdr2.CFLUpper;
+                int rfl2 = fdr2.RFL;
+                int alt2 = cfl2 == -1 ? rfl2 : cfl2;
+                var isRvsm2 = fdr2.RVSM;
+                var delta = Math.Abs(alt - alt2);
+                int verticalSep = (alt > 45000 && alt < 60000) ? 4000 : alt > 60000 ? 5000 : (alt2 > 45000 && alt2 < 60000) ? 4000 : alt2 > 60000 ? 5000 :
+                                     (alt > FDP2.RVSM_BAND_LOWER && !isRvsm) ||
+                                     (alt2 > FDP2.RVSM_BAND_LOWER && !isRvsm2) || (alt > FDP2.RVSM_BAND_UPPER || alt2 > FDP2.RVSM_BAND_UPPER)
+                    ? 2000
+                    : 1000;
+
+                if (delta < verticalSep)
+                {
+                    var anInstanceofCPAR = new CPAR();
+                    var segments1 = anInstanceofCPAR.CalculateAreaOfConflict(fdr, fdr2, value);
+                    segments1.Sort((Comparison<CPAR.Segment>)((s, t) => s.startTime.CompareTo(t.startTime))); //sort by first conflict time
+                    var firstConflictTime = segments1.FirstOrDefault(); //segments1.startTime > DateTime.UtcNow
+                    for (int i = 0; i < segments1.Count; i++)
+                    {
+                        var activeExitBuffer = firstConflictTime.endTime.Subtract(new TimeSpan(0, 0, 15, 0));
+                        var isWithinTime = firstConflictTime.endTime > DateTime.UtcNow && activeExitBuffer > DateTime.UtcNow  //check if conflict times are relevant
+                            && segments1[i].startTime < activeExitBuffer && segments1[i].startTime > firstConflictTime.startTime;
+
+                        var advisoryConflicts = isWithinTime && new TimeSpan(0, 2, 0, 0, 0).CompareTo(firstConflictTime.startTime.Subtract(DateTime.UtcNow)) > 0;  //check if timediff < 2 hours
+                        var imminentConflicts = isWithinTime && new TimeSpan(0, 0, 30, 0, 0).CompareTo(firstConflictTime.startTime.Subtract(DateTime.UtcNow)) > 0; //check if timediff < 30 mins
+
+
+                        //TimeOfPassing top;
+                        //
+                        //try
+                        //{
+                        //    top = new TimeOfPassing(fdr, fdr2);
+                        //}
+                        //
+                        //catch (Exception e)
+                        //{
+                        //    return;
+                        //}
+                        //
+                        //var cs1 = top.FDR1.Callsign;
+                        //var cs2 = top.FDR2.Callsign;
+                        //Match pbn1 = Regex.Match(fdr.Remarks, @"PBN\/\w+\s");
+                        //Match pbn2 = Regex.Match(fdr2.Remarks, @"PBN\/\w+\s");
+                        //bool rnp10 = Regex.IsMatch(pbn1.Value, @"A1") && Regex.IsMatch(pbn2.Value, @"A1");
+                        //bool rnp4 = Regex.IsMatch(pbn1.Value, @"L1") && Regex.IsMatch(pbn2.Value, @"L1");
+                        //bool cpdlc = (Regex.IsMatch(fdr.AircraftEquip, @"J5") || Regex.IsMatch(fdr.AircraftEquip, @"J7")) 
+                        //         && (Regex.IsMatch(fdr2.AircraftEquip, @"J5") || Regex.IsMatch(fdr2.AircraftEquip, @"J7"));
+                        //bool adsc = Regex.IsMatch(fdr.AircraftSurvEquip, @"D1") && Regex.IsMatch(fdr2.AircraftSurvEquip, @"D1");
+                        //bool jet = fdr.PerformanceData?.IsJet ?? false;
+                        //var d23 = top.Distance < 23;
+                        //var d50 = top.Distance < 50;
+                        //var d100 = top.Distance < 100;
+                        //var advisoryTimeFrame = new TimeSpan(0, 2, 0, 0, 0).CompareTo(top.Time.Subtract(DateTime.UtcNow)) > 0;
+                        //var imminentTimeFrame = new TimeSpan(0, 0, 30, 0, 0).CompareTo(top.Time.Subtract(DateTime.UtcNow)) > 0;
+                        //bool imminentConflicts = delta < verticalSep && ((jet && rnp4 && cpdlc && adsc && d23 && imminentTimeFrame) || ((rnp4 || rnp10) && d50 && imminentTimeFrame) || (d100 && imminentTimeFrame));
+                        //bool advisoryConflicts = delta < verticalSep && ((jet && rnp4 && cpdlc && adsc && d23 && advisoryTimeFrame) || ((rnp4 || rnp10) && d50 && advisoryTimeFrame) || (d100 && advisoryTimeFrame));
+
+
+                        if (imminentConflicts)
+                        {
+                            //imminentConflict.AddOrUpdate(fdr.Callsign, new List<string>(new string[] { fdr2.Callsign }),
+                            //    (k, v) => v.Append(fdr2.Callsign).ToList());
+                            //imminentConflict.AddOrUpdate(fdr2.Callsign, new List<string>(new string[] { fdr.Callsign }),
+                            //    (k, v) => v.Append(fdr.Callsign).ToList());
+
+
+                            imminentConflict.AddOrUpdate(fdr.Callsign, imminentConflicts, (k, v) => imminentConflicts);
+                            //imminentConflict.AddOrUpdate(cs1, imminentConflicts, (k, v) => imminentConflicts);
+                            //imminentConflict.AddOrUpdate(cs2, imminentConflicts, (k, v) => imminentConflicts);
+
+                        }
+                        else
+                        {
+                            //imminentConflict.AddOrUpdate(fdr2.Callsign, new List<string>(),
+                            //    (k, v) => v.Where(e => e != fdr.Callsign).ToList());
+                            //imminentConflict.AddOrUpdate(fdr.Callsign, new List<string>(),
+                            //    (k, v) => v.Where(e => e != fdr2.Callsign).ToList());
+
+
+                            imminentConflict.TryRemove(fdr.Callsign, out _);
+                            //imminentConflict.TryRemove(cs1, out _);
+                            //imminentConflict.TryRemove(cs2, out _);
+                        }
+                        if (advisoryConflicts)
+                        {
+                            //advisoryConflict.AddOrUpdate(fdr2.Callsign, new List<string>(new string[] { fdr.Callsign }),
+                            //    (k, v) => v.Append(fdr.Callsign).ToList());
+                            //advisoryConflict.AddOrUpdate(fdr.Callsign, new List<string>(new string[] { fdr2.Callsign }),
+                            //    (k, v) => v.Append(fdr2.Callsign).ToList());
+
+
+                            advisoryConflict.AddOrUpdate(fdr.Callsign, advisoryConflicts, (k, v) => advisoryConflicts);
+                            //advisoryConflict.AddOrUpdate(cs1, advisoryConflicts, (k, v) => advisoryConflicts);
+                            //advisoryConflict.AddOrUpdate(cs2, advisoryConflicts, (k, v) => advisoryConflicts);
+                        }
+                        else
+                        {
+                            //advisoryConflict.AddOrUpdate(fdr.Callsign, new List<string>(),
+                            //    (k, v) => v.Where(e => e != fdr2.Callsign).ToList());
+                            //advisoryConflict.AddOrUpdate(fdr2.Callsign, new List<string>(),
+                            //    (k, v) => v.Where(e => e != fdr.Callsign).ToList());
+
+
+                            advisoryConflict.TryRemove(fdr.Callsign, out _);
+                            //advisoryConflict.TryRemove(cs1, out _);
+                            //advisoryConflict.TryRemove(cs2, out _);
+                        }
+                    }
+                }
+            }
+        }
+        
+        //var emptyAdvisoryConflicts = advisoryConflict.Where(pair => pair.Value.Count == 0)
+        //    .Select(pair => pair.Key)
+        //    .ToList();
+        //foreach (var callsign in emptyAdvisoryConflicts)
+        //{
+        //    advisoryConflict.TryRemove(callsign, out _);
+        //}
+        //var emptyImminentConflicts = imminentConflict.Where(pair => pair.Value.Count == 0)
+        //    .Select(pair => pair.Key)
+        //    .ToList();
+        //foreach (var callsign in emptyImminentConflicts)
+        //{
+        //    imminentConflict.TryRemove(callsign, out _);
+        //}    
+
 
 
         ///  Could use the new position of the radar track or its change in state (cancelled, etc.) to do some processing. 
@@ -476,8 +432,7 @@ namespace AuroraLabelItemsPlugin
         /// itemType is the value of the Type attribute in Labels.xml
         /// If it's not our item being called (another plugins, for example), return null.
         /// As a general rule, don't do processing in here as you'll slow down the ASD refresh. In the case of parsing a level to a string though, that's fine.
-        public CustomLabelItem GetCustomLabelItem(string itemType, Track track, FDP2.FDR flightDataRecord,
-            RDP.RadarTrack radarTrack)
+        public CustomLabelItem GetCustomLabelItem(string itemType, Track track, FDP2.FDR flightDataRecord, RDP.RadarTrack radarTrack)
         {
             if (flightDataRecord == null && track == null)
                 return null;
@@ -586,13 +541,11 @@ namespace AuroraLabelItemsPlugin
                     }
 
                 case LABEL_ITEM_ADS_FLAGS:
-                   
-                        return new CustomLabelItem()
-                        {
-                            Text = c2.ToString(),
 
-                        };
-
+                    return new CustomLabelItem()
+                    {
+                        Text = c2.ToString()
+                    };
 
 
                 case LABEL_ITEM_MNT_FLAGS:
@@ -651,16 +604,33 @@ namespace AuroraLabelItemsPlugin
 
                     return null;
 
-                case LABEL_ITEM_VMI:
-                    
+                case LABEL_ITEM_LEVEL:
+                    int level = radarTrack == null ? flightDataRecord.PRL / 100 : radarTrack.CorrectedAltitude / 100;
+
                         return new CustomLabelItem()
                         {
-                            Text = h1.ToString(),
-                            ForeColourIdentity = isNonRVSM 
+                            Text = level.ToString(),
+                            ForeColourIdentity = isNonRVSM
                             ? Colours.Identities.Custom
                             : default,
-                            CustomForeColour = NonRVSM
-                        };
+                            CustomForeColour = NonRVSM,
+                            Border = flightDataRecord.State == (FDR.FDRStates.STATE_PREACTIVE | FDR.FDRStates.STATE_COORDINATED)
+                            ? BorderFlags.All
+                            : BorderFlags.None,
+                            BorderColourIdentity = Colours.Identities.Custom,
+                            CustomBorderColour = NotCDA
+                        };                    
+
+                case LABEL_ITEM_VMI:
+
+                    return new CustomLabelItem()
+                    {
+                        Text = h1.ToString(),
+                        ForeColourIdentity = isNonRVSM
+                        ? Colours.Identities.Custom
+                        : default,
+                        CustomForeColour = NonRVSM
+                    };
 
 
 
@@ -669,7 +639,7 @@ namespace AuroraLabelItemsPlugin
                     if (radarTrack != null && radarTrack.ReachedCFL || prl == alt) //track.NewCFL
                         return new CustomLabelItem()
                         {
-                            Text = "" 
+                            Text = ""
                         };
 
                     else
@@ -678,18 +648,43 @@ namespace AuroraLabelItemsPlugin
                         {
                             Text = alt.ToString(),
                             ForeColourIdentity = isNonRVSM
-                            ? Colours.Identities.Custom 
+                            ? Colours.Identities.Custom
                             : default,
                             CustomForeColour = NonRVSM,
-                            Border = flightDataRecord.State == (FDR.FDRStates.STATE_PREACTIVE | FDR.FDRStates.STATE_COORDINATED) 
-                            ? BorderFlags.All 
+                            Border = flightDataRecord.State == (FDR.FDRStates.STATE_PREACTIVE | FDR.FDRStates.STATE_COORDINATED)
+                            ? BorderFlags.All
                             : BorderFlags.None,
                             BorderColourIdentity = Colours.Identities.Custom,
                             CustomBorderColour = NotCDA
                         };
                     }
 
-
+                //case LABEL_ITEM_HANDOFF_IND:
+                //
+                //
+                //    if (flightDataRecord.IsHandoff)
+                //    {
+                //        return new CustomLabelItem()
+                //        {
+                //            Text = "H" + flightDataRecord.HandoffController.ToString(),
+                //        };
+                //    }
+                //
+                //    else if (flightDataRecord.State == FDR.FDRStates.STATE_HANDOVER_FIRST)
+                //    {
+                //        return new CustomLabelItem()
+                //        {
+                //            Text = "O" + flightDataRecord.HandoffController.ToString(),
+                //        };
+                //    }
+                //
+                //    else
+                //    {
+                //        return new CustomLabelItem()
+                //        {
+                //            Text = ""
+                //        };
+                //    }
 
                 case LABEL_ITEM_RADAR_IND:
 
@@ -712,8 +707,28 @@ namespace AuroraLabelItemsPlugin
                         };
                     }
 
+                case LABEL_ITEM_INHIBIT_IND:
+
+
+                    if (flightDataRecord.State == FDR.FDRStates.STATE_INHIBITED)
+                    {
+                        return new CustomLabelItem()
+                        {
+                            Text = "^"
+                        };
+                    }
+
+                    else
+                    {
+                        return new CustomLabelItem()
+                        {
+                            Text = ""
+                        };
+                    }
+
+
                 case LABEL_ITEM_FILED_SPEED:
-                    var mach = Conversions.CalculateMach(flightDataRecord.TAS, GRIB.FindTemperature(flightDataRecord.PRL, track.GetLocation(), true)); 
+                    var mach = Conversions.CalculateMach(flightDataRecord.TAS, GRIB.FindTemperature(flightDataRecord.PRL, track.GetLocation(), true));
                     return new CustomLabelItem()
                     {
                         Text = "M" + Convert.ToDecimal(mach).ToString("F2").Replace(".", "")
@@ -738,26 +753,27 @@ namespace AuroraLabelItemsPlugin
         public CustomColour SelectASDTrackColour(Track track)
         {
             var fdr = track.GetFDR();
+            var fdr2 = track.GetFDR();
             //if track doesn't have an FDR coupled do nothing
             if (fdr == null)
                 return null;
 
-             
+
             //only apply East/West colour to jurisdiction state
             if (track.State == MMI.HMIStates.Jurisdiction) //read our dictionary of stored bools (true means is easterly) and return the correct colour
             {
-                
-                return GetDirectionColour(fdr.Callsign);
+
+                return GetConflictColour(fdr.Callsign) ?? GetDirectionColour(fdr.Callsign);
             }
 
-            if (MMI.IsMySectorConcerned(fdr) && fdr.State != (FDR.FDRStates.STATE_PREACTIVE | FDR.FDRStates.STATE_COORDINATED)) //only apply conflict colours if planes are of concern
+            if (fdr.State != (FDR.FDRStates.STATE_PREACTIVE | FDR.FDRStates.STATE_COORDINATED)) //only apply conflict colours if planes are of concern
             {
-                return GetConflictColour(fdr.Callsign);
+                return GetConflictColour(fdr.Callsign) ?? default;
             }
 
             else
 
-            return default;
+                return default;
 
         }
 
@@ -781,17 +797,16 @@ namespace AuroraLabelItemsPlugin
 
         private CustomColour GetConflictColour(string callsign)
         {
-            if (advisoryConflict.TryGetValue(callsign, out _))
-            {
-                return Advisory;
-            }
-
             if (imminentConflict.TryGetValue(callsign, out _))
             {
                 return Imminent;
             }
 
-                return null; 
+            if (advisoryConflict.TryGetValue(callsign, out _))
+            {
+                return Advisory;
+            }
+            return null;
         }
     }
 }
