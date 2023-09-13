@@ -267,12 +267,21 @@ namespace AuroraLabelItemsPlugin
             int cfl = fdr.CFLUpper;
             int rfl = fdr.RFL;
             int alt = cfl == -1 ? rfl : cfl;
-
             var isRvsm = fdr.RVSM;
+         
 
             foreach (var fdr2 in FDP2.GetFDRs)
             {
                 if (fdr2 == null || fdr.Callsign == fdr2.Callsign || !MMI.IsMySectorConcerned(fdr2)) continue;
+                var rte = fdr.ParsedRoute;
+                var rte2 = fdr2.ParsedRoute;
+                double trk = Conversions.CalculateTrack(rte.First().Intersection.LatLong,
+                    rte.Last().Intersection.LatLong);
+                double trk2 = Conversions.CalculateTrack(rte2.First().Intersection.LatLong,
+                    rte2.Last().Intersection.LatLong);
+                var sameDir = Math.Abs(trk2 - trk) < 45;
+                var crossing = Math.Abs(trk2 - trk) >= 45 && Math.Abs(trk2 - trk) <= 135;
+                var oppoDir = Math.Abs(trk2 - trk) >= 136 && Math.Abs(trk2 - trk) <= 180;
                 int cfl2 = fdr2.CFLUpper;
                 int rfl2 = fdr2.RFL;
                 int alt2 = cfl2 == -1 ? rfl2 : cfl2;
@@ -289,47 +298,56 @@ namespace AuroraLabelItemsPlugin
                     var anInstanceofCPAR = new CPAR();
                     var segments1 = anInstanceofCPAR.CalculateAreaOfConflict(fdr, fdr2, value);
                     segments1.Sort((Comparison<CPAR.Segment>)((s, t) => s.startTime.CompareTo(t.startTime))); //sort by first conflict time
-                    var firstConflictTime = segments1.FirstOrDefault(); //segments1.startTime > DateTime.UtcNow
+                    var firstConflictTime = segments1.FirstOrDefault();
                     for (int i = 0; i < segments1.Count; i++)
                     {
-                        var activeExitBuffer = firstConflictTime.endTime.Subtract(new TimeSpan(0, 0, 15, 0));
-                        var isWithinTime = firstConflictTime.endTime > DateTime.UtcNow && activeExitBuffer > DateTime.UtcNow  //check if conflict times are relevant
-                            && segments1[i].startTime < activeExitBuffer && segments1[i].startTime > firstConflictTime.startTime;
 
-                        var advisoryConflicts = isWithinTime && new TimeSpan(0, 2, 0, 0, 0).CompareTo(firstConflictTime.startTime.Subtract(DateTime.UtcNow)) > 0;  //check if timediff < 2 hours
-                        var imminentConflicts = isWithinTime && new TimeSpan(0, 0, 30, 0, 0).CompareTo(firstConflictTime.startTime.Subtract(DateTime.UtcNow)) > 0; //check if timediff < 30 mins
-
-
-                        //TimeOfPassing top;
-                        //
-                        //try
-                        //{
-                        //    top = new TimeOfPassing(fdr, fdr2);
-                        //}
-                        //
-                        //catch (Exception e)
-                        //{
-                        //    return;
-                        //}
-                        //
-                        //var cs1 = top.FDR1.Callsign;
-                        //var cs2 = top.FDR2.Callsign;
-                        //Match pbn1 = Regex.Match(fdr.Remarks, @"PBN\/\w+\s");
-                        //Match pbn2 = Regex.Match(fdr2.Remarks, @"PBN\/\w+\s");
-                        //bool rnp10 = Regex.IsMatch(pbn1.Value, @"A1") && Regex.IsMatch(pbn2.Value, @"A1");
-                        //bool rnp4 = Regex.IsMatch(pbn1.Value, @"L1") && Regex.IsMatch(pbn2.Value, @"L1");
-                        //bool cpdlc = (Regex.IsMatch(fdr.AircraftEquip, @"J5") || Regex.IsMatch(fdr.AircraftEquip, @"J7")) 
-                        //         && (Regex.IsMatch(fdr2.AircraftEquip, @"J5") || Regex.IsMatch(fdr2.AircraftEquip, @"J7"));
-                        //bool adsc = Regex.IsMatch(fdr.AircraftSurvEquip, @"D1") && Regex.IsMatch(fdr2.AircraftSurvEquip, @"D1");
-                        //bool jet = fdr.PerformanceData?.IsJet ?? false;
-                        //var d23 = top.Distance < 23;
-                        //var d50 = top.Distance < 50;
-                        //var d100 = top.Distance < 100;
+                        TimeOfPassing top;
+                        
+                        try
+                        {
+                            top = new TimeOfPassing(fdr, fdr2);
+                        }
+                        
+                        catch (Exception e)
+                        {
+                            return;
+                        }
+                        
+                        var cs1 = top.FDR1.Callsign;
+                        var cs2 = top.FDR2.Callsign;
+                        Match pbn1 = Regex.Match(fdr.Remarks, @"PBN\/\w+\s");
+                        Match pbn2 = Regex.Match(fdr2.Remarks, @"PBN\/\w+\s");
+                        bool rnp10 = Regex.IsMatch(pbn1.Value, @"A1") && Regex.IsMatch(pbn2.Value, @"A1");
+                        bool rnp4 = Regex.IsMatch(pbn1.Value, @"L1") && Regex.IsMatch(pbn2.Value, @"L1");
+                        bool cpdlc = (Regex.IsMatch(fdr.AircraftEquip, @"J5") || Regex.IsMatch(fdr.AircraftEquip, @"J7")) 
+                                 && (Regex.IsMatch(fdr2.AircraftEquip, @"J5") || Regex.IsMatch(fdr2.AircraftEquip, @"J7"));
+                        bool adsc = Regex.IsMatch(fdr.AircraftSurvEquip, @"D1") && Regex.IsMatch(fdr2.AircraftSurvEquip, @"D1");
+                        bool jet = fdr.PerformanceData?.IsJet ?? false;
+                        var d23 = top.Distance < 23;
+                        var d50 = top.Distance < 50;
+                        var d100 = top.Distance < 100;
                         //var advisoryTimeFrame = new TimeSpan(0, 2, 0, 0, 0).CompareTo(top.Time.Subtract(DateTime.UtcNow)) > 0;
                         //var imminentTimeFrame = new TimeSpan(0, 0, 30, 0, 0).CompareTo(top.Time.Subtract(DateTime.UtcNow)) > 0;
                         //bool imminentConflicts = delta < verticalSep && ((jet && rnp4 && cpdlc && adsc && d23 && imminentTimeFrame) || ((rnp4 || rnp10) && d50 && imminentTimeFrame) || (d100 && imminentTimeFrame));
                         //bool advisoryConflicts = delta < verticalSep && ((jet && rnp4 && cpdlc && adsc && d23 && advisoryTimeFrame) || ((rnp4 || rnp10) && d50 && advisoryTimeFrame) || (d100 && advisoryTimeFrame));
+                        //var activeExitBuffer = firstConflictTime.endTime.Subtract(new TimeSpan(0, 0, 15, 0));
+                        //var lossOfSep = firstConflictTime.endTime > DateTime.UtcNow && activeExitBuffer > DateTime.UtcNow  //check if conflict times are relevant
+                        //&& segments1[i].startTime < activeExitBuffer && segments1[i].startTime > firstConflictTime.startTime;
+                        var timeLongSame = sameDir && firstConflictTime.endTime > DateTime.UtcNow && segments1[1].startTime - segments1[2].startTime < (jet ? (new TimeSpan(0, 0, 10, 0)) : (new TimeSpan(0, 0, 15, 0)));//check time based longitudinal for same direction
+                        var timeLongOpposite = oppoDir && top.Time > DateTime.UtcNow 
+                            && (top.Time.Add(new TimeSpan(0, 0, 10, 0)) > DateTime.UtcNow) && (top.Time.Subtract(new TimeSpan(0, 0, 10, 0)) > DateTime.UtcNow);
+                        var timeLongCross = crossing && firstConflictTime.endTime > DateTime.UtcNow && segments1[1].startTime - segments1[2].startTime < (new TimeSpan(0, 0, 15, 0));
+                        var distLongSame = sameDir && firstConflictTime.endTime > DateTime.UtcNow 
+                            && Conversions.CalculateDistance(segments1[1].startLatlong, segments1[2].startLatlong) 
+                            < (jet && rnp4 && cpdlc && adsc ? 30 : (rnp4 || rnp10) ? 50 : 50);
+                        var distLongOpposite = oppoDir && firstConflictTime.endTime > DateTime.UtcNow 
+                            && Conversions.CalculateDistance(segments1[1].endLatlong, segments1[2].endLatlong)
+                            < (jet && rnp4 && cpdlc && adsc ? 30 : (rnp4 || rnp10) ? 50 : 50);
 
+                        var lossOfSep = timeLongSame || timeLongOpposite || timeLongCross || distLongSame || distLongOpposite;
+                        var advisoryConflicts = lossOfSep && new TimeSpan(0, 2, 0, 0, 0).CompareTo(firstConflictTime.startTime.Subtract(DateTime.UtcNow)) > 0;  //check if timediff < 2 hours
+                        var imminentConflicts = lossOfSep && new TimeSpan(0, 0, 30, 0, 0).CompareTo(firstConflictTime.startTime.Subtract(DateTime.UtcNow)) > 0; //check if timediff < 30 mins
 
                         if (imminentConflicts)
                         {
