@@ -5,11 +5,8 @@ using vatsys;
 using vatsys.Plugin;
 using System.Collections.Concurrent;
 using System.ComponentModel.Composition; //<--Need to add a reference to System.ComponentModel.Composition
-using static vatsys.Performance;
-using static vatsys.Network;
 using static vatsys.FDP2;
-using System.Linq;
-using static vatsys.SectorsVolumes;
+
 
 namespace AuroraStripItemsPlugin
 {
@@ -135,24 +132,18 @@ namespace AuroraStripItemsPlugin
 
               case STRIP_ITEM_CTLSECTOR:
              
-                    bool pendingCoordination = flightDataRecord.State == (FDR.FDRStates.STATE_PREACTIVE | FDR.FDRStates.STATE_COORDINATED);
+                    bool pendingCoordination = flightDataRecord.State == (FDR.FDRStates.STATE_PREACTIVE | FDR.FDRStates.STATE_COORDINATED);                    
+                    string sectorName = flightDataRecord.ControllingSector == null ? "" : flightDataRecord.ControllingSector.Name;
 
-                    if (pendingCoordination) 
                     {
                         return new CustomStripItem()
                         {
-                            ForeColourIdentity = Colours.Identities.Custom,
+                            ForeColourIdentity = pendingCoordination ? Colours.Identities.Custom : default,
                             CustomForeColour = Pending,
-                            Text = flightDataRecord.ControllingSector.Name ?? null
+                            Text =  sectorName
                         };
                     }
-                    else
-                    {
-                        return new CustomStripItem()
-                        {
-                            Text = flightDataRecord.ControllingSector.Name ?? null
-                        };
-                    }
+
 
 
              
@@ -180,7 +171,7 @@ namespace AuroraStripItemsPlugin
                 case LABEL_ITEM_ADSB_CPDLC:
 
 
-                    if (isEastBound & !adsb & cpdlc)
+                    if (isEastBound && !adsb && cpdlc)
 
                         return new CustomStripItem()
                         {
@@ -189,22 +180,39 @@ namespace AuroraStripItemsPlugin
                             Text = "⧆"
                         };
 
-                    else if (!adsb & cpdlc)
+                    else if (!isEastBound && !adsb && cpdlc)
 
                         return new CustomStripItem()
                         {
                             Text = "⧆"
                         };
 
+                    else if (isEastBound && !adsb)
 
-                    else if (!adsb)
+                        return new CustomStripItem()
+                        {
+                            BackColourIdentity = Colours.Identities.StripText,
+                            ForeColourIdentity = Colours.Identities.StripBackground,
+                            Text = "⎕"
+                        };
+
+                    else if (!isEastBound && !adsb)
 
                         return new CustomStripItem()
                         {
                             Text = "⎕"
                         };
 
-                    else if (cpdlc)
+                    else if (isEastBound && cpdlc)
+
+                        return new CustomStripItem()
+                        {
+                            BackColourIdentity = Colours.Identities.StripText,
+                            ForeColourIdentity = Colours.Identities.StripBackground,
+                            Text = "*"
+                        };
+
+                    else if (!isEastBound && cpdlc)
 
                         return new CustomStripItem()
                         {
