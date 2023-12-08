@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using vatsys;
 using vatsys.Plugin;
@@ -26,9 +25,14 @@ namespace AuroraStripItemsPlugin
         const string STRIP_ITEM_DIST_FLAG = "AURORA_DIST_FLAG";
         const string STRIP_ITEM_RVSM_FLAG = "AURORA_RVSM_FLAG";
         const string STRIP_ITEM_VMI = "AURORA_STRIP_VMI";
+        const string STRIP_ITEM_COMPLEX = "AURORA_STRIP_COMPLEX";
         const string STRIP_ITEM_MAN_EST = "AURORA_MAN_EST";
-        const string STRIP_ITEM_LATERAL_FLAG = "AURORA_LATERAL_FLAG";
+        const string STRIP_ITEM_POINT = "AURORA_POINT";
+        const string STRIP_ITEM_ROUTE = "AURORA_ROUTE_STRIP";
+        const string STRIP_ITEM_RADAR_IND = "AURORA_RADAR_IND";
         const string STRIP_ITEM_ANNOT_IND = "AURORA_ANNOT_STRIP";
+        const string STRIP_ITEM_LATERAL_FLAG = "AURORA_LATERAL_FLAG";
+        const string STRIP_ITEM_RESTR = "AURORA_RESTR_STRIP";
         readonly static CustomColour NonRVSM = new CustomColour(242, 133, 0);
         readonly static CustomColour SepFlags = new CustomColour(0, 196, 253);
         readonly static CustomColour Pending = new CustomColour(46, 139, 87);
@@ -72,7 +76,7 @@ namespace AuroraStripItemsPlugin
         //    estimate.IsPETO = true;
         //}
 
-        private void ItemMouseClick(CustomLabelItemMouseClickEventArgs e)
+        private void ItemMouseClick(CustomStripItemMouseClickEventArgs e)
         {
             bool flagToggled = flagtoggle.TryGetValue(e.Track.GetFDR().Callsign, out _);
 
@@ -89,28 +93,27 @@ namespace AuroraStripItemsPlugin
         public CustomStripItem GetCustomStripItem(string itemType, Track track, FDP2.FDR flightDataRecord, RDP.RadarTrack radarTrack)
 
         {
-            Match pbn = Regex.Match(flightDataRecord.Remarks, @"PBN\/\w+\s");
-            bool cpdlc = Regex.IsMatch(flightDataRecord.AircraftEquip, @"J5") || Regex.IsMatch(flightDataRecord.AircraftEquip, @"J7");
-            bool adsc = Regex.IsMatch(flightDataRecord.AircraftSurvEquip, @"D1");
+            var pbn = Regex.Match(flightDataRecord.Remarks, @"PBN\/\w+\s");
+            bool rnp10 = pbn.Value.Contains("A1");
+            bool rnp4 = pbn.Value.Contains("L1");
+            bool cpdlc = flightDataRecord.AircraftEquip.Contains("J5") || flightDataRecord.AircraftEquip.Contains("J7");
+            bool adsc = flightDataRecord.AircraftSurvEquip.Contains("D1");
             bool adsb = flightDataRecord.ADSB;
-            bool rnp10 = Regex.IsMatch(pbn.Value, @"A1");
-            bool rnp4 = Regex.IsMatch(pbn.Value, @"L1");
             bool rvsm = flightDataRecord.RVSM;
             int level = radarTrack == null ? flightDataRecord.PRL / 100 : radarTrack.CorrectedAltitude / 100;
             int cfl;
             bool isCfl = Int32.TryParse(flightDataRecord.CFLString, out cfl);
             bool isEastBound = true;
+            eastboundCallsigns.TryGetValue(flightDataRecord.Callsign, out isEastBound);
 
-
-                if (flightDataRecord == null)
+            if (flightDataRecord == null)
                 return null;
 
             switch (itemType)
             {
                 case STRIP_ITEM_CALLSIGN:
 
-                    eastboundCallsigns.TryGetValue(flightDataRecord.Callsign, out isEastBound);
-
+                    
                     if (isEastBound)
                     {
                         return new CustomStripItem()
@@ -147,29 +150,35 @@ namespace AuroraStripItemsPlugin
 
 
              
-             //case STRIP_ITEM_NXTSECTOR:
-             //
-             //       var zpoints = flightDataRecord.ParsedRoute.ToList().Where(s => s.Type == FDP2.FDR.ExtractedRoute.Segment.SegmentTypes.ZPOINT);
-             //       
-             //       foreach (var zpoint in zpoints)
-             //
-             //       {
-             //           if (zpoint.ETO > DateTime.UtcNow)
-             //           {
-             //               SectorsVolumes.Sector sector = SectorsVolumes.FindSector();
-             //           }
-             //       }
-             //       return new CustomStripItem()
-             //       {
-             //           ForeColourIdentity = Colours.Identities.Custom,
-             //           CustomForeColour = Pending,
-             //           Text =  
-             //       };
+             case STRIP_ITEM_NXTSECTOR:
+                   
+                    TOC toc;
+                    toc = new TOC(flightDataRecord);
+
+                    string firName = toc.nextSector == null ? "" : toc.nextSector.Name;
+
+                    {
+                        return new CustomStripItem()
+                        {
+                            ForeColourIdentity = Colours.Identities.Custom,
+                            CustomForeColour = Pending,
+                            Text = firName
+                        };
+                    }
 
 
 
                 case LABEL_ITEM_ADSB_CPDLC:
 
+
+                    if (!isEastBound && !adsb && cpdlc)
+
+                        return new CustomStripItem()
+                        {
+                            BackColourIdentity = Colours.Identities.StripBackground,
+                            ForeColourIdentity = Colours.Identities.StripText,
+                            Text = "⧆"
+                        };
 
                     if (isEastBound && !adsb && cpdlc)
 
@@ -180,14 +189,16 @@ namespace AuroraStripItemsPlugin
                             Text = "⧆"
                         };
 
-                    else if (!isEastBound && !adsb && cpdlc)
+                    if (!isEastBound && !adsb)
 
                         return new CustomStripItem()
                         {
-                            Text = "⧆"
+                            BackColourIdentity = Colours.Identities.StripBackground,
+                            ForeColourIdentity = Colours.Identities.StripText,
+                            Text = "⎕"
                         };
 
-                    else if (isEastBound && !adsb)
+                    if (isEastBound && !adsb)
 
                         return new CustomStripItem()
                         {
@@ -196,26 +207,21 @@ namespace AuroraStripItemsPlugin
                             Text = "⎕"
                         };
 
-                    else if (!isEastBound && !adsb)
+                    if (!isEastBound && cpdlc)
 
                         return new CustomStripItem()
                         {
-                            Text = "⎕"
-                        };
-
-                    else if (isEastBound && cpdlc)
-
-                        return new CustomStripItem()
-                        {
-                            BackColourIdentity = Colours.Identities.StripText,
-                            ForeColourIdentity = Colours.Identities.StripBackground,
+                            BackColourIdentity = Colours.Identities.StripBackground,
+                            ForeColourIdentity = Colours.Identities.StripText,
                             Text = "*"
                         };
 
-                    else if (!isEastBound && cpdlc)
+                    if (isEastBound && cpdlc)
 
                         return new CustomStripItem()
                         {
+                            BackColourIdentity = Colours.Identities.StripText,
+                            ForeColourIdentity = Colours.Identities.StripBackground,
                             Text = "*"
                         };
 
@@ -229,8 +235,8 @@ namespace AuroraStripItemsPlugin
                         {
                             //BackColourIdentity = Colours.Identities.Custom,
                             //CustomBackColour = SepFlags,
-                            Text = "M",
-                            OnMouseClick = ItemMouseClick
+                            Text = "M"
+                            //OnMouseClick = ItemMouseClick
                         };
 
                     return null;
@@ -250,7 +256,7 @@ namespace AuroraStripItemsPlugin
 
                 case STRIP_ITEM_DIST_FLAG:
 
-                    if (adsc & cpdlc & rnp4 || rnp10)
+                    if (adsc & cpdlc & (rnp4 || rnp10))
 
 
                         return new CustomStripItem()
@@ -299,6 +305,18 @@ namespace AuroraStripItemsPlugin
 
                     return null;
 
+                case STRIP_ITEM_COMPLEX:
+
+                    if (flightDataRecord.LabelOpData.Contains("AT ") || flightDataRecord.LabelOpData.Contains(" BY ") ||
+                        flightDataRecord.LabelOpData.Contains("CLEARED TO "))
+
+                        return new CustomStripItem()
+                        {
+                            Text = "*"
+                        };
+
+                    return null;
+
                 //case STRIP_ITEM_MAN_EST:
 
                 //if (Estimates)
@@ -308,12 +326,51 @@ namespace AuroraStripItemsPlugin
                 //    };
                 //return null;
 
+                //case STRIP_ITEM_POINT:
+                //    Coordinate coordinate = Conversions.ConvertToCoordinate(FDR.ExtractedRoute);
+                //
+                //    if (StripItemType.Point == )
+                //    return new CustomStripItem()
+                //    {
+                //        Text = Conversions.ConvertToFlightplanLatLong()
+                //    };
+                case STRIP_ITEM_ROUTE:
+
+                        return new CustomStripItem()
+                        {
+                            Text = "F",
+                            //OnMouseClick = ItemMouseClick
+                        };
+
+
+                case STRIP_ITEM_RADAR_IND:
+
+                        return new CustomStripItem()
+                        {
+                            Text = "A",
+                            //OnMouseClick = 
+                        };
+
+
                 case STRIP_ITEM_ANNOT_IND:
 
-                    return new CustomStripItem()
+                    bool scratch = String.IsNullOrEmpty(flightDataRecord.LabelOpData);
+
+                    if (scratch)
                     {
-                        Text = "." //&
-                    };
+                        return new CustomStripItem()
+                        {
+                            Text = "."
+                        };
+                    }
+
+                    else
+                    {
+                        return new CustomStripItem()
+                        {
+                            Text = "&"
+                        };
+                    }
 
 
                 case STRIP_ITEM_LATERAL_FLAG:
@@ -323,10 +380,23 @@ namespace AuroraStripItemsPlugin
 
                         return new CustomStripItem()
                         {
-                            //BackColourIdentity = Colours.Identities.Custom,
-                            Text = rnp4 ? "4" : "R",
-                            OnMouseClick = ItemMouseClick
+                            BackColourIdentity = Colours.Identities.Custom,
+                            CustomBackColour = SepFlags,
+                            Text = rnp4 ? "4" : rnp10 ? "R" : "", 
+                            //OnMouseClick = ItemMouseClick
                         };
+                    return null;
+
+                case STRIP_ITEM_RESTR:
+
+                    if (flightDataRecord.LabelOpData.Contains("AT ") || flightDataRecord.LabelOpData.Contains(" BY ") ||
+                        flightDataRecord.LabelOpData.Contains("CLEARED TO "))
+
+                        return new CustomStripItem()
+                        {
+                            Text = "x"
+                        };
+
                     return null;
 
                 default: return null;
