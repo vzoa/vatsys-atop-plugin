@@ -60,10 +60,11 @@ namespace AuroraLabelItemsPlugin
         readonly ConcurrentDictionary<string, byte> mntflagtoggle = new ConcurrentDictionary<string, byte>();
         readonly ConcurrentDictionary<string, byte> downlink = new ConcurrentDictionary<string, byte>();
         // key: callsign, value: acknowledged status
-        readonly ConcurrentDictionary<string, List<string>> advisoryConflict = new ConcurrentDictionary<string, List<string>>();
-        readonly ConcurrentDictionary<string, List<string>> imminentConflict = new ConcurrentDictionary<string, List<string>>();
-        //readonly ConcurrentDictionary<string, bool> advisoryConflict = new ConcurrentDictionary<string, bool>();
-        //readonly ConcurrentDictionary<string, bool> imminentConflict = new ConcurrentDictionary<string, bool>();
+        readonly ConcurrentDictionary<string, HashSet<string>> advisoryConflict = new ConcurrentDictionary<string, HashSet<string>>();
+        readonly ConcurrentDictionary<string, HashSet<string>> imminentConflict = new ConcurrentDictionary<string, HashSet<string>>();
+        //readonly ConcurrentDictionary<string, List<string>> advisoryConflict = new ConcurrentDictionary<string, List<string>>();
+        //readonly ConcurrentDictionary<string, List<string>> imminentConflict = new ConcurrentDictionary<string, List<string>>();
+
 
         public AuroraLabelItemsPlugin()
         {
@@ -130,7 +131,7 @@ namespace AuroraLabelItemsPlugin
             {
                 ConflictProbe(updated, 100);
             }
-
+           
             if (FDP2.GetFDRIndex(updated.Callsign) == -1)
             {
                 eastboundCallsigns.TryRemove(updated.Callsign, out _);
@@ -347,20 +348,20 @@ namespace AuroraLabelItemsPlugin
                     bool cpdlc = (Regex.IsMatch(fdr2.AircraftEquip, @"J5") || Regex.IsMatch(fdr2.AircraftEquip, @"J7"));
                     bool adsc = Regex.IsMatch(fdr2.AircraftSurvEquip, @"D1");
                     bool jet = fdr2.PerformanceData?.IsJet ?? false;
-                                      
+
                     var newValue = value;
 
                     if (rnp4 && adsc && cpdlc)
                     {
-                        newValue = Math.Max(newValue, 23);  
+                        newValue = Math.Max(newValue, 23);
                     }
-                    
-                    
+
+
                     else if (rnp10 && adsc && cpdlc)
                     {
                         newValue = Math.Max(newValue, 50);
                     }
-                    
+
                     else
                     {
                         newValue = Math.Max(newValue, 100);
@@ -374,20 +375,20 @@ namespace AuroraLabelItemsPlugin
 
                     var firstConflictTime = segments1.FirstOrDefault();
                     var firstConflictTime2 = segments2.FirstOrDefault();
-                    var isConflictPair = segments1.Count > 0; 
+                    var isConflictPair = segments1.Count > 0;
                     if (firstConflictTime == null || firstConflictTime2 == null) continue;
-                    
 
-                    var timeLongSame = sameDir && isConflictPair && firstConflictTime.endTime > DateTime.UtcNow 
+
+                    var timeLongSame = sameDir && isConflictPair && firstConflictTime.endTime > DateTime.UtcNow
                         && (firstConflictTime2.startTime - firstConflictTime.startTime).Duration() < (jet ? (new TimeSpan(0, 0, 10, 0)) : (new TimeSpan(0, 0, 15, 0)));//check time based longitudinal for same direction                    
-                    var timeLongCross = crossing && isConflictPair && firstConflictTime.endTime > DateTime.UtcNow 
+                    var timeLongCross = crossing && isConflictPair && firstConflictTime.endTime > DateTime.UtcNow
                         && (firstConflictTime2.startTime - firstConflictTime.startTime).Duration() < (new TimeSpan(0, 0, 15, 0));
                     var distLongSame = sameDir && isConflictPair && firstConflictTime.endTime > DateTime.UtcNow
                         && Conversions.CalculateDistance(firstConflictTime.startLatlong, firstConflictTime2.startLatlong)
                         < (jet && rnp4 && cpdlc && adsc ? 30 : (rnp4 || rnp10) ? 50 : 50);
 
                     var timeLongOpposite = false;
-                    TimeOfPassing top = null; 
+                    TimeOfPassing top = null;
 
                     if (isConflictPair && oppoDir)
                     {
@@ -395,15 +396,15 @@ namespace AuroraLabelItemsPlugin
                         {
                             top = new TimeOfPassing(fdr, fdr2);
                         }
-                        
+
                         catch (Exception e)
                         {
                             return;
                         }
                         timeLongOpposite = top.Time > DateTime.UtcNow
-                            && (top.Time.Add(new TimeSpan(0, 0, 10, 0)) > DateTime.UtcNow) && (top.Time.Subtract(new TimeSpan(0, 0, 10, 0)) < DateTime.UtcNow);                        
+                            && (top.Time.Add(new TimeSpan(0, 0, 10, 0)) > DateTime.UtcNow) && (top.Time.Subtract(new TimeSpan(0, 0, 10, 0)) < DateTime.UtcNow);
                     }
-                    
+
 
 
 
@@ -412,82 +413,67 @@ namespace AuroraLabelItemsPlugin
                     //    < (jet && rnp4 && cpdlc && adsc ? 30 : (rnp4 || rnp10) ? 50 : 50);
 
 
-                    var lossOfSep = (delta < verticalSep) && timeLongSame || timeLongCross || distLongSame || timeLongOpposite;  // || distLongOpposite 
+                    var lossOfSep = timeLongSame || timeLongCross || distLongSame || timeLongOpposite;  // || distLongOpposite 
                     var earliestLOS = (isConflictPair && oppoDir ? top.Time.Subtract(new TimeSpan(0, 0, 10, 0))
                         : (DateTime.Compare(firstConflictTime.startTime, firstConflictTime2.startTime) < 0 ? firstConflictTime.startTime : firstConflictTime2.startTime));
                     var imminentConflicts = (isConflictPair && oppoDir && (delta < verticalSep)) ? (new TimeSpan(0, 0, 30, 0, 0) >= earliestLOS.Subtract(DateTime.UtcNow).Duration())
                         : (lossOfSep && new TimeSpan(0, 0, 30, 0, 0) >= earliestLOS.Subtract(DateTime.UtcNow).Duration()); //check if timediff < 30 mins
-                    var advisoryConflicts = (isConflictPair && oppoDir && (delta < verticalSep)) ? (new TimeSpan(0, 2, 0, 0, 0) > earliestLOS.Subtract(DateTime.UtcNow).Duration()) 
+                    var advisoryConflicts = (isConflictPair && oppoDir && (delta < verticalSep)) ? (new TimeSpan(0, 2, 0, 0, 0) > earliestLOS.Subtract(DateTime.UtcNow).Duration())
                         && (earliestLOS.Subtract(DateTime.UtcNow).Duration() >= new TimeSpan(0, 0, 30, 0, 0))
-                        : (lossOfSep && new TimeSpan(0, 2, 0, 0, 0) > earliestLOS.Subtract(DateTime.UtcNow).Duration()) 
+                        : (lossOfSep && new TimeSpan(0, 2, 0, 0, 0) > earliestLOS.Subtract(DateTime.UtcNow).Duration())
                         && (earliestLOS.Subtract(DateTime.UtcNow).Duration() >= new TimeSpan(0, 0, 30, 0, 0));  //check if timediff < 2 hours
 
 
-                        
+
                     if (imminentConflicts)
-                        {
-                            imminentConflict.AddOrUpdate(fdr.Callsign, new List<string>(new string[] { fdr2.Callsign }),
-                                (k, v) => v.Append(fdr2.Callsign).ToList());
-                            imminentConflict.AddOrUpdate(fdr2.Callsign, new List<string>(new string[] { fdr.Callsign }),
-                                (k, v) => v.Append(fdr.Callsign).ToList());
-
-
-                            //imminentConflict.AddOrUpdate(fdr.Callsign, imminentConflicts, (k, v) => imminentConflicts);
-
-                            //imminentConflict.AddOrUpdate(cs1, imminentConflicts, (k, v) => imminentConflict);
-                            //imminentConflict.AddOrUpdate(cs2, imminentConflicts, (k, v) => imminentConflict);
-
-                        }
-                    else
                     {
-                       //imminentConflict.AddOrUpdate(fdr2.Callsign, new List<string>(),
-                       //    (k, v) => v.Where(e => e != fdr.Callsign).ToList());
-                       //imminentConflict.AddOrUpdate(fdr.Callsign, new List<string>(),
-                       //    (k, v) => v.Where(e => e != fdr2.Callsign).ToList());
+                        imminentConflict.AddOrUpdate(fdr.Callsign, new HashSet<string>(new string[] { fdr2.Callsign }),
+                        (k, v) => { v.Add(fdr2.Callsign); return v; });
 
-
-                        imminentConflict.TryRemove(fdr.Callsign, out _);
-                        imminentConflict.TryRemove(fdr2.Callsign, out _);
 
                     }
-                    if (advisoryConflicts)
+                    else
+                    {
+                        HashSet<string> maybeSet;
+                        bool exists = imminentConflict.TryGetValue(fdr.Callsign, out maybeSet);
+                        if (exists)
                         {
-                            advisoryConflict.AddOrUpdate(fdr2.Callsign, new List<string>(new string[] { fdr.Callsign }),
-                                (k, v) => v.Append(fdr.Callsign).ToList());
-                            advisoryConflict.AddOrUpdate(fdr.Callsign, new List<string>(new string[] { fdr2.Callsign }),
-                                (k, v) => v.Append(fdr2.Callsign).ToList());
+                            maybeSet.Remove(fdr2.Callsign);
+                        }
+
+
+
+                        if (advisoryConflicts)
+                        {
+                            advisoryConflict.AddOrUpdate(fdr.Callsign, new HashSet<string>(new string[] { fdr2.Callsign }),
+                            (k, v) => { v.Add(fdr2.Callsign); return v; });
+
 
 
                         }
                         else
-                    {
-                          advisoryConflict.AddOrUpdate(fdr.Callsign, new List<string>(),
-                              (k, v) => v.Where(e => e != fdr2.Callsign).ToList());
-                          advisoryConflict.AddOrUpdate(fdr2.Callsign, new List<string>(),
-                              (k, v) => v.Where(e => e != fdr.Callsign).ToList());
-
-
-                            advisoryConflict.TryRemove(fdr.Callsign, out _);
-                            advisoryConflict.TryRemove(fdr2.Callsign, out _);
+                        {
+                            HashSet<string> admaybeSet;
+                            bool adexists = advisoryConflict.TryGetValue(fdr.Callsign, out admaybeSet);
+                            if (adexists)
+                            {
+                                admaybeSet.Remove(fdr2.Callsign);
+                            }
+                        }
 
                     }
-                    var emptyAdvisoryConflicts = advisoryConflict.Where(pair => pair.Value.Count == 0)
-                        .Select(pair => pair.Key)
-                        .ToList();
-                    foreach (var callsign in emptyAdvisoryConflicts)
-                    {
-                        advisoryConflict.TryRemove(callsign, out _);
                     }
-                    var emptyImminentConflicts = imminentConflict.Where(pair => pair.Value.Count == 0)
-                        .Select(pair => pair.Key)
-                        .ToList();
-                    foreach (var callsign in emptyImminentConflicts)
+                else
+                {
+                    HashSet<string> maybeSet; // defines an uninitialized variable for the result of the below method to get placed in
+                    bool exists = imminentConflict.TryGetValue(fdr.Callsign, out maybeSet); // tries to get the set of conflicts corresponding to a callsign, places it in the `maybeSet` variable if it exists. The bool `exists` represents whether there was a set of conflicts for that callsign
+                    if (exists)
                     {
-                        imminentConflict.TryRemove(callsign, out _);
+                        maybeSet.Remove(fdr2.Callsign); // remove the fdr2 (which is the one we are currently evaluating for conflicts against fdr) from the set of conflicts
                     }
-                }
                 }
             }
+        }
 
 
 
@@ -552,38 +538,38 @@ namespace AuroraLabelItemsPlugin
             int cfl = flightDataRecord.CFLUpper / 100;
             int rfl = flightDataRecord.RFL / 100;
             int alt = flightDataRecord.CFLUpper == -1 ? rfl : cfl;
-            var exConflict = (isAdvisory || isImminent && (track.State == MMI.HMIStates.Jurisdiction) ? GetDirectionColour(flightDataRecord.Callsign) : default);
-            var colour = (isNonRVSM ? NonRVSM : exConflict);
+            var excludeColor = SelectASDTrackColour(track) == GetConflictColour(flightDataRecord.Callsign) ? null : SelectASDTrackColour(track);
+            var colour = (isNonRVSM ? NonRVSM : excludeColor);
             var notProbe = flightDataRecord.State == (FDR.FDRStates.STATE_PREACTIVE | FDR.FDRStates.STATE_COORDINATED) ? BorderFlags.All : BorderFlags.None;
 
             switch (itemType)
             {
-               //case LABEL_ITEM_SELECT_HORI:
-               //
-               //    if (selectedCallsign)
-               //    {
-               //        return new CustomLabelItem()
-               //
-               //        {
-               //            Text = "",
-               //            Border = BorderFlags.Top
-               //        };
-               //    }
-               //
-               //    return null;
-               //
-               //case LABEL_ITEM_SELECT_VERT:
-               //
-               //    if (selectedCallsign)
-               //    {
-               //        return new CustomLabelItem()
-               //        {
-               //            Text = "",
-               //            Border = BorderFlags.Left
-               //        };
-               //    }
-               //
-               //    return null;
+               case LABEL_ITEM_SELECT_HORI:
+               
+                   if (selectedCallsign)
+                   {
+                       return new CustomLabelItem()
+               
+                       {
+                           Text = "",
+                           Border = BorderFlags.Top
+                       };
+                   }
+               
+                   return null;
+               
+               case LABEL_ITEM_SELECT_VERT:
+               
+                   if (selectedCallsign)
+                   {
+                       return new CustomLabelItem()
+                       {
+                           Text = "",
+                           Border = BorderFlags.Left
+                       };
+                   }
+               
+                   return null;
 
                 case LABEL_ITEM_COMM_ICON:
 
@@ -594,6 +580,7 @@ namespace AuroraLabelItemsPlugin
                             Text = "▽", //▼
                             BackColourIdentity = Colours.Identities.Jurisdiction,
                             //Border = BorderFlags.All
+                            CustomForeColour = excludeColor
                         };
                     }
                     else
@@ -601,6 +588,7 @@ namespace AuroraLabelItemsPlugin
                         return new CustomLabelItem()
                         {
                             Text = "⬜",
+                            CustomForeColour = excludeColor
                         };
                     }
                 case LABEL_ITEM_ADSB_CPDLC:
@@ -670,6 +658,7 @@ namespace AuroraLabelItemsPlugin
                         return new CustomLabelItem()
                         {
                             Text = "◦",
+                            CustomForeColour = excludeColor
                         };
                     }
 
@@ -678,6 +667,7 @@ namespace AuroraLabelItemsPlugin
                         return new CustomLabelItem()
                         {
                             Text = "&",
+                            CustomForeColour = excludeColor
                         };
                     }
 
@@ -689,6 +679,7 @@ namespace AuroraLabelItemsPlugin
                         return new CustomLabelItem()
                         {
                             Text = "x",
+                            CustomForeColour = excludeColor
                         };
 
                     return null;
@@ -775,6 +766,7 @@ namespace AuroraLabelItemsPlugin
                         {
                             Text = "★",
                             OnMouseClick = HandleRadarFlagClick,
+                            CustomForeColour = excludeColor
                         };
                     }
 
@@ -784,6 +776,7 @@ namespace AuroraLabelItemsPlugin
                         {
                             Text = "◦",
                             OnMouseClick = HandleRadarFlagClick,
+                            CustomForeColour = excludeColor
                         };
                     }
 
@@ -795,6 +788,7 @@ namespace AuroraLabelItemsPlugin
                         return new CustomLabelItem()
                         {
                             Text = "^",
+                            CustomForeColour = excludeColor
                         };
                     }
 
@@ -813,6 +807,7 @@ namespace AuroraLabelItemsPlugin
                     {
                         Text = "M" + Convert.ToDecimal(mach).ToString("F2").Replace(".", ""),
                         //Text = "N" + flightDataRecord.TAS
+                        CustomForeColour = excludeColor
                     };
 
                 case LABEL_ITEM_3DIGIT_GROUNDSPEED:
@@ -823,6 +818,7 @@ namespace AuroraLabelItemsPlugin
                     return new CustomLabelItem()
                     {
                         Text = "N" + gs.ToString("000"),//format as 3 digits (with leading zeros)
+                        CustomForeColour = excludeColor
                     };
 
                 default:
@@ -886,6 +882,8 @@ namespace AuroraLabelItemsPlugin
             {
                 return Advisory;
             }
+            else 
+
             return null;
         }
     }
