@@ -13,23 +13,22 @@ namespace vatsys
 {
     public class CPAR
     {
-        public List<CPAR.Segment> Segments = new List<CPAR.Segment>();
+        public List<CPAR.Segment> Segments1 = new List<CPAR.Segment>();
+        public List<CPAR.Segment> Segments2 = new List<CPAR.Segment>();
         public DateTime Timeout = DateTime.MaxValue;
 
-        public CPAR(Track track1, Track track2, int value) => this.CalculateLATC(track1, track2, value);
+        public CPAR(FDP2.FDR fdr1, FDP2.FDR fdr2, int value) => this.CalculateLATC(fdr1, fdr2, value);
 
         public CPAR()
         {
         }
 
-        private void CalculateLATC(Track track1, Track track2, int value)
+        public void CalculateLATC(FDP2.FDR fdr1, FDP2.FDR fdr2, int value)
         {
-            FDP2.FDR fdr1 = track1.GetFDR();
-            FDP2.FDR fdr2 = track2.GetFDR();
             if (fdr1 == null || fdr2 == null)
                 return;
-            this.Segments.AddRange((IEnumerable<CPAR.Segment>)this.CalculateAreaOfConflict(fdr1, fdr2, value));
-            this.Segments.AddRange((IEnumerable<CPAR.Segment>)this.CalculateAreaOfConflict(fdr2, fdr1, value));
+            this.Segments1.AddRange((IEnumerable<CPAR.Segment>)this.CalculateAreaOfConflict(fdr1, fdr2, value));
+            this.Segments2.AddRange((IEnumerable<CPAR.Segment>)this.CalculateAreaOfConflict(fdr2, fdr1, value));
         }
 
         public List<Segment> CalculateAreaOfConflict(FDP2.FDR fdr1, FDP2.FDR fdr2, int value)
