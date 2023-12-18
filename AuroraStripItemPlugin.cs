@@ -5,6 +5,7 @@ using vatsys.Plugin;
 using System.Collections.Concurrent;
 using System.ComponentModel.Composition; //<--Need to add a reference to System.ComponentModel.Composition
 using static vatsys.FDP2;
+using System.Security.Policy;
 
 
 namespace AuroraStripItemsPlugin
@@ -26,6 +27,8 @@ namespace AuroraStripItemsPlugin
         const string STRIP_ITEM_RVSM_FLAG = "AURORA_RVSM_FLAG";
         const string STRIP_ITEM_VMI = "AURORA_STRIP_VMI";
         const string STRIP_ITEM_COMPLEX = "AURORA_STRIP_COMPLEX";
+        const string STRIP_ITEM_CLEARED_LEVEL = "AURORA_CLEARED_LEVEL";
+        const string STRIP_ITEM_REQUESTED_LEVEL = "AURORA_REQUESTED_LEVEL";
         const string STRIP_ITEM_MAN_EST = "AURORA_MAN_EST";
         const string STRIP_ITEM_POINT = "AURORA_POINT";
         const string STRIP_ITEM_ROUTE = "AURORA_ROUTE_STRIP";
@@ -33,6 +36,7 @@ namespace AuroraStripItemsPlugin
         const string STRIP_ITEM_ANNOT_IND = "AURORA_ANNOT_STRIP";
         const string STRIP_ITEM_LATERAL_FLAG = "AURORA_LATERAL_FLAG";
         const string STRIP_ITEM_RESTR = "AURORA_RESTR_STRIP";
+        const string STRIP_ITEM_CLRD_RTE = "AURORA_CLRD_RTE";
         readonly static CustomColour NonRVSM = new CustomColour(242, 133, 0);
         readonly static CustomColour SepFlags = new CustomColour(0, 196, 253);
         readonly static CustomColour Pending = new CustomColour(46, 139, 87);
@@ -101,10 +105,12 @@ namespace AuroraStripItemsPlugin
             bool adsb = flightDataRecord.ADSB;
             bool rvsm = flightDataRecord.RVSM;
             int level = radarTrack == null ? flightDataRecord.PRL / 100 : radarTrack.CorrectedAltitude / 100;
-            int cfl;
-            bool isCfl = Int32.TryParse(flightDataRecord.CFLString, out cfl);
             bool isEastBound = true;
             eastboundCallsigns.TryGetValue(flightDataRecord.Callsign, out isEastBound);
+            int prl = flightDataRecord.PRL / 100;
+            int cfl = flightDataRecord.CFLUpper / 100;
+            int rfl = flightDataRecord.RFL / 100;
+            int alt = flightDataRecord.CFLUpper == -1 ? rfl : cfl;
 
             if (flightDataRecord == null)
                 return null;
@@ -317,6 +323,42 @@ namespace AuroraStripItemsPlugin
 
                     return null;
 
+                case STRIP_ITEM_CLEARED_LEVEL:
+
+                    if (cfl == 0)
+                    {
+                        return new CustomStripItem()
+                        {
+                            Text = ""
+                        };
+                    }
+
+                    else
+                    {
+                        return new CustomStripItem()
+                        {
+                            Text = cfl.ToString()
+                        };
+                    }
+
+                case STRIP_ITEM_REQUESTED_LEVEL:
+
+                    if (flightDataRecord.State == FDR.FDRStates.STATE_INACTIVE || flightDataRecord.State == FDR.FDRStates.STATE_INACTIVE)
+                    {
+                        return new CustomStripItem()
+                        {
+                            Text = rfl.ToString(),
+                        };
+                    }
+
+                    else
+                    {
+                        return new CustomStripItem()
+                        {
+                            Text = ""
+                        };
+                    }
+
                 //case STRIP_ITEM_MAN_EST:
 
                 //if (Estimates)
@@ -398,6 +440,14 @@ namespace AuroraStripItemsPlugin
                         };
 
                     return null;
+
+                case STRIP_ITEM_CLRD_RTE:
+
+                        return new CustomStripItem()
+                        {
+                            Text = "Cleared Route:" + flightDataRecord.RouteNoParse
+                        };
+
 
                 default: return null;
             }
