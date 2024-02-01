@@ -5,8 +5,6 @@ using vatsys.Plugin;
 using System.Collections.Concurrent;
 using System.ComponentModel.Composition; //<--Need to add a reference to System.ComponentModel.Composition
 using static vatsys.FDP2;
-using System.Security.Policy;
-
 
 namespace AuroraStripItemsPlugin
 {
@@ -14,7 +12,8 @@ namespace AuroraStripItemsPlugin
 
     public class AuroraStripItemsPlugin : IStripPlugin
     {
-
+        AuroraLabelItemsPlugin.AuroraLabelItemsPlugin label = new AuroraLabelItemsPlugin.AuroraLabelItemsPlugin();
+        CPAR cpar = new CPAR();
         /// The name of the custom label item we've added to Labels
         /// in the Profile
         const string LABEL_ITEM_ADSB_CPDLC = "AURORA_ADSB_CPDLC"; //field c(4)
@@ -37,6 +36,13 @@ namespace AuroraStripItemsPlugin
         const string STRIP_ITEM_LATERAL_FLAG = "AURORA_LATERAL_FLAG";
         const string STRIP_ITEM_RESTR = "AURORA_RESTR_STRIP";
         const string STRIP_ITEM_CLRD_RTE = "AURORA_CLRD_RTE";
+        const string CPAR_ITEM_INTRUDER = "CPAR_INT";
+        const string CPAR_ITEM_ATT_INT = "CPAR_ATT_INT";
+        const string CPAR_ITEM_ACTIVE = "CPAR_ACT";
+        const string CPAR_ITEM_ATT_ACT = "CPAR_ATT_ACT";
+        const string CPAR_ITEM_TYPE = "CPAR_TYP";
+        const string CPAR_ITEM_STARTIME = "CPAR_START_TIME";
+        const string CPAR_ITEM_ENDTIME = "CPAR_END_TIME";
         readonly static CustomColour NonRVSM = new CustomColour(242, 133, 0);
         readonly static CustomColour SepFlags = new CustomColour(0, 196, 253);
         readonly static CustomColour Pending = new CustomColour(46, 139, 87);
@@ -96,7 +102,7 @@ namespace AuroraStripItemsPlugin
         }
         public CustomStripItem GetCustomStripItem(string itemType, Track track, FDP2.FDR flightDataRecord, RDP.RadarTrack radarTrack)
 
-        {
+        {          
             var pbn = Regex.Match(flightDataRecord.Remarks, @"PBN\/\w+\s");
             bool rnp10 = pbn.Value.Contains("A1");
             bool rnp4 = pbn.Value.Contains("L1");
@@ -447,6 +453,51 @@ namespace AuroraStripItemsPlugin
                         {
                             Text = "Cleared Route:" + flightDataRecord.RouteNoParse
                         };
+
+                case CPAR_ITEM_INTRUDER:
+                
+                    return new CustomStripItem()
+                    {
+                    };
+                
+                case CPAR_ITEM_ATT_INT:
+                
+                    return new CustomStripItem()
+                    {
+                    };
+                    
+                case CPAR_ITEM_ACTIVE:
+                
+                    if (label.imminentConflict.TryGetValue(flightDataRecord.Callsign, out _) || (label.advisoryConflict.TryGetValue(flightDataRecord.Callsign, out)) == flightDataRecord.Callsign;
+                
+                     return new CustomStripItem()
+                    {
+                         Text = cpar.s
+                    };
+                
+                case CPAR_ITEM_ATT_ACT:
+                
+                    return new CustomStripItem()
+                    {
+                    };
+                
+                case CPAR_ITEM_TYPE:
+                
+                    return new CustomStripItem()
+                    {
+                    };
+                
+                case CPAR_ITEM_STARTIME:
+                
+                    return new CustomStripItem()
+                    {
+                    };
+                
+                case CPAR_ITEM_ENDTIME:
+                
+                    return new CustomStripItem()
+                    {
+                    };
 
 
                 default: return null;
