@@ -6,6 +6,7 @@
 // XML documentation location: E:\vatsys\bin\vatSys.xml
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
@@ -20,7 +21,6 @@ namespace vatsys
         public DateTime Timeout = DateTime.MaxValue;
 
         public CPAR(FDP2.FDR fdr1, FDP2.FDR fdr2, int value) => this.CalculateLATC(fdr1, fdr2, value);
-
         public CPAR()
         {
         }
@@ -161,6 +161,13 @@ namespace vatsys
             public DateTime endTime = DateTime.MaxValue;
             public FDP2.FDR.ExtractedRoute.Segment routeSegment;
         }
+
+        public class ConflictData
+        {
+            public string callsign;
+            public bool sameDir;
+            public 
+        }
         public void ConflictProbe(FDP2.FDR fdr, int latSep1)
         {
             if ((fdr == null) || !MMI.IsMySectorConcerned(fdr)) return;
@@ -234,22 +241,22 @@ namespace vatsys
 
                     var firstConflictTime = segments1.FirstOrDefault();
                     var firstConflictTime2 = segments2.FirstOrDefault();
-                    var isConflictPair = segments1.Count > 0;
+                    var failedLateral = segments1.Count > 0;
                     if (firstConflictTime == null || firstConflictTime2 == null) continue;
 
 
-                    var timeLongSame = sameDir && isConflictPair && firstConflictTime.endTime > DateTime.UtcNow
+                    var timeLongSame = sameDir && failedLateral && firstConflictTime.endTime > DateTime.UtcNow
                         && (firstConflictTime2.startTime - firstConflictTime.startTime).Duration() < (jet ? (new TimeSpan(0, 0, 10, 0)) : (new TimeSpan(0, 0, 15, 0)));//check time based longitudinal for same direction                    
-                    var timeLongCross = crossing && isConflictPair && firstConflictTime.endTime > DateTime.UtcNow
+                    var timeLongCross = crossing && failedLateral && firstConflictTime.endTime > DateTime.UtcNow
                         && (firstConflictTime2.startTime - firstConflictTime.startTime).Duration() < (new TimeSpan(0, 0, 15, 0));
-                    var distLongSame = sameDir && isConflictPair && firstConflictTime.endTime > DateTime.UtcNow
+                    var distLongSame = sameDir && failedLateral && firstConflictTime.endTime > DateTime.UtcNow
                         && Conversions.CalculateDistance(firstConflictTime.startLatlong, firstConflictTime2.startLatlong)
                         < (jet && rnp4 && cpdlc && adsc ? 30 : (rnp4 || rnp10) ? 50 : 50);
 
                     var timeLongOpposite = false;
                     TimeOfPassing top = null;
 
-                    if (isConflictPair && oppoDir)
+                    if (failedLateral && oppoDir)
                     {
                         try
                         {
@@ -267,16 +274,16 @@ namespace vatsys
 
                     var lossOfSep = timeLongSame || timeLongCross || distLongSame || timeLongOpposite;
 
-                    var earliestLOS = (isConflictPair && oppoDir ? top.Time.Subtract(new TimeSpan(0, 0, 10, 0))
+                    var earliestLOS = (failedLateral && oppoDir ? top.Time.Subtract(new TimeSpan(0, 0, 10, 0))
                         : (DateTime.Compare(firstConflictTime.startTime, firstConflictTime2.startTime) < 0 ? firstConflictTime.startTime : firstConflictTime2.startTime));
 
-                    var actualConflicts = (isConflictPair && oppoDir && (delta < verticalSep)) ? (new TimeSpan(0, 0, 1, 0, 0) >= earliestLOS.Subtract(DateTime.UtcNow).Duration())
+                    var actualConflicts = (failedLateral && oppoDir && (delta < verticalSep)) ? (new TimeSpan(0, 0, 1, 0, 0) >= earliestLOS.Subtract(DateTime.UtcNow).Duration())
                         : (lossOfSep && new TimeSpan(0, 0, 1, 0, 0) >= earliestLOS.Subtract(DateTime.UtcNow).Duration()) || earliestLOS < DateTime.UtcNow;
 
-                    var imminentConflicts = (isConflictPair && oppoDir && (delta < verticalSep)) ? (new TimeSpan(0, 0, 30, 0, 0) >= earliestLOS.Subtract(DateTime.UtcNow).Duration())
+                    var imminentConflicts = (failedLateral && oppoDir && (delta < verticalSep)) ? (new TimeSpan(0, 0, 30, 0, 0) >= earliestLOS.Subtract(DateTime.UtcNow).Duration())
                         : (lossOfSep && new TimeSpan(0, 0, 30, 0, 0) >= earliestLOS.Subtract(DateTime.UtcNow).Duration()); //check if timediff < 30 min
 
-                    var advisoryConflicts = (isConflictPair && oppoDir && (delta < verticalSep)) ? (new TimeSpan(0, 2, 0, 0, 0) > earliestLOS.Subtract(DateTime.UtcNow).Duration())
+                    var advisoryConflicts = (failedLateral && oppoDir && (delta < verticalSep)) ? (new TimeSpan(0, 2, 0, 0, 0) > earliestLOS.Subtract(DateTime.UtcNow).Duration())
                         && (earliestLOS.Subtract(DateTime.UtcNow).Duration() >= new TimeSpan(0, 0, 30, 0, 0))
                         : (lossOfSep && new TimeSpan(0, 2, 0, 0, 0) > earliestLOS.Subtract(DateTime.UtcNow).Duration())
                         && (earliestLOS.Subtract(DateTime.UtcNow).Duration() >= new TimeSpan(0, 0, 30, 0, 0));  //check if  2 hours > timediff > 30 mins
@@ -287,7 +294,6 @@ namespace vatsys
                     {
                         label.imminentConflict.AddOrUpdate(fdr.Callsign, new HashSet<string>(new string[] { fdr2.Callsign }),
                         (k, v) => { v.Add(fdr2.Callsign); return v; });
-
 
                     }
                     else

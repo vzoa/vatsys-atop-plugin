@@ -63,7 +63,7 @@ namespace AuroraLabelItemsPlugin
         readonly ConcurrentDictionary<string, byte> downlink = new ConcurrentDictionary<string, byte>();
         public readonly ConcurrentDictionary<string, HashSet<string>> advisoryConflict = new ConcurrentDictionary<string, HashSet<string>>();
         public readonly ConcurrentDictionary<string, HashSet<string>> imminentConflict = new ConcurrentDictionary<string, HashSet<string>>();
-        public readonly ConcurrentDictionary<int, List<int>> conflictData = new ConcurrentDictionary<int, List<int>>();
+
 
 
         public AuroraLabelItemsPlugin()

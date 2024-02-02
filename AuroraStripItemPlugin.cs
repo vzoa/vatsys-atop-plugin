@@ -5,6 +5,8 @@ using vatsys.Plugin;
 using System.Collections.Concurrent;
 using System.ComponentModel.Composition; //<--Need to add a reference to System.ComponentModel.Composition
 using static vatsys.FDP2;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace AuroraStripItemsPlugin
 {
@@ -36,19 +38,31 @@ namespace AuroraStripItemsPlugin
         const string STRIP_ITEM_LATERAL_FLAG = "AURORA_LATERAL_FLAG";
         const string STRIP_ITEM_RESTR = "AURORA_RESTR_STRIP";
         const string STRIP_ITEM_CLRD_RTE = "AURORA_CLRD_RTE";
-        const string CPAR_ITEM_INTRUDER = "CPAR_INT";
-        const string CPAR_ITEM_ATT_INT = "CPAR_ATT_INT";
-        const string CPAR_ITEM_ACTIVE = "CPAR_ACT";
-        const string CPAR_ITEM_ATT_ACT = "CPAR_ATT_ACT";
         const string CPAR_ITEM_TYPE = "CPAR_TYP";
-        const string CPAR_ITEM_STARTIME = "CPAR_START_TIME";
-        const string CPAR_ITEM_ENDTIME = "CPAR_END_TIME";
+        const string CPAR_ITEM_REQUIRED = "CPAR_REQUIRED";
+        const string CPAR_ITEM_INTRUDER = "CPAR_INT";
+        const string CPAR_ITEM_LOS = "CPAR_LOS";
+        const string CPAR_ITEM_ACTUAL = "CPAR_ACTUAL";
+        const string CPAR_ITEM_PASSING = "CPAR_PASSING";
+        const string CPAR_ITEM_CONF_SEG_START_1 = "CPAR_CONF_SEG_START_1";
+        const string CPAR_ITEM_CONF_SEG_START_2 = "CPAR_CONF_SEG_START_2";
+        const string CPAR_ITEM_CONF_SEG_END_1 = "CPAR_CONF_SEG_END_1";
+        const string CPAR_ITEM_CONF_SEG_END_2 = "CPAR_CONF_SEG_END_2";
+        const string CPAR_ITEM_STARTIME_1 = "CPAR_START_TIME_1";
+        const string CPAR_ITEM_STARTIME_2 = "CPAR_START_TIME_2";
+        const string CPAR_ITEM_ENDTIME_1 = "CPAR_END_TIME_1";
+        const string CPAR_ITEM_ENDTIME_2 = "CPAR_END_TIME_2";
+        const string CPAR_ITEM_AID_2 = "CPAR_AID_2";
+        const string CPAR_ITEM_TYP_2 = "CPAR_TYP_2";
+        const string CPAR_ITEM_SPD_2 = "CPAR_SPD_2";
+        const string CPAR_ITEM_ALT_2 = "CPAR_ALT_2";
         readonly static CustomColour NonRVSM = new CustomColour(242, 133, 0);
         readonly static CustomColour SepFlags = new CustomColour(0, 196, 253);
         readonly static CustomColour Pending = new CustomColour(46, 139, 87);
         readonly static CustomColour NotCDA = new CustomColour(100, 0, 100);
         readonly ConcurrentDictionary<string, bool> eastboundCallsigns = new ConcurrentDictionary<string, bool>();
         readonly ConcurrentDictionary<string, byte> flagtoggle = new ConcurrentDictionary<string, byte>();
+
         /// Plugin Name
         public string Name { get => "Aurora Label Items"; }
 
@@ -454,51 +468,133 @@ namespace AuroraStripItemsPlugin
                             Text = "Cleared Route:" + flightDataRecord.RouteNoParse
                         };
 
-                case CPAR_ITEM_INTRUDER:
-                
-                    return new CustomStripItem()
-                    {
-                    };
-                
-                case CPAR_ITEM_ATT_INT:
-                
-                    return new CustomStripItem()
-                    {
-                    };
-                    
-                case CPAR_ITEM_ACTIVE:
-                
                     if (label.imminentConflict.TryGetValue(flightDataRecord.Callsign, out _) || (label.advisoryConflict.TryGetValue(flightDataRecord.Callsign, out)) == flightDataRecord.Callsign;
-                
-                     return new CustomStripItem()
-                    {
-                         Text = cpar.s
-                    };
-                
-                case CPAR_ITEM_ATT_ACT:
-                
-                    return new CustomStripItem()
-                    {
-                    };
-                
-                case CPAR_ITEM_TYPE:
-                
-                    return new CustomStripItem()
-                    {
-                    };
-                
-                case CPAR_ITEM_STARTIME:
-                
-                    return new CustomStripItem()
-                    {
-                    };
-                
-                case CPAR_ITEM_ENDTIME:
-                
-                    return new CustomStripItem()
-                    {
-                    };
 
+                case CPAR_ITEM_TYPE:
+
+                        return new CustomStripItem()
+                        {
+                            Text = 
+                        };
+
+                case CPAR_ITEM_REQUIRED:
+
+                        return new CustomStripItem()
+                        {
+                            Text = cpar.Segments1[0].callsign
+                        };
+
+                case CPAR_ITEM_INTRUDER:
+
+                        return new CustomStripItem()
+                        {
+                            Text = cpar.Segments1[0].callsign
+                        };
+
+                case CPAR_ITEM_LOS:
+
+                        return new CustomStripItem()
+                        {
+                            Text = cpar.Segments1[0].callsign
+                        };
+
+                case CPAR_ITEM_ACTUAL:
+
+                        return new CustomStripItem()
+                        {
+                            Text = cpar.Segments1[0].callsign
+                        };
+
+                case CPAR_ITEM_PASSING:
+
+                        return new CustomStripItem()
+                        {
+                            Text = cpar.Segments1[0].callsign
+                        };
+
+                case CPAR_ITEM_CONF_SEG_START_1:
+
+                        return new CustomStripItem()
+                        {
+                            Text = cpar.Segments1[0].startLatlong.ToString()
+                        };
+
+                case CPAR_ITEM_CONF_SEG_START_2:
+
+                        return new CustomStripItem()
+                        {
+                            Text = cpar.Segments2[0].startLatlong.ToString()
+                        };
+
+                case CPAR_ITEM_CONF_SEG_END_1:
+
+                        return new CustomStripItem()
+                        {
+                            Text = cpar.Segments1[0].endLatlong.ToString()
+                        };
+
+                case CPAR_ITEM_CONF_SEG_END_2:
+
+                        return new CustomStripItem()
+                        {
+                            Text = cpar.Segments2[0].endLatlong.ToString()
+                        };
+
+                case CPAR_ITEM_STARTIME_1:
+
+                        return new CustomStripItem()
+                        {
+                            Text = cpar.Segments1[0].startTime.ToString()
+                        };
+
+                case CPAR_ITEM_STARTIME_2:
+
+                        return new CustomStripItem()
+                        {
+                            Text = cpar.Segments2[0].startTime.ToString()
+                        };
+
+                case CPAR_ITEM_ENDTIME_1:
+
+                        return new CustomStripItem()
+                        {
+                            Text = cpar.Segments1[0].endTime.ToString()
+                        };
+
+                case CPAR_ITEM_ENDTIME_2:
+
+                        return new CustomStripItem()
+                        {
+                            Text = cpar.Segments2[0].endTime.ToString()
+                        };
+
+                case CPAR_ITEM_AID_2:
+
+                        return new CustomStripItem()
+                        {
+                            Text = cpar.Segments2[0].callsign
+                        };
+
+                case CPAR_ITEM_TYP_2:
+
+                        return new CustomStripItem()
+                        {
+                            Text = 
+                        };
+
+                case CPAR_ITEM_SPD_2:
+
+                        return new CustomStripItem()
+                        {
+                            Text = 
+                        };
+
+                case CPAR_ITEM_ALT_2:
+
+                        return new CustomStripItem()
+                        {
+                            Text = 
+                        };
 
                 default: return null;
             }
