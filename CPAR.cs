@@ -164,18 +164,36 @@ namespace vatsys
 
         public class ConflictData
         {
-            public string callsign;
-            public bool sameDir;
-            public 
+            public FDP2.FDR fdr;
+            public FDP2.FDR fdr2;
+            public double trkDelta;
+            public int delta;
+            public int verticalSep;
+            public string conflictType;
+            public Segment startLatlong;
+            public Segment endLatlong;
+            public Segment startTime;
+            public Segment endTime;
+            public bool timeLongsame;
+            public bool timeLongcross;
+            public bool distLongsame;
+            public bool timeLongopposite;
+            public DateTime earliestLOS;
+            public bool actualConflicts;
+            public bool imminentConflicts;
+            public bool advisoryConflicts;
+            public TimeOfPassing top;
         }
         public void ConflictProbe(FDP2.FDR fdr, int latSep1)
         {
+            List<ConflictData> conDict = new List<ConflictData>();
+
             if ((fdr == null) || !MMI.IsMySectorConcerned(fdr)) return;
             int cfl = fdr.CFLUpper;
             int rfl = fdr.RFL;
             int alt = cfl == -1 ? rfl : cfl;
             var isRvsm = fdr.RVSM;
-
+            for (int i = 0; i < conDict.Count; i++)
             foreach (var fdr2 in FDP2.GetFDRs)
             {
                 if (fdr2 == null || fdr.Callsign == fdr2.Callsign || !MMI.IsMySectorConcerned(fdr2)) continue;
@@ -185,10 +203,10 @@ namespace vatsys
                     rte.Last().Intersection.LatLong);
                 double trk2 = Conversions.CalculateTrack(rte2.First().Intersection.LatLong,
                     rte2.Last().Intersection.LatLong);
-                var trkdelta = Math.Abs(trk2 - trk);
-                bool sameDir = trkdelta < 45;
-                bool crossing = (trkdelta >= 45 && trkdelta <= 135) || (trkdelta >= 315 && trkdelta <= 225);
-                bool oppoDir = trkdelta > 135 && trkdelta < 225;
+                conDict[i].trkDelta = Math.Abs(trk2 - trk);
+                bool sameDir = conDict[i].trkDelta < 45;
+                bool crossing = (conDict[i].trkDelta >= 45 && conDict[i].trkDelta <= 135) || (conDict[i].trkDelta >= 315 && conDict[i].trkDelta <= 225);
+                bool oppoDir = conDict[i].trkDelta > 135 && conDict[i].trkDelta < 225;
                 int cfl2 = fdr2.CFLUpper;
                 int rfl2 = fdr2.RFL;
                 int alt2 = cfl2 == -1 ? rfl2 : cfl2;
@@ -245,15 +263,15 @@ namespace vatsys
                     if (firstConflictTime == null || firstConflictTime2 == null) continue;
 
 
-                    var timeLongSame = sameDir && failedLateral && firstConflictTime.endTime > DateTime.UtcNow
+                    conDict[i].timeLongsame = sameDir && failedLateral && firstConflictTime.endTime > DateTime.UtcNow
                         && (firstConflictTime2.startTime - firstConflictTime.startTime).Duration() < (jet ? (new TimeSpan(0, 0, 10, 0)) : (new TimeSpan(0, 0, 15, 0)));//check time based longitudinal for same direction                    
-                    var timeLongCross = crossing && failedLateral && firstConflictTime.endTime > DateTime.UtcNow
+                    conDict[i].timeLongcross = crossing && failedLateral && firstConflictTime.endTime > DateTime.UtcNow
                         && (firstConflictTime2.startTime - firstConflictTime.startTime).Duration() < (new TimeSpan(0, 0, 15, 0));
-                    var distLongSame = sameDir && failedLateral && firstConflictTime.endTime > DateTime.UtcNow
+                    conDict[i].distLongsame = sameDir && failedLateral && firstConflictTime.endTime > DateTime.UtcNow
                         && Conversions.CalculateDistance(firstConflictTime.startLatlong, firstConflictTime2.startLatlong)
                         < (jet && rnp4 && cpdlc && adsc ? 30 : (rnp4 || rnp10) ? 50 : 50);
 
-                    var timeLongOpposite = false;
+                    var timeLongopposite = false;
                     TimeOfPassing top = null;
 
                     if (failedLateral && oppoDir)
@@ -267,30 +285,30 @@ namespace vatsys
                         {
                             return;
                         }
-                        timeLongOpposite = top.Time > DateTime.UtcNow
+                     conDict[i].timeLongopposite = top.Time > DateTime.UtcNow
                             && (top.Time.Add(new TimeSpan(0, 0, 10, 0)) > DateTime.UtcNow) && (top.Time.Subtract(new TimeSpan(0, 0, 10, 0)) < DateTime.UtcNow);
                     }
 
 
-                    var lossOfSep = timeLongSame || timeLongCross || distLongSame || timeLongOpposite;
+                    var lossOfSep = conDict[i].timeLongsame || conDict[i].timeLongcross || conDict[i].distLongsame || timeLongopposite;
 
-                    var earliestLOS = (failedLateral && oppoDir ? top.Time.Subtract(new TimeSpan(0, 0, 10, 0))
+                    conDict[i].earliestLOS = (failedLateral && oppoDir ? top.Time.Subtract(new TimeSpan(0, 0, 10, 0))
                         : (DateTime.Compare(firstConflictTime.startTime, firstConflictTime2.startTime) < 0 ? firstConflictTime.startTime : firstConflictTime2.startTime));
 
-                    var actualConflicts = (failedLateral && oppoDir && (delta < verticalSep)) ? (new TimeSpan(0, 0, 1, 0, 0) >= earliestLOS.Subtract(DateTime.UtcNow).Duration())
-                        : (lossOfSep && new TimeSpan(0, 0, 1, 0, 0) >= earliestLOS.Subtract(DateTime.UtcNow).Duration()) || earliestLOS < DateTime.UtcNow;
+                    conDict[i].actualConflicts = (failedLateral && oppoDir && (delta < verticalSep)) ? (new TimeSpan(0, 0, 1, 0, 0) >= conDict[i].earliestLOS.Subtract(DateTime.UtcNow).Duration())
+                        : (lossOfSep && new TimeSpan(0, 0, 1, 0, 0) >= conDict[i].earliestLOS.Subtract(DateTime.UtcNow).Duration()) || conDict[i].earliestLOS < DateTime.UtcNow;
 
-                    var imminentConflicts = (failedLateral && oppoDir && (delta < verticalSep)) ? (new TimeSpan(0, 0, 30, 0, 0) >= earliestLOS.Subtract(DateTime.UtcNow).Duration())
-                        : (lossOfSep && new TimeSpan(0, 0, 30, 0, 0) >= earliestLOS.Subtract(DateTime.UtcNow).Duration()); //check if timediff < 30 min
+                    conDict[i].imminentConflicts = (failedLateral && oppoDir && (delta < verticalSep)) ? (new TimeSpan(0, 0, 30, 0, 0) >= earliestLOS.Subtract(DateTime.UtcNow).Duration())
+                        : (lossOfSep && new TimeSpan(0, 0, 30, 0, 0) >= conDict[i].earliestLOS.Subtract(DateTime.UtcNow).Duration()); //check if timediff < 30 min
 
-                    var advisoryConflicts = (failedLateral && oppoDir && (delta < verticalSep)) ? (new TimeSpan(0, 2, 0, 0, 0) > earliestLOS.Subtract(DateTime.UtcNow).Duration())
-                        && (earliestLOS.Subtract(DateTime.UtcNow).Duration() >= new TimeSpan(0, 0, 30, 0, 0))
-                        : (lossOfSep && new TimeSpan(0, 2, 0, 0, 0) > earliestLOS.Subtract(DateTime.UtcNow).Duration())
-                        && (earliestLOS.Subtract(DateTime.UtcNow).Duration() >= new TimeSpan(0, 0, 30, 0, 0));  //check if  2 hours > timediff > 30 mins
+                    conDict[i].advisoryConflicts = (failedLateral && oppoDir && (delta < verticalSep)) ? (new TimeSpan(0, 2, 0, 0, 0) > earliestLOS.Subtract(DateTime.UtcNow).Duration())
+                        && (conDict[i].earliestLOS.Subtract(DateTime.UtcNow).Duration() >= new TimeSpan(0, 0, 30, 0, 0))
+                        : (lossOfSep && new TimeSpan(0, 2, 0, 0, 0) > conDict[i].earliestLOS.Subtract(DateTime.UtcNow).Duration())
+                        && (conDict[i].earliestLOS.Subtract(DateTime.UtcNow).Duration() >= new TimeSpan(0, 0, 30, 0, 0));  //check if  2 hours > timediff > 30 mins
 
 
 
-                    if (actualConflicts || imminentConflicts)
+                    if (conDict[i].actualConflicts || conDict[i].imminentConflicts)
                     {
                         label.imminentConflict.AddOrUpdate(fdr.Callsign, new HashSet<string>(new string[] { fdr2.Callsign }),
                         (k, v) => { v.Add(fdr2.Callsign); return v; });
