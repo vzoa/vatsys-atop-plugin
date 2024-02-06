@@ -5,10 +5,12 @@
 // Assembly location: E:\vatsys\bin\vatSys.exe
 // XML documentation location: E:\vatsys\bin\vatSys.xml
 
+using AuroraLabelItemsPlugin;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
 
 namespace vatsys
@@ -17,7 +19,7 @@ namespace vatsys
     {
         public List<CPAR.Segment> Segments1 = new List<CPAR.Segment>();
         public List<CPAR.Segment> Segments2 = new List<CPAR.Segment>();
-        AuroraLabelItemsPlugin.AuroraLabelItemsPlugin label = new AuroraLabelItemsPlugin.AuroraLabelItemsPlugin();
+        AuroraLabelItemsPlugin.GEO label = new AuroraLabelItemsPlugin.GEO();
         public DateTime Timeout = DateTime.MaxValue;
 
         public CPAR(FDP2.FDR fdr1, FDP2.FDR fdr2, int value) => this.CalculateLATC(fdr1, fdr2, value);
@@ -166,27 +168,36 @@ namespace vatsys
         {
             public FDP2.FDR fdr;
             public FDP2.FDR fdr2;
-            public double trkDelta;
-            public int delta;
+            public double trkAngle;
+            public int verticalAct;
             public int verticalSep;
+            public int latAct;
+            public int latSep;
+            public bool longType;
+            public TimeSpan longTimesep;
+            public TimeSpan longTimeact;
+            public bool mnt;
+            public double longDistsep;
+            public double longDistact;
+            public TimeOfPassing top;
             public string conflictType;
             public Segment startLatlong;
             public Segment endLatlong;
             public Segment startTime;
             public Segment endTime;
-            public bool timeLongsame;
-            public bool timeLongcross;
-            public bool distLongsame;
-            public bool timeLongopposite;
             public DateTime earliestLOS;
+            public bool timeLongsame;
+            public bool distLongsame;
+            public bool timeLongcross;
+            public bool timeLongopposite;
             public bool actualConflicts;
             public bool imminentConflicts;
             public bool advisoryConflicts;
-            public TimeOfPassing top;
         }
-        public void ConflictProbe(FDP2.FDR fdr, int latSep1)
+        public void ConflictProbe(FDP2.FDR fdr, int latSep)
         {
             List<ConflictData> conDict = new List<ConflictData>();
+            FPAP fpap = new FPAP();
 
             if ((fdr == null) || !MMI.IsMySectorConcerned(fdr)) return;
             int cfl = fdr.CFLUpper;
@@ -197,60 +208,55 @@ namespace vatsys
             foreach (var fdr2 in FDP2.GetFDRs)
             {
                 if (fdr2 == null || fdr.Callsign == fdr2.Callsign || !MMI.IsMySectorConcerned(fdr2)) continue;
+                var data = new ConflictData();
                 var rte = fdr.ParsedRoute;
                 var rte2 = fdr2.ParsedRoute;
                 double trk = Conversions.CalculateTrack(rte.First().Intersection.LatLong,
                     rte.Last().Intersection.LatLong);
                 double trk2 = Conversions.CalculateTrack(rte2.First().Intersection.LatLong,
                     rte2.Last().Intersection.LatLong);
-                conDict[i].trkDelta = Math.Abs(trk2 - trk);
-                bool sameDir = conDict[i].trkDelta < 45;
-                bool crossing = (conDict[i].trkDelta >= 45 && conDict[i].trkDelta <= 135) || (conDict[i].trkDelta >= 315 && conDict[i].trkDelta <= 225);
-                bool oppoDir = conDict[i].trkDelta > 135 && conDict[i].trkDelta < 225;
+                data.trkAngle = Math.Abs(trk2 - trk);
+                bool sameDir = data.trkAngle < 45;
+                bool crossing = (data.trkAngle >= 45 && data.trkAngle <= 135) || (data.trkAngle >= 315 && data.trkAngle <= 225);
+                bool oppoDir = data.trkAngle > 135 && data.trkAngle < 225;                
                 int cfl2 = fdr2.CFLUpper;
                 int rfl2 = fdr2.RFL;
                 int alt2 = cfl2 == -1 ? rfl2 : cfl2;
                 var isRvsm2 = fdr2.RVSM;
-                var delta = Math.Abs(alt - alt2);
-                int verticalSep = (alt > 45000 && alt < 60000) ? 4000 : alt > 60000 ? 5000 : (alt2 > 45000 && alt2 < 60000) ? 4000 : alt2 > 60000 ? 5000 :
+                data.verticalAct = Math.Abs(alt - alt2);
+                data.verticalSep = (alt > 45000 && alt < 60000) ? 4000 : alt > 60000 ? 5000 : (alt2 > 45000 && alt2 < 60000) ? 4000 : alt2 > 60000 ? 5000 :
                                      (alt > FDP2.RVSM_BAND_LOWER && !isRvsm) ||
                                      (alt2 > FDP2.RVSM_BAND_LOWER && !isRvsm2) || (alt > FDP2.RVSM_BAND_UPPER || alt2 > FDP2.RVSM_BAND_UPPER)
                     ? 2000
                     : 1000;
 
-                if (delta < verticalSep)
+                if (data.verticalAct < data.verticalSep)
                 {
-                    Match pbn2 = Regex.Match(fdr2.Remarks, @"PBN\/\w+\s");
-                    bool rnp10 = pbn2.Value.Contains("A1");
-                    bool rnp4 = pbn2.Value.Contains("L1");
-                    bool cpdlc = (Regex.IsMatch(fdr2.AircraftEquip, @"J5") || Regex.IsMatch(fdr2.AircraftEquip, @"J7"));
-                    bool adsc = Regex.IsMatch(fdr2.AircraftSurvEquip, @"D1");
-                    bool jet = fdr2.PerformanceData?.IsJet ?? false;
 
-                    var newValue = latSep1;
+                    //data.latSep = latSep1;
 
-                    if (rnp4 && adsc && cpdlc)
+                    if (fpap.rnp4 && fpap.pbcs && fpap.adsc && fpap.cpdlc)
                     {
-                        newValue = Math.Max(latSep1, 23);
+                        data.latSep = Math.Max(latSep, 23);
                     }
 
 
-                    else if (rnp10 || rnp4)
+                    else if (fpap.rnp10 || fpap.rnp4)
                     {
-                        newValue = Math.Max(latSep1, 50);
+                        data.latSep = Math.Max(latSep, 50);
                     }
 
-                    else if (!rnp10 && !rnp4)
+                    else if (!fpap.rnp10 && !fpap.rnp4)
                     {
-                        newValue = Math.Max(latSep1, 100);
+                        data.latSep = Math.Max(latSep, 100);
                     }
 
-                    else if (newValue != latSep1 && newValue == 100);
+                    else if (data.latSep != 100 && data.latSep == 100);
                     {
-                        newValue = (50 + 100) / 2;
+                        data.latSep = (50 + 100) / 2;
                     }
 
-                    var cpar = new CPAR(fdr2, fdr, newValue);
+                    var cpar = new CPAR(fdr2, fdr, data.latSep);
                     var segments1 = cpar.Segments1;
                     var segments2 = cpar.Segments2;
 
@@ -261,57 +267,63 @@ namespace vatsys
                     var firstConflictTime2 = segments2.FirstOrDefault();
                     var failedLateral = segments1.Count > 0;
                     if (firstConflictTime == null || firstConflictTime2 == null) continue;
-
-
-                    conDict[i].timeLongsame = sameDir && failedLateral && firstConflictTime.endTime > DateTime.UtcNow
-                        && (firstConflictTime2.startTime - firstConflictTime.startTime).Duration() < (jet ? (new TimeSpan(0, 0, 10, 0)) : (new TimeSpan(0, 0, 15, 0)));//check time based longitudinal for same direction                    
-                    conDict[i].timeLongcross = crossing && failedLateral && firstConflictTime.endTime > DateTime.UtcNow
+                        
+                    data.mnt = sameDir && fpap.jet;
+                    data.longTimesep = data.mnt ? (new TimeSpan(0, 0, 10, 0)) : (new TimeSpan(0, 0, 15, 0));
+                    data.longTimeact = (firstConflictTime2.startTime - firstConflictTime.startTime).Duration();
+                    data.longDistsep = fpap.jet && fpap.rnp4 && fpap.pbcs && fpap.cpdlc && fpap.adsc ? 30 : fpap.jet && fpap.rnp10 && fpap.pbcs && fpap.cpdlc && fpap.adsc ? 50 : default;
+                    data.longDistact = Conversions.CalculateDistance(firstConflictTime.startLatlong, firstConflictTime2.startLatlong);
+                    data.timeLongsame = sameDir && failedLateral && firstConflictTime.endTime > DateTime.UtcNow
+                        && data.longTimeact < data.longTimesep;//check time based longitudinal for same direction                    
+                    data.timeLongcross = crossing && failedLateral && firstConflictTime.endTime > DateTime.UtcNow
                         && (firstConflictTime2.startTime - firstConflictTime.startTime).Duration() < (new TimeSpan(0, 0, 15, 0));
-                    conDict[i].distLongsame = sameDir && failedLateral && firstConflictTime.endTime > DateTime.UtcNow
-                        && Conversions.CalculateDistance(firstConflictTime.startLatlong, firstConflictTime2.startLatlong)
-                        < (jet && rnp4 && cpdlc && adsc ? 30 : (rnp4 || rnp10) ? 50 : 50);
+                    data.distLongsame = sameDir && failedLateral && firstConflictTime.endTime > DateTime.UtcNow
+                        && data.longDistact < data.longDistsep;
 
-                    var timeLongopposite = false;
-                    TimeOfPassing top = null;
+                    data.timeLongopposite = false;
+                    data.top = null;
 
                     if (failedLateral && oppoDir)
                     {
                         try
                         {
-                            top = new TimeOfPassing(fdr, fdr2);
+                                data.top = new TimeOfPassing(fdr, fdr2);
                         }
 
                         catch (Exception e)
                         {
                             return;
                         }
-                     conDict[i].timeLongopposite = top.Time > DateTime.UtcNow
-                            && (top.Time.Add(new TimeSpan(0, 0, 10, 0)) > DateTime.UtcNow) && (top.Time.Subtract(new TimeSpan(0, 0, 10, 0)) < DateTime.UtcNow);
-                    }
+                    data.timeLongopposite = data.top.Time > DateTime.UtcNow
+                            && (data.top.Time.Add(new TimeSpan(0, 0, 10, 0)) > DateTime.UtcNow) && (data.top.Time.Subtract(new TimeSpan(0, 0, 10, 0)) < DateTime.UtcNow);
+                        }
+
+                    data.longType = (fpap.adsc && fpap.cpdlc && (fpap.rnp4 || fpap.rnp10) && fpap.pbcs) ? data.distLongsame : data.timeLongsame;
+
+                    var lossOfSep = data.longType || data.timeLongcross || data.timeLongopposite;
+                    data.conflictType = lossOfSep && sameDir ? "same" : lossOfSep && crossing ? "crossing" : lossOfSep && oppoDir ? "opposite" : null;
+                    data.earliestLOS = (failedLateral && oppoDir ? data.top.Time.Subtract(new TimeSpan(0, 0, 10, 0))
+                    : (DateTime.Compare(firstConflictTime.startTime, firstConflictTime2.startTime) < 0 ? firstConflictTime.startTime : firstConflictTime2.startTime));
+
+                    data.actualConflicts = (failedLateral && oppoDir && (data.verticalAct < data.verticalSep)) ? (new TimeSpan(0, 0, 1, 0, 0) >= data.earliestLOS.Subtract(DateTime.UtcNow).Duration())
+                        : (lossOfSep && new TimeSpan(0, 0, 1, 0, 0) >= data.earliestLOS.Subtract(DateTime.UtcNow).Duration()) || data.earliestLOS < DateTime.UtcNow;
+
+                    data.imminentConflicts = (failedLateral && oppoDir && (data.verticalAct < data.verticalSep)) ? (new TimeSpan(0, 0, 30, 0, 0) >= data.earliestLOS.Subtract(DateTime.UtcNow).Duration())
+                        : (lossOfSep && new TimeSpan(0, 0, 30, 0, 0) >= data.earliestLOS.Subtract(DateTime.UtcNow).Duration()); //check if timediff < 30 min
+
+                    data.advisoryConflicts = (failedLateral && oppoDir && (data.verticalAct < data.verticalSep)) ? (new TimeSpan(0, 2, 0, 0, 0) > data.earliestLOS.Subtract(DateTime.UtcNow).Duration())
+                        && (data.earliestLOS.Subtract(DateTime.UtcNow).Duration() >= new TimeSpan(0, 0, 30, 0, 0))
+                        : (lossOfSep && new TimeSpan(0, 2, 0, 0, 0) > data.earliestLOS.Subtract(DateTime.UtcNow).Duration())
+                        && (data.earliestLOS.Subtract(DateTime.UtcNow).Duration() >= new TimeSpan(0, 0, 30, 0, 0));  //check if  2 hours > timediff > 30 mins
 
 
-                    var lossOfSep = conDict[i].timeLongsame || conDict[i].timeLongcross || conDict[i].distLongsame || timeLongopposite;
 
-                    conDict[i].earliestLOS = (failedLateral && oppoDir ? top.Time.Subtract(new TimeSpan(0, 0, 10, 0))
-                        : (DateTime.Compare(firstConflictTime.startTime, firstConflictTime2.startTime) < 0 ? firstConflictTime.startTime : firstConflictTime2.startTime));
-
-                    conDict[i].actualConflicts = (failedLateral && oppoDir && (delta < verticalSep)) ? (new TimeSpan(0, 0, 1, 0, 0) >= conDict[i].earliestLOS.Subtract(DateTime.UtcNow).Duration())
-                        : (lossOfSep && new TimeSpan(0, 0, 1, 0, 0) >= conDict[i].earliestLOS.Subtract(DateTime.UtcNow).Duration()) || conDict[i].earliestLOS < DateTime.UtcNow;
-
-                    conDict[i].imminentConflicts = (failedLateral && oppoDir && (delta < verticalSep)) ? (new TimeSpan(0, 0, 30, 0, 0) >= earliestLOS.Subtract(DateTime.UtcNow).Duration())
-                        : (lossOfSep && new TimeSpan(0, 0, 30, 0, 0) >= conDict[i].earliestLOS.Subtract(DateTime.UtcNow).Duration()); //check if timediff < 30 min
-
-                    conDict[i].advisoryConflicts = (failedLateral && oppoDir && (delta < verticalSep)) ? (new TimeSpan(0, 2, 0, 0, 0) > earliestLOS.Subtract(DateTime.UtcNow).Duration())
-                        && (conDict[i].earliestLOS.Subtract(DateTime.UtcNow).Duration() >= new TimeSpan(0, 0, 30, 0, 0))
-                        : (lossOfSep && new TimeSpan(0, 2, 0, 0, 0) > conDict[i].earliestLOS.Subtract(DateTime.UtcNow).Duration())
-                        && (conDict[i].earliestLOS.Subtract(DateTime.UtcNow).Duration() >= new TimeSpan(0, 0, 30, 0, 0));  //check if  2 hours > timediff > 30 mins
-
-
-
-                    if (conDict[i].actualConflicts || conDict[i].imminentConflicts)
+                    if (data.actualConflicts || data.imminentConflicts)
                     {
                         label.imminentConflict.AddOrUpdate(fdr.Callsign, new HashSet<string>(new string[] { fdr2.Callsign }),
                         (k, v) => { v.Add(fdr2.Callsign); return v; });
+
+                            conDict.Add(data);
 
                     }
                     else
@@ -334,7 +346,7 @@ namespace vatsys
 
 
 
-                        if (advisoryConflicts)
+                        if (data.advisoryConflicts)
                         {
                             label.advisoryConflict.AddOrUpdate(fdr.Callsign, new HashSet<string>(new string[] { fdr2.Callsign }),
                             (k, v) => { v.Add(fdr2.Callsign); return v; });
