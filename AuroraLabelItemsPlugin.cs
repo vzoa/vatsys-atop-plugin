@@ -19,36 +19,6 @@ namespace AuroraLabelItemsPlugin
     [Export(typeof(IPlugin))]
     public class AuroraLabelItemsPlugin : ILabelPlugin
     {
-        /// The name of the custom label item we've added to Labels
-        /// in the Profile
-        private const string LABEL_ITEM_SELECT_HORI = "SELECT_HORI";
-
-        private const string LABEL_ITEM_SELECT_VERT = "SELECT_VERT";
-        private const string LABEL_ITEM_COMM_ICON = "AURORA_COMM_ICON"; //field a(2)
-        private const string LABEL_ITEM_ADSB_CPDLC = "AURORA_ADSB_CPDLC"; //field c(4)
-        private const string LABEL_ITEM_ADS_FLAGS = "AURORA_ADS_FLAGS"; //field c(4)
-        private const string LABEL_ITEM_MNT_FLAGS = "AURORA_MNT_FLAGS"; //field c(4)
-        private const string LABEL_ITEM_SCC = "AURORA_SCC"; //field d(5)
-        private const string LABEL_ITEM_ANNOT_IND = "AURORA_ANNOT_IND"; //field e(1)
-        private const string LABEL_ITEM_RESTR = "AURORA_RESTR"; //field f(1)
-        private const string LABEL_ITEM_LEVEL = "AURORA_LEVEL"; //field g(3)
-        private const string LABEL_ITEM_VMI = "AURORA_VMI"; //field h(1)
-        private const string LABEL_ITEM_CLEARED_LEVEL = "AURORA_CLEARED_LEVEL"; //field i(7)
-        private const string LABEL_ITEM_HANDOFF_IND = "AURORA_HO_IND"; //field j(4)
-        private const string LABEL_ITEM_RADAR_IND = "AURORA_RADAR_IND"; //field k(1)
-        private const string LABEL_ITEM_INHIBIT_IND = "AURORA_INHIBIT_IND"; //field l(1)
-        private const string LABEL_ITEM_FILED_SPEED = "AURORA_FILEDSPEED"; //field m(4)
-        private const string LABEL_ITEM_3DIGIT_GROUNDSPEED = "AURORA_GROUNDSPEED"; //field n(5)
-        private const string LABEL_ITEM_DESTINATION = "AURORA_DESTINATION"; //field o(4)
-        private static readonly CustomColour EastboundColour = new CustomColour(240, 255, 255);
-        private static readonly CustomColour WestboundColour = new CustomColour(240, 231, 140);
-        private static readonly CustomColour NonRVSM = new CustomColour(242, 133, 0);
-        private static readonly CustomColour Probe = new CustomColour(0, 255, 0);
-        private static readonly CustomColour NotCDA = new CustomColour(100, 0, 100);
-        private static readonly CustomColour Advisory = new CustomColour(255, 165, 0);
-        private static readonly CustomColour Imminent = new CustomColour(255, 0, 0);
-        private static readonly CustomColour SpecialConditionCode = new CustomColour(255, 255, 0);
-        private static readonly CustomColour ApsBlue = new CustomColour(141, 182, 205);
         private readonly ConcurrentDictionary<string, char> adsbcpdlcValues = new ConcurrentDictionary<string, char>();
         private readonly ConcurrentDictionary<string, char> adsflagValues = new ConcurrentDictionary<string, char>();
 
@@ -277,13 +247,13 @@ namespace AuroraLabelItemsPlugin
             var notProbe = flightDataRecord.State == (FDR.FDRStates.STATE_PREACTIVE | FDR.FDRStates.STATE_COORDINATED)
                 ? BorderFlags.All
                 : BorderFlags.None;
-            var colour = !flightDataRecord.RVSM ? NonRVSM : ExcludeConflictColor(track, flightDataRecord);
+            var colour = !flightDataRecord.RVSM ? CustomColors.NonRVSM : ExcludeConflictColor(track, flightDataRecord);
             var excludeConflict = SelectASDTrackColour(track) == GetConflictColour(flightDataRecord.Callsign);
 
             switch (itemType)
 
             {
-                case LABEL_ITEM_SELECT_HORI:
+                case LabelConstants.LABEL_ITEM_SELECT_HORI:
 
                     if (MMI.SelectedTrack?.GetFDR()?.Callsign == track.GetFDR().Callsign)
                         return new CustomLabelItem
@@ -294,7 +264,7 @@ namespace AuroraLabelItemsPlugin
 
                     return null;
 
-                case LABEL_ITEM_SELECT_VERT:
+                case LabelConstants.LABEL_ITEM_SELECT_VERT:
 
                     if (MMI.SelectedTrack?.GetFDR()?.Callsign == track.GetFDR().Callsign)
                         return new CustomLabelItem
@@ -305,7 +275,7 @@ namespace AuroraLabelItemsPlugin
 
                     return null;
 
-                case LABEL_ITEM_COMM_ICON:
+                case LabelConstants.LABEL_ITEM_COMM_ICON:
 
                     if (downLink)
                         return new CustomLabelItem
@@ -321,7 +291,7 @@ namespace AuroraLabelItemsPlugin
                         ForeColourIdentity = excludeConflict ? Colours.Identities.Custom : default,
                         CustomForeColour = ExcludeConflictColor(track, flightDataRecord)
                     };
-                case LABEL_ITEM_ADSB_CPDLC:
+                case LabelConstants.LABEL_ITEM_ADSB_CPDLC:
 
                     var useCustomForeColour =
                         flightDataRecord.State == (FDR.FDRStates.STATE_PREACTIVE | FDR.FDRStates.STATE_COORDINATED);
@@ -330,7 +300,7 @@ namespace AuroraLabelItemsPlugin
                         return new CustomLabelItem
                         {
                             ForeColourIdentity = Colours.Identities.Custom,
-                            CustomForeColour = NotCDA,
+                            CustomForeColour = CustomColors.NotCDA,
                             Text = c1.ToString()
                         };
                     return new CustomLabelItem
@@ -340,7 +310,7 @@ namespace AuroraLabelItemsPlugin
                         CustomForeColour = ExcludeConflictColor(track, flightDataRecord)
                     };
 
-                case LABEL_ITEM_ADS_FLAGS:
+                case LabelConstants.LABEL_ITEM_ADS_FLAGS:
 
                     return new CustomLabelItem
                     {
@@ -350,7 +320,7 @@ namespace AuroraLabelItemsPlugin
                     };
 
 
-                case LABEL_ITEM_MNT_FLAGS:
+                case LabelConstants.LABEL_ITEM_MNT_FLAGS:
 
                     if (mntflagToggled)
                         return new CustomLabelItem
@@ -366,19 +336,19 @@ namespace AuroraLabelItemsPlugin
                     };
 
 
-                case LABEL_ITEM_SCC:
+                case LabelConstants.LABEL_ITEM_SCC:
 
                 {
                     return new CustomLabelItem
                     {
                         Text = d1,
                         ForeColourIdentity = Colours.Identities.Custom,
-                        CustomForeColour = SpecialConditionCode
+                        CustomForeColour = CustomColors.SpecialConditionCode
                     };
                 }
 
 
-                case LABEL_ITEM_ANNOT_IND:
+                case LabelConstants.LABEL_ITEM_ANNOT_IND:
                     var scratch = string.IsNullOrEmpty(flightDataRecord.LabelOpData);
 
                     if (scratch)
@@ -396,7 +366,7 @@ namespace AuroraLabelItemsPlugin
                         CustomForeColour = ExcludeConflictColor(track, flightDataRecord)
                     };
 
-                case LABEL_ITEM_RESTR:
+                case LabelConstants.LABEL_ITEM_RESTR:
 
                     if (flightDataRecord.LabelOpData.Contains("AT ") || flightDataRecord.LabelOpData.Contains(" BY ") ||
                         flightDataRecord.LabelOpData.Contains("CLEARED TO "))
@@ -410,7 +380,7 @@ namespace AuroraLabelItemsPlugin
 
                     return null;
 
-                case LABEL_ITEM_LEVEL:
+                case LabelConstants.LABEL_ITEM_LEVEL:
 
                     var level = prl == -1 ? null : (radarTrack.CorrectedAltitude / 100).ToString();
 
@@ -420,12 +390,12 @@ namespace AuroraLabelItemsPlugin
                         Text = level,
                         Border = notProbe,
                         BorderColourIdentity = Colours.Identities.Custom,
-                        CustomBorderColour = NotCDA,
+                        CustomBorderColour = CustomColors.NotCDA,
                         ForeColourIdentity = excludeConflict ? Colours.Identities.Custom : default,
                         CustomForeColour = colour
                     };
 
-                case LABEL_ITEM_VMI:
+                case LabelConstants.LABEL_ITEM_VMI:
 
                     return new CustomLabelItem
                     {
@@ -435,7 +405,7 @@ namespace AuroraLabelItemsPlugin
                     };
 
 
-                case LABEL_ITEM_CLEARED_LEVEL:
+                case LabelConstants.LABEL_ITEM_CLEARED_LEVEL:
 
 
                     if (radarTrack.ReachedCFL || prl == alt || Math.Abs(flightDataRecord.PRL - alt) < 300)
@@ -449,7 +419,7 @@ namespace AuroraLabelItemsPlugin
                         Text = alt.ToString(),
                         Border = notProbe,
                         BorderColourIdentity = Colours.Identities.Custom,
-                        CustomBorderColour = NotCDA,
+                        CustomBorderColour = CustomColors.NotCDA,
                         ForeColourIdentity = excludeConflict ? Colours.Identities.Custom : default,
                         CustomForeColour = colour
                     };
@@ -481,7 +451,7 @@ namespace AuroraLabelItemsPlugin
 //                        };
 //                    }
 
-                case LABEL_ITEM_RADAR_IND:
+                case LabelConstants.LABEL_ITEM_RADAR_IND:
 
 
                     if (radarToggled)
@@ -501,7 +471,7 @@ namespace AuroraLabelItemsPlugin
                         CustomForeColour = ExcludeConflictColor(track, flightDataRecord)
                     };
 
-                case LABEL_ITEM_INHIBIT_IND:
+                case LabelConstants.LABEL_ITEM_INHIBIT_IND:
 
 
                     if (flightDataRecord.State == FDR.FDRStates.STATE_INHIBITED)
@@ -518,7 +488,7 @@ namespace AuroraLabelItemsPlugin
                     };
 
 
-                case LABEL_ITEM_FILED_SPEED:
+                case LabelConstants.LABEL_ITEM_FILED_SPEED:
                     var mach = Conversions.CalculateMach(flightDataRecord.TAS,
                         GRIB.FindTemperature(flightDataRecord.PRL, track.GetLocation(), true));
                     return new CustomLabelItem
@@ -529,7 +499,7 @@ namespace AuroraLabelItemsPlugin
                         CustomForeColour = ExcludeConflictColor(track, flightDataRecord)
                     };
 
-                case LABEL_ITEM_3DIGIT_GROUNDSPEED:
+                case LabelConstants.LABEL_ITEM_3DIGIT_GROUNDSPEED:
                     //get groundspeed value from either FDR or radarTrack if coupled
                     var gs = radarTrack == null
                         ? flightDataRecord.PredictedPosition.Groundspeed
@@ -541,7 +511,7 @@ namespace AuroraLabelItemsPlugin
                         CustomForeColour = ExcludeConflictColor(track, flightDataRecord)
                     };
 
-                case LABEL_ITEM_DESTINATION:
+                case LabelConstants.LABEL_ITEM_DESTINATION:
 
                     return new CustomLabelItem
                     {
@@ -661,8 +631,8 @@ namespace AuroraLabelItemsPlugin
             if (eastboundCallsigns.TryGetValue(callsign, out var east))
             {
                 if (east)
-                    return EastboundColour;
-                return WestboundColour;
+                    return CustomColors.EastboundColour;
+                return CustomColors.WestboundColour;
             }
 
             return default;
@@ -671,8 +641,8 @@ namespace AuroraLabelItemsPlugin
         private CustomColour GetConflictColour(string callsign)
         {
             if (imminentConflict.Count % 2 == 0 && imminentConflict.TryGetValue(callsign, out _))
-                return Imminent;
-            if (advisoryConflict.Count % 2 == 0 && advisoryConflict.TryGetValue(callsign, out _)) return Advisory;
+                return CustomColors.Imminent;
+            if (advisoryConflict.Count % 2 == 0 && advisoryConflict.TryGetValue(callsign, out _)) return CustomColors.Advisory;
 
             return default;
         }
@@ -681,7 +651,7 @@ namespace AuroraLabelItemsPlugin
         {
             if ((imminentConflict.Count > 0 || advisoryConflict.Count > 0) && track.State == MMI.HMIStates.Jurisdiction)
                 return GetDirectionColour(flightDataRecord.Callsign, flightDataRecord);
-            if (imminentConflict.Count > 0 || advisoryConflict.Count > 0) return ApsBlue;
+            if (imminentConflict.Count > 0 || advisoryConflict.Count > 0) return CustomColors.ApsBlue;
             return default;
         }
     }

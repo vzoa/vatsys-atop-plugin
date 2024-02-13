@@ -50,6 +50,7 @@
     <ItemGroup>
         <Compile Include="AuroraLabelItemsPlugin.cs"/>
         <Compile Include="AuroraStripItemPlugin.cs"/>
+        <Compile Include="Constants.cs" />
         <Compile Include="CPAR.cs"/>
         <Compile Include="FPAP.cs"/>
         <Compile Include="GEO.cs"/>

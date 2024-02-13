@@ -2,6 +2,7 @@
 using System.Collections.Concurrent;
 using System.ComponentModel.Composition;
 using System.Text.RegularExpressions;
+using AuroraLabelItemsPlugin;
 using vatsys;
 using vatsys.Plugin;
 using static vatsys.FDP2;
@@ -11,51 +12,6 @@ namespace AuroraStripItemsPlugin
     [Export(typeof(IPlugin))]
     public class AuroraStripItemsPlugin : IStripPlugin
     {
-        /// The name of the custom label item we've added to Labels
-        /// in the Profile
-        private const string LABEL_ITEM_ADSB_CPDLC = "AURORA_ADSB_CPDLC"; //field c(4)
-
-        private const string STRIP_ITEM_CALLSIGN = "AURORA_CALLSIGN";
-        private const string STRIP_ITEM_CTLSECTOR = "AURORA_CDA";
-        private const string STRIP_ITEM_NXTSECTOR = "AURORA_NDA";
-        private const string STRIP_ITEM_T10_FLAG = "AURORA_T10_FLAG";
-        private const string STRIP_ITEM_MNT_FLAG = "AURORA_MNT_FLAG";
-        private const string STRIP_ITEM_DIST_FLAG = "AURORA_DIST_FLAG";
-        private const string STRIP_ITEM_RVSM_FLAG = "AURORA_RVSM_FLAG";
-        private const string STRIP_ITEM_VMI = "AURORA_STRIP_VMI";
-        private const string STRIP_ITEM_COMPLEX = "AURORA_STRIP_COMPLEX";
-        private const string STRIP_ITEM_CLEARED_LEVEL = "AURORA_CLEARED_LEVEL";
-        private const string STRIP_ITEM_REQUESTED_LEVEL = "AURORA_REQUESTED_LEVEL";
-        private const string STRIP_ITEM_MAN_EST = "AURORA_MAN_EST";
-        private const string STRIP_ITEM_POINT = "AURORA_POINT";
-        private const string STRIP_ITEM_ROUTE = "AURORA_ROUTE_STRIP";
-        private const string STRIP_ITEM_RADAR_IND = "AURORA_RADAR_IND";
-        private const string STRIP_ITEM_ANNOT_IND = "AURORA_ANNOT_STRIP";
-        private const string STRIP_ITEM_LATERAL_FLAG = "AURORA_LATERAL_FLAG";
-        private const string STRIP_ITEM_RESTR = "AURORA_RESTR_STRIP";
-        private const string STRIP_ITEM_CLRD_RTE = "AURORA_CLRD_RTE";
-        private const string CPAR_ITEM_TYPE = "CPAR_TYP";
-        private const string CPAR_ITEM_REQUIRED = "CPAR_REQUIRED";
-        private const string CPAR_ITEM_INTRUDER = "CPAR_INT";
-        private const string CPAR_ITEM_LOS = "CPAR_LOS";
-        private const string CPAR_ITEM_ACTUAL = "CPAR_ACTUAL";
-        private const string CPAR_ITEM_PASSING = "CPAR_PASSING";
-        private const string CPAR_ITEM_CONF_SEG_START_1 = "CPAR_CONF_SEG_START_1";
-        private const string CPAR_ITEM_CONF_SEG_START_2 = "CPAR_CONF_SEG_START_2";
-        private const string CPAR_ITEM_CONF_SEG_END_1 = "CPAR_CONF_SEG_END_1";
-        private const string CPAR_ITEM_CONF_SEG_END_2 = "CPAR_CONF_SEG_END_2";
-        private const string CPAR_ITEM_STARTIME_1 = "CPAR_START_TIME_1";
-        private const string CPAR_ITEM_STARTIME_2 = "CPAR_START_TIME_2";
-        private const string CPAR_ITEM_ENDTIME_1 = "CPAR_END_TIME_1";
-        private const string CPAR_ITEM_ENDTIME_2 = "CPAR_END_TIME_2";
-        private const string CPAR_ITEM_AID_2 = "CPAR_AID_2";
-        private const string CPAR_ITEM_TYP_2 = "CPAR_TYP_2";
-        private const string CPAR_ITEM_SPD_2 = "CPAR_SPD_2";
-        private const string CPAR_ITEM_ALT_2 = "CPAR_ALT_2";
-        private static readonly CustomColour NonRVSM = new CustomColour(242, 133, 0);
-        private static readonly CustomColour SepFlags = new CustomColour(0, 196, 253);
-        private static readonly CustomColour Pending = new CustomColour(46, 139, 87);
-        private static readonly CustomColour NotCDA = new CustomColour(100, 0, 100);
 
         private readonly ConcurrentDictionary<string, bool> eastboundCallsigns =
             new ConcurrentDictionary<string, bool>();
@@ -121,7 +77,7 @@ namespace AuroraStripItemsPlugin
 
             switch (itemType)
             {
-                case STRIP_ITEM_CALLSIGN:
+                case StripConstants.STRIP_ITEM_CALLSIGN:
 
 
                     if (isEastBound)
@@ -138,7 +94,7 @@ namespace AuroraStripItemsPlugin
                         Text = flightDataRecord.Callsign
                     };
 
-                case STRIP_ITEM_CTLSECTOR:
+                case StripConstants.STRIP_ITEM_CTLSECTOR:
 
                     var pendingCoordination = flightDataRecord.State ==
                                               (FDR.FDRStates.STATE_PREACTIVE | FDR.FDRStates.STATE_COORDINATED);
@@ -150,13 +106,13 @@ namespace AuroraStripItemsPlugin
                     return new CustomStripItem
                     {
                         ForeColourIdentity = pendingCoordination ? Colours.Identities.Custom : default,
-                        CustomForeColour = Pending,
+                        CustomForeColour = CustomColors.Pending,
                         Text = sectorName
                     };
                 }
 
 
-                case STRIP_ITEM_NXTSECTOR:
+                case StripConstants.STRIP_ITEM_NXTSECTOR:
 
                     TOC toc;
                     toc = new TOC(flightDataRecord);
@@ -167,13 +123,13 @@ namespace AuroraStripItemsPlugin
                     return new CustomStripItem
                     {
                         ForeColourIdentity = Colours.Identities.Custom,
-                        CustomForeColour = Pending,
+                        CustomForeColour = CustomColors.Pending,
                         Text = firName
                     };
                 }
 
 
-                case LABEL_ITEM_ADSB_CPDLC:
+                case StripConstants.LABEL_ITEM_ADSB_CPDLC:
 
 
                     if (!isEastBound && !adsb && cpdlc)
@@ -232,7 +188,7 @@ namespace AuroraStripItemsPlugin
 
                     return null;
 
-                case STRIP_ITEM_T10_FLAG:
+                case StripConstants.STRIP_ITEM_T10_FLAG:
 
                     if (flightDataRecord.PerformanceData?.IsJet ?? false)
 
@@ -246,7 +202,7 @@ namespace AuroraStripItemsPlugin
 
                     return null;
 
-                case STRIP_ITEM_MNT_FLAG:
+                case StripConstants.STRIP_ITEM_MNT_FLAG:
 
                     if (flightDataRecord.PerformanceData?.IsJet ?? false)
 
@@ -259,7 +215,7 @@ namespace AuroraStripItemsPlugin
 
                     return null;
 
-                case STRIP_ITEM_DIST_FLAG:
+                case StripConstants.STRIP_ITEM_DIST_FLAG:
 
                     if (adsc & cpdlc & (rnp4 || rnp10))
 
@@ -267,25 +223,25 @@ namespace AuroraStripItemsPlugin
                         return new CustomStripItem
                         {
                             BackColourIdentity = Colours.Identities.Custom,
-                            CustomBackColour = SepFlags,
+                            CustomBackColour = CustomColors.SepFlags,
                             Text = rnp4 ? "3" : "D"
                         };
                     return null;
 
-                case STRIP_ITEM_RVSM_FLAG:
+                case StripConstants.STRIP_ITEM_RVSM_FLAG:
 
                     if (rvsm)
 
                         return new CustomStripItem
                         {
                             BackColourIdentity = Colours.Identities.Custom,
-                            CustomBackColour = SepFlags,
+                            CustomBackColour = CustomColors.SepFlags,
                             Text = "W"
                         };
 
                     return null;
 
-                case STRIP_ITEM_VMI:
+                case StripConstants.STRIP_ITEM_VMI:
                     var vs = radarTrack == null
                         ? flightDataRecord.PredictedPosition.VerticalSpeed
                         : radarTrack.VerticalSpeed;
@@ -312,7 +268,7 @@ namespace AuroraStripItemsPlugin
 
                     return null;
 
-                case STRIP_ITEM_COMPLEX:
+                case StripConstants.STRIP_ITEM_COMPLEX:
 
                     if (flightDataRecord.LabelOpData.Contains("AT ") || flightDataRecord.LabelOpData.Contains(" BY ") ||
                         flightDataRecord.LabelOpData.Contains("CLEARED TO "))
@@ -324,7 +280,7 @@ namespace AuroraStripItemsPlugin
 
                     return null;
 
-                case STRIP_ITEM_CLEARED_LEVEL:
+                case StripConstants.STRIP_ITEM_CLEARED_LEVEL:
 
                     if (cfl == 0)
                         return new CustomStripItem
@@ -337,7 +293,7 @@ namespace AuroraStripItemsPlugin
                         Text = cfl.ToString()
                     };
 
-                case STRIP_ITEM_REQUESTED_LEVEL:
+                case StripConstants.STRIP_ITEM_REQUESTED_LEVEL:
 
                     if (flightDataRecord.State == FDR.FDRStates.STATE_INACTIVE ||
                         flightDataRecord.State == FDR.FDRStates.STATE_INACTIVE)
@@ -368,7 +324,7 @@ namespace AuroraStripItemsPlugin
                 //    {
                 //        Text = Conversions.ConvertToFlightplanLatLong()
                 //    };
-                case STRIP_ITEM_ROUTE:
+                case StripConstants.STRIP_ITEM_ROUTE:
 
                     return new CustomStripItem
                     {
@@ -377,7 +333,7 @@ namespace AuroraStripItemsPlugin
                     };
 
 
-                case STRIP_ITEM_RADAR_IND:
+                case StripConstants.STRIP_ITEM_RADAR_IND:
 
                     return new CustomStripItem
                     {
@@ -386,7 +342,7 @@ namespace AuroraStripItemsPlugin
                     };
 
 
-                case STRIP_ITEM_ANNOT_IND:
+                case StripConstants.STRIP_ITEM_ANNOT_IND:
 
                     var scratch = string.IsNullOrEmpty(flightDataRecord.LabelOpData);
 
@@ -402,7 +358,7 @@ namespace AuroraStripItemsPlugin
                     };
 
 
-                case STRIP_ITEM_LATERAL_FLAG:
+                case StripConstants.STRIP_ITEM_LATERAL_FLAG:
 
                     if (adsc & cpdlc & rnp4 || rnp10)
 
@@ -410,13 +366,13 @@ namespace AuroraStripItemsPlugin
                         return new CustomStripItem
                         {
                             BackColourIdentity = Colours.Identities.Custom,
-                            CustomBackColour = SepFlags,
+                            CustomBackColour = CustomColors.SepFlags,
                             Text = rnp4 ? "4" : rnp10 ? "R" : ""
                             //OnMouseClick = ItemMouseClick
                         };
                     return null;
 
-                case STRIP_ITEM_RESTR:
+                case StripConstants.STRIP_ITEM_RESTR:
 
                     if (flightDataRecord.LabelOpData.Contains("AT ") || flightDataRecord.LabelOpData.Contains(" BY ") ||
                         flightDataRecord.LabelOpData.Contains("CLEARED TO "))
