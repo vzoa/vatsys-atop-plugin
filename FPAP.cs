@@ -1,32 +1,30 @@
 ﻿using System;
 using System.Linq;
 using System.Text.RegularExpressions;
-using static vatsys.SectorsVolumes;
 using System.Threading;
-using vatsys.Plugin;
 using vatsys;
-using System.ComponentModel.Composition;
+using static vatsys.SectorsVolumes;
 
 namespace AuroraLabelItemsPlugin
 {
     public class FPAP
     {
+        public bool adsc;
+        public int alt;
+        public int cfl;
+        public bool cpdlc;
+        public bool jet;
+        public bool pbcs;
         public Match pbn;
-        public Match sur;
+        public int prl;
+        public int rfl;
         public bool rnp10;
         public bool rnp4;
-        public bool pbcs;
-        public bool cpdlc;
-        public bool adsc;
-        public bool jet;
+        public Match sur;
         public double vs;
-        public int prl;
-        public int cfl;
-        public int rfl;
-        public int alt;
 
         public void OnFDRUpdate(FDP2.FDR updated)
-        {            
+        {
             pbn = Regex.Match(updated.Remarks, @"PBN\/\w+\s");
             sur = Regex.Match(updated.Remarks, @"SUR\/\w+\s");
             rnp10 = pbn.Value.Contains("A1") && updated.AircraftEquip.Contains("R");
@@ -42,13 +40,10 @@ namespace AuroraLabelItemsPlugin
             alt = cfl == -1 ? rfl : cfl;
         }
 
-            public void TOC(RDP.RadarTrack rt)
+        public void TOC(RDP.RadarTrack rt)
         {
             var fdr = rt.CoupledFDR;
-            if (fdr != null && rt != null)
-            {
-                TransferOfControl(fdr);
-            }
+            if (fdr != null && rt != null) TransferOfControl(fdr);
         }
 
 
@@ -60,26 +55,23 @@ namespace AuroraLabelItemsPlugin
             var rt = fdr.CoupledTrack;
             if (fdr != null)
                 if (!fdr.ESTed && MMI.IsMySectorConcerned(fdr))
-                {
                     MMI.EstFDR(fdr);
-                }
 
             if (MMI.SectorsControlled.ToList()
-                .Exists(s => s.IsInSector(fdr.GetLocation(), fdr.PRL)) && !fdr.IsTrackedByMe && !fdr.IsTracked) //MMI.SectorsControlled.Contains(fdr.ControllingSector) || fdr.ControllingSector == null
-            {
+                    .Exists(s => s.IsInSector(fdr.GetLocation(), fdr.PRL)) && !fdr.IsTrackedByMe &&
+                !fdr.IsTracked) //MMI.SectorsControlled.Contains(fdr.ControllingSector) || fdr.ControllingSector == null
                 MMI.AcceptJurisdiction(fdr);
-            }
 
 
-
-            foreach (Volume volume in Volumes)
-            {
-                if (rt != null && (fdr.PRL == -1 || (fdr.PRL <= volume.UpperLevel && fdr.PRL > volume.LowerLevel)) && Conversions.IsLatlonInPoly(fdr.GetLocation(), volume.Boundary))
+            foreach (var volume in Volumes)
+                if (rt != null && (fdr.PRL == -1 || (fdr.PRL <= volume.UpperLevel && fdr.PRL > volume.LowerLevel)) &&
+                    Conversions.IsLatlonInPoly(fdr.GetLocation(), volume.Boundary))
                 {
-
                     var whichVol = volume;
-                    var whichFIR = SectorsVolumes.FindSector(whichVol);
-                    if (MMI.GetSectorEntryTime(fdr) == DateTime.MaxValue && MMI.SectorsControlled.ToList().TrueForAll(s => !s.IsInSector(fdr.GetLocation(), fdr.PRL))) // && whichFIR != fdr.ControllingSector 
+                    var whichFIR = FindSector(whichVol);
+                    if (MMI.GetSectorEntryTime(fdr) == DateTime.MaxValue && MMI.SectorsControlled.ToList()
+                            .TrueForAll(s =>
+                                !s.IsInSector(fdr.GetLocation(), fdr.PRL))) // && whichFIR != fdr.ControllingSector 
 
                     {
                         //toc.HandoffNextSector();
@@ -89,8 +81,6 @@ namespace AuroraLabelItemsPlugin
                         RDP.DeCouple(rt);
                     }
                 }
-            }
-
         }
 
         //void SendNextDataAuthority(Network network, NetworkPilot pilot, VSCSFrequency freq)
@@ -109,6 +99,5 @@ namespace AuroraLabelItemsPlugin
         //        pilot.LastContactMe = DateTime.UtcNow;
         //    }
         //}
-
     }
 }
