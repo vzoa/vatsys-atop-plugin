@@ -77,7 +77,7 @@ namespace AuroraStripItemsPlugin
 
             switch (itemType)
             {
-                case StripConstants.STRIP_ITEM_CALLSIGN:
+                case StripConstants.StripItemCallsign:
 
 
                     if (isEastBound)
@@ -94,7 +94,7 @@ namespace AuroraStripItemsPlugin
                         Text = flightDataRecord.Callsign
                     };
 
-                case StripConstants.STRIP_ITEM_CTLSECTOR:
+                case StripConstants.StripItemCtlsector:
 
                     var pendingCoordination = flightDataRecord.State ==
                                               (FDR.FDRStates.STATE_PREACTIVE | FDR.FDRStates.STATE_COORDINATED);
@@ -112,7 +112,7 @@ namespace AuroraStripItemsPlugin
                 }
 
 
-                case StripConstants.STRIP_ITEM_NXTSECTOR:
+                case StripConstants.StripItemNxtsector:
 
                     TOC toc;
                     toc = new TOC(flightDataRecord);
@@ -129,7 +129,7 @@ namespace AuroraStripItemsPlugin
                 }
 
 
-                case StripConstants.LABEL_ITEM_ADSB_CPDLC:
+                case StripConstants.LabelItemAdsbCpdlc:
 
 
                     if (!isEastBound && !adsb && cpdlc)
@@ -188,7 +188,7 @@ namespace AuroraStripItemsPlugin
 
                     return null;
 
-                case StripConstants.STRIP_ITEM_T10_FLAG:
+                case StripConstants.StripItemT10Flag:
 
                     if (flightDataRecord.PerformanceData?.IsJet ?? false)
 
@@ -202,7 +202,7 @@ namespace AuroraStripItemsPlugin
 
                     return null;
 
-                case StripConstants.STRIP_ITEM_MNT_FLAG:
+                case StripConstants.StripItemMntFlag:
 
                     if (flightDataRecord.PerformanceData?.IsJet ?? false)
 
@@ -215,7 +215,7 @@ namespace AuroraStripItemsPlugin
 
                     return null;
 
-                case StripConstants.STRIP_ITEM_DIST_FLAG:
+                case StripConstants.StripItemDistFlag:
 
                     if (adsc & cpdlc & (rnp4 || rnp10))
 
@@ -228,7 +228,7 @@ namespace AuroraStripItemsPlugin
                         };
                     return null;
 
-                case StripConstants.STRIP_ITEM_RVSM_FLAG:
+                case StripConstants.StripItemRvsmFlag:
 
                     if (rvsm)
 
@@ -241,7 +241,7 @@ namespace AuroraStripItemsPlugin
 
                     return null;
 
-                case StripConstants.STRIP_ITEM_VMI:
+                case StripConstants.StripItemVmi:
                     var vs = radarTrack == null
                         ? flightDataRecord.PredictedPosition.VerticalSpeed
                         : radarTrack.VerticalSpeed;
@@ -268,7 +268,7 @@ namespace AuroraStripItemsPlugin
 
                     return null;
 
-                case StripConstants.STRIP_ITEM_COMPLEX:
+                case StripConstants.StripItemComplex:
 
                     if (flightDataRecord.LabelOpData.Contains("AT ") || flightDataRecord.LabelOpData.Contains(" BY ") ||
                         flightDataRecord.LabelOpData.Contains("CLEARED TO "))
@@ -280,7 +280,7 @@ namespace AuroraStripItemsPlugin
 
                     return null;
 
-                case StripConstants.STRIP_ITEM_CLEARED_LEVEL:
+                case StripConstants.StripItemClearedLevel:
 
                     if (cfl == 0)
                         return new CustomStripItem
@@ -293,7 +293,7 @@ namespace AuroraStripItemsPlugin
                         Text = cfl.ToString()
                     };
 
-                case StripConstants.STRIP_ITEM_REQUESTED_LEVEL:
+                case StripConstants.StripItemRequestedLevel:
 
                     if (flightDataRecord.State == FDR.FDRStates.STATE_INACTIVE ||
                         flightDataRecord.State == FDR.FDRStates.STATE_INACTIVE)
@@ -324,7 +324,7 @@ namespace AuroraStripItemsPlugin
                 //    {
                 //        Text = Conversions.ConvertToFlightplanLatLong()
                 //    };
-                case StripConstants.STRIP_ITEM_ROUTE:
+                case StripConstants.StripItemRoute:
 
                     return new CustomStripItem
                     {
@@ -333,7 +333,7 @@ namespace AuroraStripItemsPlugin
                     };
 
 
-                case StripConstants.STRIP_ITEM_RADAR_IND:
+                case StripConstants.StripItemRadarInd:
 
                     return new CustomStripItem
                     {
@@ -342,7 +342,7 @@ namespace AuroraStripItemsPlugin
                     };
 
 
-                case StripConstants.STRIP_ITEM_ANNOT_IND:
+                case StripConstants.StripItemAnnotInd:
 
                     var scratch = string.IsNullOrEmpty(flightDataRecord.LabelOpData);
 
@@ -358,7 +358,7 @@ namespace AuroraStripItemsPlugin
                     };
 
 
-                case StripConstants.STRIP_ITEM_LATERAL_FLAG:
+                case StripConstants.StripItemLateralFlag:
 
                     if (adsc & cpdlc & rnp4 || rnp10)
 
@@ -372,7 +372,7 @@ namespace AuroraStripItemsPlugin
                         };
                     return null;
 
-                case StripConstants.STRIP_ITEM_RESTR:
+                case StripConstants.StripItemRestr:
 
                     if (flightDataRecord.LabelOpData.Contains("AT ") || flightDataRecord.LabelOpData.Contains(" BY ") ||
                         flightDataRecord.LabelOpData.Contains("CLEARED TO "))
