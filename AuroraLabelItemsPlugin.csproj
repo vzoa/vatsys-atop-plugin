@@ -9,9 +9,10 @@
         <AppDesignerFolder>Properties</AppDesignerFolder>
         <RootNamespace>AuroraLabelItemsPlugin</RootNamespace>
         <AssemblyName>AuroraLabelItemsPlugin</AssemblyName>
-        <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
+        <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
         <FileAlignment>512</FileAlignment>
         <Deterministic>true</Deterministic>
+        <LangVersion>11</LangVersion>
     </PropertyGroup>
     <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
         <DebugSymbols>true</DebugSymbols>
@@ -52,6 +53,17 @@
         <Compile Include="AuroraStripItemPlugin.cs"/>
         <Compile Include="Constants.cs" />
         <Compile Include="CPAR.cs"/>
+        <Compile Include="Fdr\AltitudeBlock.cs" />
+        <Compile Include="Fdr\AltitudeFlag.cs" />
+        <Compile Include="Fdr\AltitudeCalculator.cs" />
+        <Compile Include="Fdr\DirectionOfFlight.cs" />
+        <Compile Include="Fdr\ExtendedFdrState.cs" />
+        <Compile Include="Fdr\FdrExtensions.cs" />
+        <Compile Include="Fdr\FdrParser.cs" />
+        <Compile Include="Fdr\FdrManager.cs" />
+        <Compile Include="Fdr\ParsedFdrFields.cs" />
+        <Compile Include="Fdr\SccFlag.cs" />
+        <Compile Include="Fdr\SccFlagCalculator.cs" />
         <Compile Include="FPAP.cs"/>
         <Compile Include="GEO.cs"/>
         <Compile Include="Properties\AssemblyInfo.cs"/>

@@ -17,10 +17,6 @@ namespace AuroraStripItemsPlugin
             new ConcurrentDictionary<string, bool>();
 
         private readonly ConcurrentDictionary<string, byte> flagtoggle = new ConcurrentDictionary<string, byte>();
-        private CPAR cpar = new CPAR();
-
-        private AuroraLabelItemsPlugin.AuroraLabelItemsPlugin label =
-            new AuroraLabelItemsPlugin.AuroraLabelItemsPlugin();
 
         /// Plugin Name
         public string Name => "Aurora Label Items";
