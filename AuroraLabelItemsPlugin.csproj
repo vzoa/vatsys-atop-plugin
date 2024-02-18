@@ -49,6 +49,7 @@
         </Reference>
     </ItemGroup>
     <ItemGroup>
+        <Compile Include="AtopPlugin.cs" />
         <Compile Include="AuroraLabelItemsPlugin.cs"/>
         <Compile Include="AuroraStripItemPlugin.cs"/>
         <Compile Include="Conflict\ConflictAreaCalculator.cs" />
@@ -56,6 +57,10 @@
         <Compile Include="Conflict\ConflictType.cs" />
         <Compile Include="Conflict\MinimaCalculator.cs" />
         <Compile Include="Constants.cs" />
+        <Compile Include="Display\LabelItemRenderer.cs" />
+        <Compile Include="Display\LabelItem.cs" />
+        <Compile Include="Display\StripItemRenderer.cs" />
+        <Compile Include="Display\TrackColorRenderer.cs" />
         <Compile Include="Fdr\AltitudeFlag.cs" />
         <Compile Include="Fdr\AltitudeCalculator.cs" />
         <Compile Include="Fdr\DirectionOfFlight.cs" />
@@ -70,6 +75,7 @@
         <Compile Include="GEO.cs"/>
         <Compile Include="Models\AltitudeBlock.cs" />
         <Compile Include="Properties\AssemblyInfo.cs"/>
+        <Compile Include="State\PrivateMessagesChangedHandler.cs" />
         <Compile Include="TOC.cs"/>
     </ItemGroup>
     <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets"/>

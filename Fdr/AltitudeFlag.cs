@@ -9,8 +9,8 @@ public class AltitudeFlag
 
     public string Value { get; private set; }
 
-    public static AltitudeFlag Climbing => new("↑");
-    public static AltitudeFlag Descending => new("↓");
-    public static AltitudeFlag DeviatingAbove => new("+");
-    public static AltitudeFlag DeviatingBelow => new("-");
+    public static AltitudeFlag Climbing => new(Symbols.Climbing);
+    public static AltitudeFlag Descending => new(Symbols.Descending);
+    public static AltitudeFlag DeviatingAbove => new(Symbols.DeviatingAbove);
+    public static AltitudeFlag DeviatingBelow => new(Symbols.DeviatingBelow);
 }

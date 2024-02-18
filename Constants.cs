@@ -16,6 +16,31 @@ namespace AuroraLabelItemsPlugin
         public static readonly CustomColour SpecialConditionCode = new CustomColour(255, 255, 0);
         public static readonly CustomColour ApsBlue = new CustomColour(141, 182, 205);
     }
+
+    public static class Symbols
+    {
+        public const string NoCpdlcNoAdsb = "⎕";
+        public const string CpdlcNoAdsb = "⧆";
+        public const string CpdlcAndAdsb = "✱";
+
+        public const string D30 = "3";
+        public const string D50 = "D";
+        public const string T10 = "M";
+        public const string Mnt = "R";
+        public const string Rvsm = "W";
+
+        public const string CommDownlink = "▼";
+        public const string CommEmpty = "⬜";
+
+        public const string RadarFlag = "★";
+        public const string UntoggledFlag = "◦";
+
+        public const string Climbing = "↑";
+        public const string Descending = "↓";
+        public const string DeviatingAbove = "+";
+        public const string DeviatingBelow = "-";
+
+    }
     
     public static class StripConstants
     {
