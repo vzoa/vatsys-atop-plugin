@@ -19,6 +19,8 @@ namespace AuroraLabelItemsPlugin
 
     public static class Symbols
     {
+        public const string Empty = "";
+        
         public const string NoCpdlcNoAdsb = "⎕";
         public const string CpdlcNoAdsb = "⧆";
         public const string CpdlcAndAdsb = "✱";
@@ -40,6 +42,7 @@ namespace AuroraLabelItemsPlugin
         public const string DeviatingAbove = "+";
         public const string DeviatingBelow = "-";
 
+        public const string Inhibited = "^";
     }
     
     public static class StripConstants

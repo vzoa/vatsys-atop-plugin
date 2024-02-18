@@ -14,4 +14,9 @@ public static class Extensions
     {
         return fdr.CoupledTrack?.ActualAircraft.TransponderCode;
     }
+
+    public static bool IsSelected(this Track track)
+    {
+        return MMI.SelectedTrack == track;
+    }
 }

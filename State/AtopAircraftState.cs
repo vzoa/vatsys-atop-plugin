@@ -20,8 +20,8 @@ public class AtopAircraftState
     public AltitudeFlag? AltitudeFlag { get; private set; }
     public bool DownlinkIndicator { get; set; }
     public bool RadarToggleIndicator { get; set; }
-
-    private bool PendingAltitudeChange { get; set; }
+    public bool PendingAltitudeChange { get; private set; }
+    
     private AltitudeBlock PreviousAltitudeBlock { get; set; }
 
     public void UpdateFromFdr(FDP2.FDR updatedFdr)

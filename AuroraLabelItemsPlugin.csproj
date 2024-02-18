@@ -75,6 +75,7 @@
         <Compile Include="State\AtopPluginStateManager.cs" />
         <Compile Include="State\AtopAircraftState.cs" />
         <Compile Include="State\PrivateMessagesChangedHandler.cs" />
+        <Compile Include="State\RadarFlagToggleHandler.cs" />
         <Compile Include="TOC.cs"/>
     </ItemGroup>
     <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets"/>
