@@ -15,16 +15,16 @@ public static class LabelItemRenderer
         return itemType switch
         {
             LabelConstants.LabelItemSelectHori => track.IsSelected()
-                ? new CustomLabelItem() { Text = Symbols.Empty, Border = BorderFlags.Bottom }
+                ? new CustomLabelItem { Text = Symbols.Empty, Border = BorderFlags.Bottom }
                 : null,
 
             LabelConstants.LabelItemSelectVert => track.IsSelected()
-                ? new CustomLabelItem() { Text = Symbols.Empty, Border = BorderFlags.Left }
+                ? new CustomLabelItem { Text = Symbols.Empty, Border = BorderFlags.Left }
                 : null,
 
             LabelConstants.LabelItemCommIcon => fdr.GetAtopState().DownlinkIndicator
-                ? new CustomLabelItem() { Text = Symbols.CommDownlink, Border = BorderFlags.All }
-                : new CustomLabelItem() { Text = Symbols.CommEmpty },
+                ? new CustomLabelItem { Text = Symbols.CommDownlink, Border = BorderFlags.All }
+                : new CustomLabelItem { Text = Symbols.CommEmpty },
 
             LabelConstants.LabelItemAdsbCpdlc => null,
 
@@ -33,7 +33,7 @@ public static class LabelItemRenderer
             LabelConstants.LabelItemMntFlags => null,
 
             LabelConstants.LabelItemScc => fdr.GetAtopState().HighestSccFlag != null
-                ? new CustomLabelItem()
+                ? new CustomLabelItem
                 {
                     Text = fdr.GetAtopState().HighestSccFlag!.Value, ForeColourIdentity = Colours.Identities.Custom,
                     CustomForeColour = CustomColors.SpecialConditionCode
@@ -51,18 +51,18 @@ public static class LabelItemRenderer
             LabelConstants.LabelItemClearedLevel => null,
 
             LabelConstants.LabelItemRadarInd => fdr.GetAtopState().RadarToggleIndicator
-                ? new CustomLabelItem() { Text = Symbols.RadarFlag, OnMouseClick = RadarFlagToggleHandler.Handle }
-                : new CustomLabelItem() { Text = Symbols.UntoggledFlag, OnMouseClick = RadarFlagToggleHandler.Handle },
+                ? new CustomLabelItem { Text = Symbols.RadarFlag, OnMouseClick = RadarFlagToggleHandler.Handle }
+                : new CustomLabelItem { Text = Symbols.UntoggledFlag, OnMouseClick = RadarFlagToggleHandler.Handle },
 
             LabelConstants.LabelItemInhibitInd => fdr.State == FDP2.FDR.FDRStates.STATE_INHIBITED
-                ? new CustomLabelItem() { Text = Symbols.Inhibited }
+                ? new CustomLabelItem { Text = Symbols.Inhibited }
                 : null,
 
             LabelConstants.LabelItemFiledSpeed => null,
 
             LabelConstants.LabelItem3DigitGroundspeed => null,
 
-            LabelConstants.LabelItemDestination => new CustomLabelItem() { Text = fdr.DesAirport },
+            LabelConstants.LabelItemDestination => new CustomLabelItem { Text = fdr.DesAirport },
 
             _ => null
         };
