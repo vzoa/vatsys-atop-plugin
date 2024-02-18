@@ -1,6 +1,5 @@
 ﻿using System.ComponentModel.Composition;
 using AuroraLabelItemsPlugin.Display;
-using AuroraLabelItemsPlugin.Fdr;
 using AuroraLabelItemsPlugin.State;
 using vatsys;
 using vatsys.Plugin;
@@ -19,7 +18,7 @@ public class AtopPlugin : ILabelPlugin, IStripPlugin
 
     public void OnFDRUpdate(FDP2.FDR updated)
     {
-        FdrManager.UpdateFdrState(updated);
+        AtopPluginStateManager.UpdateState(updated);
     }
 
     public void OnRadarTrackUpdate(RDP.RadarTrack updated)

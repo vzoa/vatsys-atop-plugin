@@ -2,7 +2,7 @@
 using AuroraLabelItemsPlugin.Models;
 using vatsys;
 
-namespace AuroraLabelItemsPlugin.Fdr;
+namespace AuroraLabelItemsPlugin.Logic;
 
 public static class AltitudeCalculator
 {

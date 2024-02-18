@@ -1,4 +1,4 @@
-﻿using AuroraLabelItemsPlugin.Fdr;
+﻿using AuroraLabelItemsPlugin.Models;
 using vatsys;
 using vatsys.Plugin;
 
@@ -18,7 +18,7 @@ public static class TrackColorRenderer
 
     private static CustomColour GetDirectionColour(FDP2.FDR fdr)
     {
-        return fdr.GetExtendedState().DirectionOfFlight switch
+        return fdr.GetAtopState().DirectionOfFlight switch
         {
             DirectionOfFlight.Eastbound => CustomColors.EastboundColour,
             DirectionOfFlight.Westbound => CustomColors.WestboundColour,

@@ -1,5 +1,4 @@
 ﻿using System;
-using AuroraLabelItemsPlugin.Fdr;
 using AuroraLabelItemsPlugin.Models;
 using vatsys;
 
@@ -83,17 +82,17 @@ public static class MinimaCalculator
 
     private static bool HasDatalink(FDP2.FDR fdr)
     {
-        return fdr.GetExtendedState().ParsedFdrFields is { Pbcs: true, Adsc: true, Cpdlc: true };
+        return fdr.GetAtopState().CalculatedFlightData is { Pbcs: true, Adsc: true, Cpdlc: true };
     }
 
     private static bool CanApplyRnp4(FDP2.FDR fdr)
     {
-        return HasDatalink(fdr) && fdr.GetExtendedState().ParsedFdrFields.Rnp4;
+        return HasDatalink(fdr) && fdr.GetAtopState().CalculatedFlightData.Rnp4;
     }
 
     private static bool CanApplyRnp10(FDP2.FDR fdr)
     {
-        return fdr.GetExtendedState().ParsedFdrFields is { Rnp10: true };
+        return fdr.GetAtopState().CalculatedFlightData is { Rnp10: true };
     }
 
     private static bool IsJet(FDP2.FDR fdr)

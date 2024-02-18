@@ -1,7 +1,8 @@
 ﻿#nullable enable
+using AuroraLabelItemsPlugin.Models;
 using vatsys;
 
-namespace AuroraLabelItemsPlugin.Fdr;
+namespace AuroraLabelItemsPlugin.Logic;
 
 public static class SccFlagCalculator
 {
@@ -11,7 +12,7 @@ public static class SccFlagCalculator
 
     public static SccFlag? CalculateHighestPriorityFlag(FDP2.FDR fdr)
     {
-        var parsedFdrFields = fdr.GetExtendedState().ParsedFdrFields;
+        var parsedFdrFields = fdr.GetAtopState().CalculatedFlightData;
 
         var transponderCode = fdr.GetTransponderCode();
         switch (transponderCode)

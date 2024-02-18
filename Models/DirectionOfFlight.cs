@@ -1,6 +1,6 @@
 ﻿using vatsys;
 
-namespace AuroraLabelItemsPlugin.Fdr;
+namespace AuroraLabelItemsPlugin.Models;
 
 public enum DirectionOfFlight
 {

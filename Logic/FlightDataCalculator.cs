@@ -1,10 +1,11 @@
 ﻿using System.Linq;
 using System.Text.RegularExpressions;
+using AuroraLabelItemsPlugin.Models;
 using vatsys;
 
-namespace AuroraLabelItemsPlugin.Fdr;
+namespace AuroraLabelItemsPlugin.Logic;
 
-public static class FdrParser
+public static class FlightDataCalculator
 {
     private const string Rnp10Pbn = "A1";
     private const string Rnp4Pbn = "L1";
@@ -20,7 +21,7 @@ public static class FdrParser
         "J5", "J7"
     };
 
-    public static ParsedFdrFields ParseFdrFields(FDP2.FDR fdr)
+    public static CalculatedFlightData GetCalculatedFlightData(FDP2.FDR fdr)
     {
         // TODO(msalikhov): can we pull from fdr.PBNCapability
         var pbn = Regex.Match(fdr.Remarks, @"PBN\/\w+\s").Value;
@@ -28,7 +29,7 @@ public static class FdrParser
 
         var isPbn = fdr.AircraftEquip.Contains(PbnEquip);
 
-        return new ParsedFdrFields(
+        return new CalculatedFlightData(
             isPbn && pbn.Contains(Rnp4Pbn),
             isPbn && pbn.Contains(Rnp10Pbn),
             CpdlcEquip.Any(cpdlcVal => fdr.AircraftEquip.Contains(cpdlcVal)),

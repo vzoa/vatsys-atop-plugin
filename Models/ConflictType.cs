@@ -1,4 +1,4 @@
-﻿namespace AuroraLabelItemsPlugin.Conflict;
+﻿namespace AuroraLabelItemsPlugin.Models;
 
 public enum ConflictType
 {

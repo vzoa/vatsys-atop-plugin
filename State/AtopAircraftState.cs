@@ -1,19 +1,20 @@
 ﻿#nullable enable
+using AuroraLabelItemsPlugin.Logic;
 using AuroraLabelItemsPlugin.Models;
 using vatsys;
 
-namespace AuroraLabelItemsPlugin.Fdr;
+namespace AuroraLabelItemsPlugin.State;
 
-public class ExtendedFdrState
+public class AtopAircraftState
 {
-    public ExtendedFdrState(FDP2.FDR fdr)
+    public AtopAircraftState(FDP2.FDR fdr)
     {
         UpdateFromFdr(fdr);
         DownlinkIndicator = false;
         RadarToggleIndicator = false;
     }
 
-    public ParsedFdrFields ParsedFdrFields { get; private set; }
+    public CalculatedFlightData CalculatedFlightData { get; private set; }
     public DirectionOfFlight DirectionOfFlight { get; private set; }
     public SccFlag? HighestSccFlag { get; private set; }
     public AltitudeFlag? AltitudeFlag { get; private set; }
@@ -25,7 +26,7 @@ public class ExtendedFdrState
 
     public void UpdateFromFdr(FDP2.FDR updatedFdr)
     {
-        ParsedFdrFields = FdrParser.ParseFdrFields(updatedFdr);
+        CalculatedFlightData = FlightDataCalculator.GetCalculatedFlightData(updatedFdr);
         DirectionOfFlight = DirectionOfFlightCalculator.GetDirectionOfFlight(updatedFdr);
         HighestSccFlag = SccFlagCalculator.CalculateHighestPriorityFlag(updatedFdr);
 

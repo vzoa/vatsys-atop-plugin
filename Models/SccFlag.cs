@@ -1,4 +1,4 @@
-﻿namespace AuroraLabelItemsPlugin.Fdr;
+﻿namespace AuroraLabelItemsPlugin.Models;
 
 public class SccFlag
 {
