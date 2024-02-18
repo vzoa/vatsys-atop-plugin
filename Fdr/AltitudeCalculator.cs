@@ -1,4 +1,5 @@
 ﻿#nullable enable
+using AuroraLabelItemsPlugin.Models;
 using vatsys;
 
 namespace AuroraLabelItemsPlugin.Fdr;

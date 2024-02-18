@@ -51,9 +51,11 @@
     <ItemGroup>
         <Compile Include="AuroraLabelItemsPlugin.cs"/>
         <Compile Include="AuroraStripItemPlugin.cs"/>
+        <Compile Include="Conflict\ConflictAreaCalculator.cs" />
+        <Compile Include="Conflict\ConflictProbe.cs" />
+        <Compile Include="Conflict\ConflictType.cs" />
+        <Compile Include="Conflict\MinimaCalculator.cs" />
         <Compile Include="Constants.cs" />
-        <Compile Include="CPAR.cs"/>
-        <Compile Include="Fdr\AltitudeBlock.cs" />
         <Compile Include="Fdr\AltitudeFlag.cs" />
         <Compile Include="Fdr\AltitudeCalculator.cs" />
         <Compile Include="Fdr\DirectionOfFlight.cs" />
@@ -66,6 +68,7 @@
         <Compile Include="Fdr\SccFlagCalculator.cs" />
         <Compile Include="FPAP.cs"/>
         <Compile Include="GEO.cs"/>
+        <Compile Include="Models\AltitudeBlock.cs" />
         <Compile Include="Properties\AssemblyInfo.cs"/>
         <Compile Include="TOC.cs"/>
     </ItemGroup>
