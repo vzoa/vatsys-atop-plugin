@@ -12,6 +12,7 @@ public class AtopAircraftState
         UpdateFromFdr(fdr);
         DownlinkIndicator = false;
         RadarToggleIndicator = false;
+        PreviouslyTracked = false;
     }
 
     public CalculatedFlightData CalculatedFlightData { get; private set; }
@@ -20,8 +21,9 @@ public class AtopAircraftState
     public AltitudeFlag? AltitudeFlag { get; private set; }
     public bool DownlinkIndicator { get; set; }
     public bool RadarToggleIndicator { get; set; }
+    public bool PreviouslyTracked { get; set; }
     public bool PendingAltitudeChange { get; private set; }
-    
+
     private AltitudeBlock PreviousAltitudeBlock { get; set; }
 
     public void UpdateFromFdr(FDP2.FDR updatedFdr)
