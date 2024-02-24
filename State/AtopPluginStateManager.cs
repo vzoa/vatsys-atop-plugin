@@ -5,6 +5,8 @@ namespace AuroraLabelItemsPlugin.State;
 
 public static class AtopPluginStateManager
 {
+
+    private const int MissingFromFdpState = -1;
     
     private static readonly ConcurrentDictionary<string, AtopAircraftState> ExtendedFdrStates = new();
 
@@ -14,9 +16,16 @@ public static class AtopPluginStateManager
         return found ? state : null;
     }
 
-    public static void UpdateState(FDP2.FDR updated)
+    public static void ProcessStateUpdate(FDP2.FDR updated)
     {
         var callsign = updated.Callsign;
+
+        if (FDP2.GetFDRIndex(callsign) == MissingFromFdpState)
+        {
+            ExtendedFdrStates.TryRemove(callsign, out _);
+            return;
+        }
+        
         var extendedFdrState = GetState(callsign);
 
         if (extendedFdrState == null)

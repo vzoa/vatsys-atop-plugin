@@ -18,7 +18,7 @@ public class AtopPlugin : ILabelPlugin, IStripPlugin
 
     public void OnFDRUpdate(FDP2.FDR updated)
     {
-        AtopPluginStateManager.UpdateState(updated);
+        AtopPluginStateManager.ProcessStateUpdate(updated);
         JurisdictionManager.HandleFdrUpdate(updated);
     }
 
