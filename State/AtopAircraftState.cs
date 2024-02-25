@@ -21,6 +21,7 @@ public class AtopAircraftState
     public DirectionOfFlight DirectionOfFlight { get; private set; }
     public SccFlag? HighestSccFlag { get; private set; }
     public AltitudeFlag? AltitudeFlag { get; private set; }
+    public SectorsVolumes.Sector? NextSector { get; private set; }
     public bool DownlinkIndicator { get; set; }
     public bool RadarToggleIndicator { get; set; }
     public bool PreviouslyTracked { get; set; }
@@ -40,6 +41,8 @@ public class AtopAircraftState
         PendingAltitudeChange =
             AltitudeCalculator.CalculateAltitudeChangePending(updatedFdr, PreviousAltitudeBlock, PendingAltitudeChange);
         AltitudeFlag = AltitudeCalculator.CalculateAltitudeFlag(updatedFdr, PendingAltitudeChange);
+
+        NextSector = NextSectorCalculator.GetNextSector(updatedFdr);
 
         // update this last since so we have the previous value for the next update
         PreviousAltitudeBlock = AltitudeBlock.ExtractAltitudeBlock(updatedFdr);

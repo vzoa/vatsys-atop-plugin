@@ -64,6 +64,7 @@
         <Compile Include="GEO.cs"/>
         <Compile Include="Logic\AltitudeCalculator.cs"/>
         <Compile Include="Logic\FlightDataCalculator.cs"/>
+        <Compile Include="Logic\NextSectorCalculator.cs"/>
         <Compile Include="Logic\SccFlagCalculator.cs"/>
         <Compile Include="Models\AltitudeBlock.cs"/>
         <Compile Include="Models\AltitudeFlag.cs"/>

@@ -21,7 +21,7 @@ public static class StripItemRenderer
 
             StripConstants.StripItemCtlsector => RenderCtlSectorStripItem(fdr),
 
-            StripConstants.StripItemNxtsector => null, // TODO
+            StripConstants.StripItemNxtsector => new CustomStripItem { Text = atopState.NextSector?.Name ?? "" },
 
             StripConstants.LabelItemAdsbCpdlc => RenderAdsbCpdlcStripItem(fdr),
 
