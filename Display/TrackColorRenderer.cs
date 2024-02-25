@@ -21,7 +21,7 @@ public static class TrackColorRenderer
         };
     }
 
-    private static CustomColour? GetDirectionColour(FDP2.FDR fdr)
+    public static CustomColour? GetDirectionColour(FDP2.FDR fdr)
     {
         return fdr.GetAtopState()?.DirectionOfFlight switch
         {
