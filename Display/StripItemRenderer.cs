@@ -12,13 +12,18 @@ public static class StripItemRenderer
     {
         if (fdr == null) return null;
 
+        var atopState = fdr.GetAtopState();
+        var displayState = fdr.GetDisplayState();
+
         return itemType switch
         {
             StripConstants.StripItemCallsign => RenderCallsignStripItem(fdr),
-            StripConstants.StripItemCtlsector => RenderCtlSectorStripItem(fdr),
-            StripConstants.StripItemNxtsector => null,
 
-            StripConstants.LabelItemAdsbCpdlc => null,
+            StripConstants.StripItemCtlsector => RenderCtlSectorStripItem(fdr),
+
+            StripConstants.StripItemNxtsector => null, // TODO
+
+            StripConstants.LabelItemAdsbCpdlc => RenderAdsbCpdlcStripItem(fdr),
 
             StripConstants.StripItemT10Flag => fdr.PerformanceData.IsJet
                 ? new CustomStripItem { Text = Symbols.T10 }
@@ -28,33 +33,43 @@ public static class StripItemRenderer
                 ? new CustomStripItem { Text = Symbols.Mnt }
                 : null,
 
-            StripConstants.StripItemDistFlag => null,
+            StripConstants.StripItemDistFlag => new CustomStripItem
+            {
+                Text = displayState.AdsFlag, ForeColourIdentity = Colours.Identities.Custom,
+                CustomForeColour = CustomColors.SepFlags
+            },
 
             StripConstants.StripItemRvsmFlag => fdr.RVSM
                 ? new CustomStripItem
                 {
                     Text = Symbols.Rvsm, BackColourIdentity = Colours.Identities.Custom,
-                    CustomBackColour = CustomColors.SepFlags,
+                    CustomBackColour = CustomColors.SepFlags
                 }
                 : null,
 
-            StripConstants.StripItemVmi => null,
+            StripConstants.StripItemVmi => new CustomStripItem { Text = atopState.AltitudeFlag?.Value ?? "" },
 
-            StripConstants.StripItemComplex => null,
+            StripConstants.StripItemComplex => displayState.IsRestrictionsIndicatorToggled
+                ? new CustomStripItem() { Text = Symbols.ComplexFlag }
+                : null,
 
-            StripConstants.StripItemClearedLevel => null,
+            StripConstants.StripItemClearedLevel => new CustomStripItem { Text = displayState.ClearedLevel },
 
-            StripConstants.StripItemRequestedLevel => null,
+            StripConstants.StripItemRequestedLevel => new CustomStripItem { Text = displayState.RequestedLevel },
 
-            StripConstants.StripItemRoute => null,
+            StripConstants.StripItemRoute => new CustomStripItem { Text = Symbols.StripRouteItem },
 
-            StripConstants.StripItemRadarInd => null,
+            StripConstants.StripItemRadarInd => new CustomStripItem { Text = Symbols.StripRadarIndicator },
 
-            StripConstants.StripItemAnnotInd => null,
+            StripConstants.StripItemAnnotInd => displayState.HasAnnotations
+                ? new CustomStripItem { Text = Symbols.ScratchpadFlag }
+                : new CustomStripItem { Text = Symbols.EmptyAnnotations },
 
-            StripConstants.StripItemLateralFlag => null,
+            StripConstants.StripItemLateralFlag => new CustomStripItem { Text = displayState.LateralFlag },
 
-            StripConstants.StripItemRestr => null,
+            StripConstants.StripItemRestr => displayState.IsRestrictionsIndicatorToggled
+                ? new CustomStripItem { Text = Symbols.RestrictionsFlag }
+                : null,
 
             _ => null
         };
@@ -81,6 +96,13 @@ public static class StripItemRenderer
             stripItem.CustomForeColour = CustomColors.Pending;
         }
 
+        return stripItem;
+    }
+
+    private static CustomStripItem RenderAdsbCpdlcStripItem(FDP2.FDR fdr)
+    {
+        var stripItem = GetStripItemWithColorsForDirection(fdr.GetAtopState().DirectionOfFlight);
+        stripItem.Text = fdr.GetDisplayState().CpdlcAdsbSymbol;
         return stripItem;
     }
 

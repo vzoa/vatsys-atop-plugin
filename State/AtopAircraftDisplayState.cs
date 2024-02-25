@@ -18,11 +18,13 @@ public class AtopAircraftDisplayState
 
     public string CpdlcAdsbSymbol { get; private set; }
     public string AdsFlag { get; private set; }
+    public string LateralFlag { get; private set; }
     public bool IsMntFlagToggled { get; private set; }
-    public string AnnotationIndicator { get; private set; }
+    public bool HasAnnotations { get; private set; }
     public bool IsRestrictionsIndicatorToggled { get; private set; }
     public string CurrentLevel { get; private set; }
     public string ClearedLevel { get; private set; }
+    public string RequestedLevel { get; private set; }
     public BorderFlags AltitudeBorderFlags { get; private set; }
     public CustomColour? AltitudeColor { get; private set; }
     public string FiledSpeed { get; private set; }
@@ -32,11 +34,13 @@ public class AtopAircraftDisplayState
     {
         CpdlcAdsbSymbol = GetCpdlcAdsbSymbol(atopAircraftState);
         AdsFlag = GetAdsFlag(atopAircraftState);
+        LateralFlag = GetLateralFlag(atopAircraftState);
         IsMntFlagToggled = atopAircraftState.Fdr.PerformanceData.IsJet;
-        AnnotationIndicator = GetAnnotationIndicator(atopAircraftState);
+        HasAnnotations = !string.IsNullOrEmpty(atopAircraftState.Fdr.LabelOpData);
         IsRestrictionsIndicatorToggled = GetRestrictionsIndicatorToggled(atopAircraftState);
         CurrentLevel = (atopAircraftState.Fdr.PRL / 100).ToString();
         ClearedLevel = GetClearedLevel(atopAircraftState);
+        RequestedLevel = GetRequestedLevel(atopAircraftState);
         AltitudeBorderFlags = GetAltitudeBorderFlags(atopAircraftState);
         AltitudeColor = atopAircraftState.Fdr.RVSM ? null : CustomColors.NonRvsm;
         FiledSpeed = GetFiledSpeed(atopAircraftState);
@@ -66,9 +70,14 @@ public class AtopAircraftDisplayState
         };
     }
 
-    private static string GetAnnotationIndicator(AtopAircraftState atopAircraftState)
+    private static string GetLateralFlag(AtopAircraftState atopAircraftState)
     {
-        return string.IsNullOrEmpty(atopAircraftState.Fdr.LabelOpData) ? Symbols.UntoggledFlag : Symbols.ScratchpadFlag;
+        return atopAircraftState.CalculatedFlightData switch
+        {
+            { Adsc: true, Cpdlc: true, Rnp4: true } => Symbols.L23,
+            { Adsc: true, Cpdlc: true, Rnp10: true } => Symbols.L50,
+            _ => Symbols.Empty
+        };
     }
 
     private static bool GetRestrictionsIndicatorToggled(AtopAircraftState atopAircraftState)
@@ -86,6 +95,13 @@ public class AtopAircraftDisplayState
             return Symbols.Empty;
 
         return altitudeBlock.ToString();
+    }
+
+    private static string GetRequestedLevel(AtopAircraftState atopAircraftState)
+    {
+        return atopAircraftState.Fdr.State == FDP2.FDR.FDRStates.STATE_INACTIVE
+            ? (atopAircraftState.Fdr.RFL / 100).ToString()
+            : Symbols.Empty;
     }
 
     private static BorderFlags GetAltitudeBorderFlags(AtopAircraftState atopAircraftState)

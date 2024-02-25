@@ -30,6 +30,8 @@ public static class Symbols
     public const string T10 = "M";
     public const string Mnt = "R";
     public const string Rvsm = "W";
+    public const string L50 = "R";
+    public const string L23 = "4";
 
     public const string CommDownlink = "▼";
     public const string CommEmpty = "⬜";
@@ -38,6 +40,7 @@ public static class Symbols
     public const string UntoggledFlag = "◦";
     public const string ScratchpadFlag = "&";
     public const string MntFlag = "M";
+    public const string ComplexFlag = "*";
     public const string RestrictionsFlag = "x";
 
     public const string Climbing = "↑";
@@ -46,6 +49,10 @@ public static class Symbols
     public const string DeviatingBelow = "-";
 
     public const string Inhibited = "^";
+    public const string EmptyAnnotations = ".";
+
+    public const string StripRouteItem = "F";
+    public const string StripRadarIndicator = "A";
 }
 
 public static class StripConstants

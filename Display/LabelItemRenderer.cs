@@ -52,8 +52,9 @@ public static class LabelItemRenderer
                 }
                 : null,
 
-            LabelConstants.LabelItemAnnotInd => new CustomLabelItem
-                { Text = displayState.AnnotationIndicator },
+            LabelConstants.LabelItemAnnotInd => displayState.HasAnnotations
+                ? new CustomLabelItem { Text = Symbols.ScratchpadFlag }
+                : new CustomLabelItem { Text = Symbols.UntoggledFlag },
 
             LabelConstants.LabelItemRestr => displayState.IsRestrictionsIndicatorToggled
                 ? new CustomLabelItem { Text = Symbols.RestrictionsFlag }
@@ -107,8 +108,7 @@ public static class LabelItemRenderer
 
             LabelConstants.LabelItemFiledSpeed => new CustomLabelItem { Text = displayState.FiledSpeed },
 
-            LabelConstants.LabelItem3DigitGroundspeed => new CustomLabelItem
-                { Text = displayState.GroundSpeed },
+            LabelConstants.LabelItem3DigitGroundspeed => new CustomLabelItem { Text = displayState.GroundSpeed },
 
             LabelConstants.LabelItemDestination => new CustomLabelItem { Text = fdr.DesAirport },
 
