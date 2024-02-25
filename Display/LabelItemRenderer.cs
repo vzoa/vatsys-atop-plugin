@@ -1,9 +1,9 @@
 ﻿#nullable enable
-using AuroraLabelItemsPlugin.State;
+using AtopPlugin.State;
 using vatsys;
 using vatsys.Plugin;
 
-namespace AuroraLabelItemsPlugin.Display;
+namespace AtopPlugin.Display;
 
 public static class LabelItemRenderer
 {

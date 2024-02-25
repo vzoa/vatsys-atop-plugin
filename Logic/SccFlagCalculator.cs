@@ -1,8 +1,8 @@
 ﻿#nullable enable
-using AuroraLabelItemsPlugin.Models;
+using AtopPlugin.Models;
 using vatsys;
 
-namespace AuroraLabelItemsPlugin.Logic;
+namespace AtopPlugin.Logic;
 
 public static class SccFlagCalculator
 {

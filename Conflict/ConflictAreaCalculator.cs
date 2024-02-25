@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using vatsys;
 
-namespace AuroraLabelItemsPlugin.Conflict;
+namespace AtopPlugin.Conflict;
 
 public static class ConflictAreaCalculator
 {

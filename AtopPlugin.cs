@@ -1,10 +1,10 @@
 ﻿using System.ComponentModel.Composition;
-using AuroraLabelItemsPlugin.Display;
-using AuroraLabelItemsPlugin.State;
+using AtopPlugin.Display;
+using AtopPlugin.State;
 using vatsys;
 using vatsys.Plugin;
 
-namespace AuroraLabelItemsPlugin;
+namespace AtopPlugin;
 
 [Export(typeof(IPlugin))]
 public class AtopPlugin : ILabelPlugin, IStripPlugin

@@ -7,8 +7,8 @@
         <ProjectGuid>{59170BAC-129C-4AB8-884D-F583E460AA63}</ProjectGuid>
         <OutputType>Library</OutputType>
         <AppDesignerFolder>Properties</AppDesignerFolder>
-        <RootNamespace>AuroraLabelItemsPlugin</RootNamespace>
-        <AssemblyName>AuroraLabelItemsPlugin</AssemblyName>
+        <RootNamespace>AtopPlugin</RootNamespace>
+        <AssemblyName>AtopPlugin</AssemblyName>
         <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
         <FileAlignment>512</FileAlignment>
         <Deterministic>true</Deterministic>

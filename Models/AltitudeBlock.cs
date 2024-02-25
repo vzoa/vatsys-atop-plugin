@@ -1,6 +1,6 @@
 ﻿using vatsys;
 
-namespace AuroraLabelItemsPlugin.Models;
+namespace AtopPlugin.Models;
 
 public record struct AltitudeBlock(int LowerAltitude, int UpperAltitude)
 {

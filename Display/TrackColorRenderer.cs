@@ -1,8 +1,8 @@
-﻿using AuroraLabelItemsPlugin.Models;
+﻿using AtopPlugin.Models;
 using vatsys;
 using vatsys.Plugin;
 
-namespace AuroraLabelItemsPlugin.Display;
+namespace AtopPlugin.Display;
 
 public static class TrackColorRenderer
 {

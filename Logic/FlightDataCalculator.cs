@@ -1,9 +1,9 @@
 ﻿using System.Linq;
 using System.Text.RegularExpressions;
-using AuroraLabelItemsPlugin.Models;
+using AtopPlugin.Models;
 using vatsys;
 
-namespace AuroraLabelItemsPlugin.Logic;
+namespace AtopPlugin.Logic;
 
 public static class FlightDataCalculator
 {

@@ -1,6 +1,6 @@
 ﻿using vatsys.Plugin;
 
-namespace AuroraLabelItemsPlugin.State;
+namespace AtopPlugin.State;
 
 public static class RadarFlagToggleHandler
 {

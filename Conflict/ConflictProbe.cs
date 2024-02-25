@@ -1,10 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using AuroraLabelItemsPlugin.Models;
+using AtopPlugin.Models;
 using vatsys;
 
-namespace AuroraLabelItemsPlugin.Conflict;
+namespace AtopPlugin.Conflict;
 
 public class ConflictProbe
 {

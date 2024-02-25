@@ -1,7 +1,7 @@
 ﻿using System.Linq;
 using vatsys;
 
-namespace AuroraLabelItemsPlugin.State;
+namespace AtopPlugin.State;
 
 public static class JurisdictionManager
 {

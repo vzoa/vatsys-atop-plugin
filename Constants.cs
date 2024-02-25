@@ -1,6 +1,6 @@
 ﻿using vatsys.Plugin;
 
-namespace AuroraLabelItemsPlugin;
+namespace AtopPlugin;
 
 public static class CustomColors
 {

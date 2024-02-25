@@ -1,8 +1,8 @@
 ﻿using System;
-using AuroraLabelItemsPlugin.Models;
+using AtopPlugin.Models;
 using vatsys;
 
-namespace AuroraLabelItemsPlugin.Conflict;
+namespace AtopPlugin.Conflict;
 
 public static class MinimaCalculator
 {

@@ -1,4 +1,4 @@
-﻿namespace AuroraLabelItemsPlugin.Models;
+﻿namespace AtopPlugin.Models;
 
 public record struct CalculatedFlightData(
     bool Rnp4,

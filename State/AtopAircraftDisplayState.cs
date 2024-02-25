@@ -1,11 +1,11 @@
 ﻿#nullable enable
 using System.Linq;
-using AuroraLabelItemsPlugin.Logic;
-using AuroraLabelItemsPlugin.Models;
+using AtopPlugin.Logic;
+using AtopPlugin.Models;
 using vatsys;
 using vatsys.Plugin;
 
-namespace AuroraLabelItemsPlugin.State;
+namespace AtopPlugin.State;
 
 public class AtopAircraftDisplayState
 {

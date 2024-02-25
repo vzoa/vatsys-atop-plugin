@@ -3,7 +3,7 @@ using System;
 using System.Linq;
 using vatsys;
 
-namespace AuroraLabelItemsPlugin.Logic;
+namespace AtopPlugin.Logic;
 
 public static class NextSectorCalculator
 {

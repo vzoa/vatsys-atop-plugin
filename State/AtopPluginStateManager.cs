@@ -2,7 +2,7 @@
 using System.Collections.Concurrent;
 using vatsys;
 
-namespace AuroraLabelItemsPlugin.State;
+namespace AtopPlugin.State;
 
 public static class AtopPluginStateManager
 {

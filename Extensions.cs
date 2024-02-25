@@ -1,7 +1,7 @@
-﻿using AuroraLabelItemsPlugin.State;
+﻿using AtopPlugin.State;
 using vatsys;
 
-namespace AuroraLabelItemsPlugin;
+namespace AtopPlugin;
 
 public static class Extensions
 {
