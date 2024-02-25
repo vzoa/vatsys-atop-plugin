@@ -10,10 +10,8 @@ public static class SccFlagCalculator
     private const int EmergencyCode = 7700;
     private const int MilitaryInterceptCode = 7777;
 
-    public static SccFlag? CalculateHighestPriorityFlag(FDP2.FDR fdr)
+    public static SccFlag? CalculateHighestPriorityFlag(FDP2.FDR fdr, CalculatedFlightData calculatedFlightData)
     {
-        var parsedFdrFields = fdr.GetAtopState().CalculatedFlightData;
-
         var transponderCode = fdr.GetTransponderCode();
         switch (transponderCode)
         {
@@ -25,7 +23,7 @@ public static class SccFlagCalculator
                 return SccFlag.Mti;
         }
 
-        if (!parsedFdrFields.Rnp4 || !parsedFdrFields.Rnp10) return SccFlag.Rnp;
+        if (!calculatedFlightData.Rnp4 || !calculatedFlightData.Rnp10) return SccFlag.Rnp;
 
         return null;
     }

@@ -25,11 +25,11 @@ public static class StripItemRenderer
 
             StripConstants.LabelItemAdsbCpdlc => RenderAdsbCpdlcStripItem(fdr),
 
-            StripConstants.StripItemT10Flag => fdr.PerformanceData.IsJet
+            StripConstants.StripItemT10Flag => fdr.IsJet()
                 ? new CustomStripItem { Text = Symbols.T10 }
                 : null,
 
-            StripConstants.StripItemMntFlag => fdr.PerformanceData.IsJet
+            StripConstants.StripItemMntFlag => fdr.IsJet()
                 ? new CustomStripItem { Text = Symbols.Mnt }
                 : null,
 

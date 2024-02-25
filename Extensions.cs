@@ -20,6 +20,11 @@ public static class Extensions
         return fdr.CoupledTrack?.ActualAircraft.TransponderCode;
     }
 
+    public static bool IsJet(this FDP2.FDR fdr)
+    {
+        return fdr.PerformanceData?.IsJet ?? false;
+    }
+
     public static bool IsSelected(this Track track)
     {
         return MMI.SelectedTrack == track;

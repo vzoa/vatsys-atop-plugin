@@ -35,7 +35,7 @@ public class AtopAircraftDisplayState
         CpdlcAdsbSymbol = GetCpdlcAdsbSymbol(atopAircraftState);
         AdsFlag = GetAdsFlag(atopAircraftState);
         LateralFlag = GetLateralFlag(atopAircraftState);
-        IsMntFlagToggled = atopAircraftState.Fdr.PerformanceData.IsJet;
+        IsMntFlagToggled = atopAircraftState.Fdr.IsJet();
         HasAnnotations = !string.IsNullOrEmpty(atopAircraftState.Fdr.LabelOpData);
         IsRestrictionsIndicatorToggled = GetRestrictionsIndicatorToggled(atopAircraftState);
         CurrentLevel = (atopAircraftState.Fdr.PRL / 100).ToString();

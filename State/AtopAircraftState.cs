@@ -35,7 +35,7 @@ public class AtopAircraftState
 
         CalculatedFlightData = FlightDataCalculator.GetCalculatedFlightData(updatedFdr);
         DirectionOfFlight = DirectionOfFlightCalculator.GetDirectionOfFlight(updatedFdr);
-        HighestSccFlag = SccFlagCalculator.CalculateHighestPriorityFlag(updatedFdr);
+        HighestSccFlag = SccFlagCalculator.CalculateHighestPriorityFlag(updatedFdr, CalculatedFlightData);
 
         // ensure the bool for altitude change is calculated first since it is used in the altitude flag calculation
         PendingAltitudeChange =

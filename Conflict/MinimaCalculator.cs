@@ -48,7 +48,7 @@ public static class MinimaCalculator
 
     public static TimeSpan GetLongitudinalTime(FDP2.FDR fdr1, FDP2.FDR fdr2)
     {
-        return IsJet(fdr1) && IsJet(fdr2)
+        return fdr1.IsJet() && fdr2.IsJet()
             ? new TimeSpan(0, JetLongitudinal, 0)
             : new TimeSpan(0, TimeLongitudinal, 0);
     }
@@ -76,10 +76,5 @@ public static class MinimaCalculator
     private static bool CanApplyRnp10(FDP2.FDR fdr)
     {
         return fdr.GetAtopState().CalculatedFlightData is { Rnp10: true };
-    }
-
-    private static bool IsJet(FDP2.FDR fdr)
-    {
-        return fdr.PerformanceData.IsJet;
     }
 }

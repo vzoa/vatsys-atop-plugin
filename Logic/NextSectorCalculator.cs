@@ -11,7 +11,7 @@ public static class NextSectorCalculator
     {
         var segment = (from s in fdr.ParsedRoute.ToList()
             where s.Type == FDP2.FDR.ExtractedRoute.Segment.SegmentTypes.ZPOINT &&
-                  !fdr.ControllingSector.Equals(SectorsVolumes.FindSector((SectorsVolumes.Volume)s.Tag))
+                  fdr.ControllingSector != SectorsVolumes.FindSector((SectorsVolumes.Volume)s.Tag)
             select s).FirstOrDefault(s => s.ETO > DateTime.UtcNow);
 
         SectorsVolumes.Volume? volume = null;
