@@ -6,12 +6,11 @@ using vatsys;
 
 namespace AtopPlugin.Conflict;
 
-public class ConflictProbe
+public static class ConflictProbe
 {
-    // TODO(msalikhov): actually probe
-    public List<ConflictData> Probe(FDP2.FDR fdr)
+    public static Conflicts Probe(FDP2.FDR fdr)
     {
-        if (!MMI.IsMySectorConcerned(fdr)) return null;
+        if (!MMI.IsMySectorConcerned(fdr)) return EmptyConflicts();
 
         var discoveredConflicts = new List<ConflictData>();
 
@@ -75,15 +74,19 @@ public class ConflictProbe
                                 && data.LongDistact < data.LongDistsep;
 
             data.TimeLongopposite = false;
-            data.Top = null;
 
             if (failedLateral && oppoDir)
-            {
-                data.Top = new TimeOfPassing(fdr, fdr2);
-                data.TimeLongopposite = data.Top.Time > DateTime.UtcNow
-                                        && data.Top.Time.Add(data.LongTimesep) > DateTime.UtcNow &&
-                                        data.Top.Time.Subtract(data.LongTimesep) < DateTime.UtcNow;
-            }
+                try
+                {
+                    data.Top = new TimeOfPassing(fdr, fdr2);
+                    data.TimeLongopposite = data.Top.Time > DateTime.UtcNow
+                                            && data.Top.Time.Add(data.LongTimesep) > DateTime.UtcNow &&
+                                            data.Top.Time.Subtract(data.LongTimesep) < DateTime.UtcNow;
+                }
+                catch (Exception e)
+                {
+                    // ignored - we were unable to calculate time of passing for some reason
+                }
 
             data.LongType = data.LongDistsep == null
                 ? data.TimeLongsame
@@ -99,39 +102,66 @@ public class ConflictProbe
                     ? firstConflictTime.StartTime
                     : firstConflictTime2.StartTime;
 
-            data.ActualConflicts = failedLateral && oppoDir && data.VerticalAct < data.VerticalSep
+            var actual = failedLateral && oppoDir && data.VerticalAct < data.VerticalSep
                 ? new TimeSpan(0, 0, 1, 0, 0) >= data.EarliestLos.Subtract(DateTime.UtcNow).Duration()
                 : (lossOfSep && new TimeSpan(0, 0, 1, 0, 0) >=
                       data.EarliestLos.Subtract(DateTime.UtcNow).Duration()) ||
                   data.EarliestLos < DateTime.UtcNow;
 
-            data.ImminentConflicts = failedLateral && oppoDir && data.VerticalAct < data.VerticalSep
+            var imminent = failedLateral && oppoDir && data.VerticalAct < data.VerticalSep
                 ? new TimeSpan(0, 0, 30, 0, 0) >= data.EarliestLos.Subtract(DateTime.UtcNow).Duration()
                 : lossOfSep && new TimeSpan(0, 0, 30, 0, 0) >=
                 data.EarliestLos.Subtract(DateTime.UtcNow).Duration(); //check if timediff < 30 min
 
-            data.AdvisoryConflicts = failedLateral && oppoDir && data.VerticalAct < data.VerticalSep
+            var advisory = failedLateral && oppoDir && data.VerticalAct < data.VerticalSep
                 ? new TimeSpan(0, 2, 0, 0, 0) > data.EarliestLos.Subtract(DateTime.UtcNow).Duration()
                   && data.EarliestLos.Subtract(DateTime.UtcNow).Duration() >= new TimeSpan(0, 0, 30, 0, 0)
                 : lossOfSep && new TimeSpan(0, 2, 0, 0, 0) >
                             data.EarliestLos.Subtract(DateTime.UtcNow).Duration()
                             && data.EarliestLos.Subtract(DateTime.UtcNow).Duration() >=
                             new TimeSpan(0, 0, 30, 0, 0); //check if  2 hours > timediff > 30 mins
-            if (data.ActualConflicts || data.ImminentConflicts || data.AdvisoryConflicts) discoveredConflicts.Add(data);
+
+            data.ConflictStatus = ConflictStatusUtils.From(actual, imminent, advisory);
+
+            if (data.ConflictStatus != ConflictStatus.None) discoveredConflicts.Add(data);
         }
 
-        return discoveredConflicts;
+        return GroupConflicts(discoveredConflicts);
     }
+
+    private static Conflicts EmptyConflicts()
+    {
+        return new Conflicts(new List<ConflictData>(), new List<ConflictData>(), new List<ConflictData>());
+    }
+
+    private static Conflicts GroupConflicts(List<ConflictData> allConflicts)
+    {
+        var actual = new List<ConflictData>();
+        var imminent = new List<ConflictData>();
+        var advisory = new List<ConflictData>();
+
+        foreach (var conflict in allConflicts)
+        {
+            if (conflict.ConflictStatus == ConflictStatus.Actual) actual.Add(conflict);
+            if (conflict.ConflictStatus == ConflictStatus.Imminent) imminent.Add(conflict);
+            if (conflict.ConflictStatus == ConflictStatus.Advisory) advisory.Add(conflict);
+        }
+
+        return new Conflicts(actual, imminent, advisory);
+    }
+
+    public record struct Conflicts(
+        List<ConflictData> ActualConflicts,
+        List<ConflictData> ImminentConflicts,
+        List<ConflictData> AdvisoryConflicts);
 
     public record ConflictData
     {
-        public bool ActualConflicts;
-        public bool AdvisoryConflicts;
+        public ConflictStatus ConflictStatus;
         public ConflictType? ConflictType;
         public bool DistLongsame;
         public DateTime EarliestLos;
         public FDP2.FDR Fdr2;
-        public bool ImminentConflicts;
         public int LatSep;
         public double LongDistact;
         public int? LongDistsep;

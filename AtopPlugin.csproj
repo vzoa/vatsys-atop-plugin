@@ -65,6 +65,7 @@
         <Compile Include="Logic\SccFlagCalculator.cs"/>
         <Compile Include="Models\AltitudeBlock.cs"/>
         <Compile Include="Models\AltitudeFlag.cs"/>
+        <Compile Include="Models\ConflictStatus.cs"/>
         <Compile Include="Models\ConflictType.cs"/>
         <Compile Include="Models\DirectionOfFlight.cs"/>
         <Compile Include="Models\CalculatedFlightData.cs"/>
