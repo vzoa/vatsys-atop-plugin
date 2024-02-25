@@ -22,15 +22,9 @@ public static class MinimaCalculator
 
     public static int GetLateralMinima(FDP2.FDR fdr1, FDP2.FDR fdr2)
     {
-        if (CanApplyRnp4(fdr1) && CanApplyRnp4(fdr2))
-        {
-            return Rnp4Lateral;
-        }
+        if (CanApplyRnp4(fdr1) && CanApplyRnp4(fdr2)) return Rnp4Lateral;
 
-        if (CanApplyRnp10(fdr1) && CanApplyRnp10(fdr2))
-        {
-            return Rnp10Lateral;
-        }
+        if (CanApplyRnp10(fdr1) && CanApplyRnp10(fdr2)) return Rnp10Lateral;
 
         return StandardLateral;
     }
@@ -41,19 +35,13 @@ public static class MinimaCalculator
         var block2 = AltitudeBlock.ExtractAltitudeBlock(fdr2);
 
         if (block1.IsAbove600() || block2.IsAbove600()) // technically this only applies if they are military
-        {
             return Above600Vertical;
-        }
 
         if (block1.IsAbove450() || block2.IsAbove450()) // technically this only applies if one is supersonic
-        {
             return SupersonicVertical;
-        }
 
         if (!(block1.IsBelowRvsm() || block2.IsBelowRvsm()) && (block1.IsAboveRvsm() || block2.IsAboveRvsm()))
-        {
             return NonRvsmVertical;
-        }
 
         return StandardVertical;
     }
@@ -67,15 +55,10 @@ public static class MinimaCalculator
 
     public static int? GetLongitudinalDistance(FDP2.FDR fdr1, FDP2.FDR fdr2)
     {
-        if (CanApplyRnp4(fdr1) && CanApplyRnp4(fdr2))
-        {
-            return Rnp4Longitudinal;
-        }
+        if (CanApplyRnp4(fdr1) && CanApplyRnp4(fdr2)) return Rnp4Longitudinal;
 
         if (HasDatalink(fdr1) && HasDatalink(fdr2) && CanApplyRnp10(fdr1) && CanApplyRnp10(fdr2))
-        {
             return DistanceLongitudinal;
-        }
 
         return null;
     }

@@ -39,7 +39,7 @@ public class ConflictProbe
             data.VerticalSep = MinimaCalculator.GetVerticalMinima(fdr, fdr2);
 
             if (data.VerticalAct >= data.VerticalSep) continue;
-            
+
             data.LatSep = MinimaCalculator.GetLateralMinima(fdr, fdr2);
 
             // TODO(msalikhov): figure out what this was trying to do - it had no effect
@@ -116,15 +116,12 @@ public class ConflictProbe
                             data.EarliestLos.Subtract(DateTime.UtcNow).Duration()
                             && data.EarliestLos.Subtract(DateTime.UtcNow).Duration() >=
                             new TimeSpan(0, 0, 30, 0, 0); //check if  2 hours > timediff > 30 mins
-            if (data.ActualConflicts || data.ImminentConflicts || data.AdvisoryConflicts)
-            {
-                discoveredConflicts.Add(data);
-            }
+            if (data.ActualConflicts || data.ImminentConflicts || data.AdvisoryConflicts) discoveredConflicts.Add(data);
         }
 
         return discoveredConflicts;
     }
-    
+
     public record ConflictData
     {
         public bool ActualConflicts;

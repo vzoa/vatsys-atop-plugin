@@ -16,6 +16,7 @@ public static class FlightDataCalculator
     private const string Rcp240SurvEquip = "P2";
 
     private const string PbnEquip = "R";
+
     private static readonly string[] CpdlcEquip =
     {
         "J5", "J7"
