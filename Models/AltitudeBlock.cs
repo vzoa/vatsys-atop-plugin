@@ -30,10 +30,7 @@ public record struct AltitudeBlock(int LowerAltitude, int UpperAltitude)
     public static int Difference(AltitudeBlock block1, AltitudeBlock block2)
     {
         // check for intersection
-        if (block1.LowerAltitude <= block2.UpperAltitude && block2.LowerAltitude <= block1.UpperAltitude)
-        {
-            return 0;
-        }
+        if (block1.LowerAltitude <= block2.UpperAltitude && block2.LowerAltitude <= block1.UpperAltitude) return 0;
 
         var isBlock1Lower = block1.UpperAltitude < block2.LowerAltitude;
 
@@ -41,7 +38,7 @@ public record struct AltitudeBlock(int LowerAltitude, int UpperAltitude)
             ? block2.LowerAltitude - block1.UpperAltitude
             : block1.LowerAltitude - block2.UpperAltitude;
     }
-    
+
     public static AltitudeBlock ExtractAltitudeBlock(FDP2.FDR fdr)
     {
         var altitudeUpper = ExtractClearedOrRequestedValue(fdr.CFLUpper, fdr.RFL);
@@ -52,5 +49,12 @@ public record struct AltitudeBlock(int LowerAltitude, int UpperAltitude)
     private static int ExtractClearedOrRequestedValue(int clearedValue, int requestedValue)
     {
         return clearedValue == -1 ? requestedValue : clearedValue;
+    }
+
+    public override string ToString()
+    {
+        if (LowerAltitude == UpperAltitude) return (UpperAltitude / 100).ToString();
+
+        return LowerAltitude / 100 + "B" + UpperAltitude / 100;
     }
 }

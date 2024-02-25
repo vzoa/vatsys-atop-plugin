@@ -12,6 +12,9 @@ public static class LabelItemRenderer
     {
         if (fdr == null) return null;
 
+        var atopState = fdr.GetAtopState();
+        var displayState = fdr.GetDisplayState();
+
         return itemType switch
         {
             LabelConstants.LabelItemSelectHori => track.IsSelected()
@@ -22,35 +25,79 @@ public static class LabelItemRenderer
                 ? new CustomLabelItem { Text = Symbols.Empty, Border = BorderFlags.Left }
                 : null,
 
-            LabelConstants.LabelItemCommIcon => fdr.GetAtopState().DownlinkIndicator
+            LabelConstants.LabelItemCommIcon => atopState.DownlinkIndicator
                 ? new CustomLabelItem { Text = Symbols.CommDownlink, Border = BorderFlags.All }
                 : new CustomLabelItem { Text = Symbols.CommEmpty },
 
-            LabelConstants.LabelItemAdsbCpdlc => null,
-
-            LabelConstants.LabelItemAdsFlags => null,
-
-            LabelConstants.LabelItemMntFlags => null,
-
-            LabelConstants.LabelItemScc => fdr.GetAtopState().HighestSccFlag != null
+            LabelConstants.LabelItemAdsbCpdlc => fdr.State is FDP2.FDR.FDRStates.STATE_PREACTIVE or
+                FDP2.FDR.FDRStates.STATE_COORDINATED
                 ? new CustomLabelItem
                 {
-                    Text = fdr.GetAtopState().HighestSccFlag!.Value, ForeColourIdentity = Colours.Identities.Custom,
+                    Text = displayState.CpdlcAdsbSymbol, ForeColourIdentity = Colours.Identities.Custom,
+                    CustomForeColour = CustomColors.NotCda
+                }
+                : new CustomLabelItem { Text = displayState.CpdlcAdsbSymbol },
+
+            LabelConstants.LabelItemAdsFlags => new CustomLabelItem { Text = displayState.AdsFlag },
+
+            LabelConstants.LabelItemMntFlags => displayState.IsMntFlagToggled
+                ? new CustomLabelItem { Text = Symbols.MntFlag }
+                : null,
+
+            LabelConstants.LabelItemScc => atopState.HighestSccFlag != null
+                ? new CustomLabelItem
+                {
+                    Text = atopState.HighestSccFlag!.Value, ForeColourIdentity = Colours.Identities.Custom,
                     CustomForeColour = CustomColors.SpecialConditionCode
                 }
                 : null,
 
-            LabelConstants.LabelItemAnnotInd => null,
+            LabelConstants.LabelItemAnnotInd => new CustomLabelItem
+                { Text = displayState.AnnotationIndicator },
 
-            LabelConstants.LabelItemRestr => null,
+            LabelConstants.LabelItemRestr => displayState.IsRestrictionsIndicatorToggled
+                ? new CustomLabelItem { Text = Symbols.RestrictionsFlag }
+                : null,
 
-            LabelConstants.LabelItemLevel => null,
+            LabelConstants.LabelItemLevel => displayState.AltitudeColor == null
+                ? new CustomLabelItem
+                {
+                    Text = displayState.CurrentLevel,
+                    Border = displayState.AltitudeBorderFlags,
+                    BorderColourIdentity = Colours.Identities.Custom,
+                    CustomBorderColour = CustomColors.NotCda
+                }
+                : new CustomLabelItem
+                {
+                    Text = displayState.CurrentLevel,
+                    Border = displayState.AltitudeBorderFlags,
+                    BorderColourIdentity = Colours.Identities.Custom,
+                    CustomBorderColour = CustomColors.NotCda,
+                    ForeColourIdentity = Colours.Identities.Custom,
+                    CustomForeColour = displayState.AltitudeColor
+                },
 
-            LabelConstants.LabelItemVmi => null,
+            LabelConstants.LabelItemVmi => new CustomLabelItem { Text = atopState.AltitudeFlag?.Value ?? "" },
 
-            LabelConstants.LabelItemClearedLevel => null,
+            LabelConstants.LabelItemClearedLevel => displayState.AltitudeColor == null
+                ? new CustomLabelItem
+                {
+                    Text = displayState.ClearedLevel,
+                    Border = displayState.AltitudeBorderFlags,
+                    BorderColourIdentity = Colours.Identities.Custom,
+                    CustomBorderColour = CustomColors.NotCda
+                }
+                : new CustomLabelItem
+                {
+                    Text = displayState.ClearedLevel,
+                    Border = displayState.AltitudeBorderFlags,
+                    BorderColourIdentity = Colours.Identities.Custom,
+                    CustomBorderColour = CustomColors.NotCda,
+                    ForeColourIdentity = Colours.Identities.Custom,
+                    CustomForeColour = displayState.AltitudeColor
+                },
 
-            LabelConstants.LabelItemRadarInd => fdr.GetAtopState().RadarToggleIndicator
+            LabelConstants.LabelItemRadarInd => atopState.RadarToggleIndicator
                 ? new CustomLabelItem { Text = Symbols.RadarFlag, OnMouseClick = RadarFlagToggleHandler.Handle }
                 : new CustomLabelItem { Text = Symbols.UntoggledFlag, OnMouseClick = RadarFlagToggleHandler.Handle },
 
@@ -58,9 +105,10 @@ public static class LabelItemRenderer
                 ? new CustomLabelItem { Text = Symbols.Inhibited }
                 : null,
 
-            LabelConstants.LabelItemFiledSpeed => null,
+            LabelConstants.LabelItemFiledSpeed => new CustomLabelItem { Text = displayState.FiledSpeed },
 
-            LabelConstants.LabelItem3DigitGroundspeed => null,
+            LabelConstants.LabelItem3DigitGroundspeed => new CustomLabelItem
+                { Text = displayState.GroundSpeed },
 
             LabelConstants.LabelItemDestination => new CustomLabelItem { Text = fdr.DesAirport },
 

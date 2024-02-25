@@ -7,7 +7,12 @@ public static class Extensions
 {
     public static AtopAircraftState GetAtopState(this FDP2.FDR fdr)
     {
-        return AtopPluginStateManager.GetState(fdr.Callsign);
+        return AtopPluginStateManager.GetAircraftState(fdr.Callsign);
+    }
+
+    public static AtopAircraftDisplayState GetDisplayState(this FDP2.FDR fdr)
+    {
+        return AtopPluginStateManager.GetDisplayState(fdr.Callsign);
     }
 
     public static int? GetTransponderCode(this FDP2.FDR fdr)

@@ -9,12 +9,14 @@ public class AtopAircraftState
 {
     public AtopAircraftState(FDP2.FDR fdr)
     {
+        Fdr = fdr;
         UpdateFromFdr(fdr);
         DownlinkIndicator = false;
         RadarToggleIndicator = false;
         PreviouslyTracked = false;
     }
 
+    public FDP2.FDR Fdr { get; private set; }
     public CalculatedFlightData CalculatedFlightData { get; private set; }
     public DirectionOfFlight DirectionOfFlight { get; private set; }
     public SccFlag? HighestSccFlag { get; private set; }
@@ -28,6 +30,8 @@ public class AtopAircraftState
 
     public void UpdateFromFdr(FDP2.FDR updatedFdr)
     {
+        Fdr = updatedFdr;
+
         CalculatedFlightData = FlightDataCalculator.GetCalculatedFlightData(updatedFdr);
         DirectionOfFlight = DirectionOfFlightCalculator.GetDirectionOfFlight(updatedFdr);
         HighestSccFlag = SccFlagCalculator.CalculateHighestPriorityFlag(updatedFdr);

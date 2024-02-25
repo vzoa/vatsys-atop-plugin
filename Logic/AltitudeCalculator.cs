@@ -32,7 +32,7 @@ public static class AltitudeCalculator
         };
     }
 
-    private static bool IsWithinThreshold(int pilotReportedAltitude, AltitudeBlock altitudeBlock)
+    public static bool IsWithinThreshold(int pilotReportedAltitude, AltitudeBlock altitudeBlock)
     {
         var lowerWithThreshold = altitudeBlock.LowerAltitude - LevelFlightThreshold;
         var upperWithThreshold = altitudeBlock.UpperAltitude + LevelFlightThreshold;
