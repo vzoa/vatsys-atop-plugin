@@ -24,6 +24,7 @@ public class AtopPlugin : ILabelPlugin, IStripPlugin
 
     public void OnRadarTrackUpdate(RDP.RadarTrack updated)
     {
+        JurisdictionManager.HandleRadarTrackUpdate(updated);
     }
 
     public CustomStripItem GetCustomStripItem(string itemType, Track track, FDP2.FDR flightDataRecord,

@@ -1,5 +1,4 @@
-﻿#nullable enable
-using System.Linq;
+﻿using System.Linq;
 using AtopPlugin.Logic;
 using AtopPlugin.Models;
 using vatsys;

@@ -1,5 +1,4 @@
-﻿#nullable enable
-using AtopPlugin.State;
+﻿using AtopPlugin.State;
 using vatsys;
 using vatsys.Plugin;
 

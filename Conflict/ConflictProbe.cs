@@ -8,6 +8,7 @@ namespace AtopPlugin.Conflict;
 
 public class ConflictProbe
 {
+    // TODO(msalikhov): actually probe
     public List<ConflictData> Probe(FDP2.FDR fdr)
     {
         if (!MMI.IsMySectorConcerned(fdr)) return null;
