@@ -97,7 +97,7 @@ public static class ConflictProbe
                 lossOfSep && crossing ? ConflictType.Crossing :
                 lossOfSep && oppoDir ? ConflictType.OppositeDirection : null;
             data.EarliestLos = failedLateral && oppoDir
-                ? data.Top.Time.Subtract(new TimeSpan(0, 0, 10, 0))
+                ? data.Top?.Time.Subtract(new TimeSpan(0, 0, 10, 0)) ?? DateTime.MaxValue
                 : DateTime.Compare(firstConflictTime.StartTime, firstConflictTime2.StartTime) < 0
                     ? firstConflictTime.StartTime
                     : firstConflictTime2.StartTime;
@@ -171,7 +171,7 @@ public static class ConflictProbe
         public bool TimeLongcross;
         public bool TimeLongopposite;
         public bool TimeLongsame;
-        public TimeOfPassing Top;
+        public TimeOfPassing? Top;
         public double TrkAngle;
         public int VerticalAct;
         public int VerticalSep;

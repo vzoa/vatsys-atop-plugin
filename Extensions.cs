@@ -5,12 +5,12 @@ namespace AtopPlugin;
 
 public static class Extensions
 {
-    public static AtopAircraftState GetAtopState(this FDP2.FDR fdr)
+    public static AtopAircraftState? GetAtopState(this FDP2.FDR fdr)
     {
         return AtopPluginStateManager.GetAircraftState(fdr.Callsign);
     }
 
-    public static AtopAircraftDisplayState GetDisplayState(this FDP2.FDR fdr)
+    public static AtopAircraftDisplayState? GetDisplayState(this FDP2.FDR fdr)
     {
         return AtopPluginStateManager.GetDisplayState(fdr.Callsign);
     }
