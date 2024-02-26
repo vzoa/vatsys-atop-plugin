@@ -10,16 +10,16 @@ public static class LabelItemRenderer
         RDP.RadarTrack _)
     {
         var renderedItem = RenderLabelItemDelegate(itemType, track, fdr);
-        return renderedItem != null ? ExcludeConflictColor(fdr!, renderedItem) : null;
+        return renderedItem != null ? ExcludeConflictColor(fdr!, track, renderedItem) : null;
     }
 
-    private static CustomLabelItem ExcludeConflictColor(FDP2.FDR fdr, CustomLabelItem customLabelItem)
+    private static CustomLabelItem ExcludeConflictColor(FDP2.FDR fdr, Track track, CustomLabelItem customLabelItem)
     {
         // If we already overrode it, keep it that way
         if (customLabelItem.ForeColourIdentity == Colours.Identities.Custom) return customLabelItem;
 
         customLabelItem.ForeColourIdentity = Colours.Identities.Custom;
-        customLabelItem.CustomForeColour = TrackColorRenderer.GetDirectionColour(fdr) ?? CustomColors.ApsBlue;
+        customLabelItem.CustomForeColour = TrackColorRenderer.GetDirectionColour(fdr, track) ?? CustomColors.ApsBlue;
 
         return customLabelItem;
     }

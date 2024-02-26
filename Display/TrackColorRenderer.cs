@@ -12,17 +12,16 @@ public static class TrackColorRenderer
 
         if (fdr == null) return null;
 
-        return (IsInJurisdiction(track), fdr.State) switch
+        return fdr.State switch
         {
-            { Item1: true } => GetConflictColour(fdr) ?? GetDirectionColour(fdr),
-            { State: FDP2.FDR.FDRStates.STATE_PREACTIVE or FDP2.FDR.FDRStates.STATE_COORDINATED } =>
-                GetConflictColour(fdr),
-            _ => null
+            FDP2.FDR.FDRStates.STATE_PREACTIVE or FDP2.FDR.FDRStates.STATE_COORDINATED => GetConflictColour(fdr),
+            _ => GetConflictColour(fdr) ?? GetDirectionColour(fdr, track)
         };
     }
 
-    public static CustomColour? GetDirectionColour(FDP2.FDR fdr)
+    public static CustomColour? GetDirectionColour(FDP2.FDR fdr, Track track)
     {
+        if (!IsInJurisdiction(track)) return null;
         return fdr.GetAtopState()?.DirectionOfFlight switch
         {
             DirectionOfFlight.Eastbound => CustomColors.EastboundColour,
