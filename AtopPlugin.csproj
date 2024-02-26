@@ -74,6 +74,7 @@
         <Compile Include="State\AtopAircraftDisplayState.cs"/>
         <Compile Include="State\AtopPluginStateManager.cs"/>
         <Compile Include="State\AtopAircraftState.cs"/>
+        <Compile Include="State\FdrPropertyChangesListener.cs"/>
         <Compile Include="State\JurisdictionManager.cs"/>
         <Compile Include="State\PrivateMessagesChangedHandler.cs"/>
         <Compile Include="State\RadarFlagToggleHandler.cs"/>

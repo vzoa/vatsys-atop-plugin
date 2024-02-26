@@ -41,14 +41,16 @@ public record struct AltitudeBlock(int LowerAltitude, int UpperAltitude)
 
     public static AltitudeBlock ExtractAltitudeBlock(FDP2.FDR fdr)
     {
-        var altitudeUpper = ExtractClearedOrRequestedValue(fdr.CFLUpper, fdr.RFL);
-        var altitudeLower = ExtractClearedOrRequestedValue(fdr.CFLLower, fdr.RFL);
+        var cflUpperAsNull = AsNullWhenNegative(fdr.CFLUpper);
+        var cflLowerAsNull = AsNullWhenNegative(fdr.CFLLower);
+        var altitudeUpper = cflUpperAsNull ?? fdr.RFL;
+        var altitudeLower = cflLowerAsNull ?? (cflUpperAsNull ?? fdr.RFL);
         return new AltitudeBlock(altitudeLower, altitudeUpper);
     }
 
-    private static int ExtractClearedOrRequestedValue(int clearedValue, int requestedValue)
+    private static int? AsNullWhenNegative(int number)
     {
-        return clearedValue == -1 ? requestedValue : clearedValue;
+        return number >= 0 ? number : null;
     }
 
     public override string ToString()

@@ -22,7 +22,7 @@ public static class AtopPluginStateManager
         return found ? state : null;
     }
 
-    public static void ProcessStateUpdate(FDP2.FDR updated)
+    public static void ProcessFdrUpdate(FDP2.FDR updated)
     {
         var callsign = updated.Callsign;
 
@@ -43,11 +43,18 @@ public static class AtopPluginStateManager
         {
             aircraftState.UpdateFromFdr(updated);
         }
+    }
+
+    public static void ProcessDisplayUpdate(FDP2.FDR fdr)
+    {
+        var callsign = fdr.Callsign;
+        var atopState = fdr.GetAtopState();
+        if (atopState == null) return;
 
         var displayState = GetDisplayState(callsign);
         if (displayState == null)
-            DisplayStates.TryAdd(callsign, new AtopAircraftDisplayState(aircraftState));
+            DisplayStates.TryAdd(callsign, new AtopAircraftDisplayState(atopState));
         else
-            displayState.UpdateFromAtopState(aircraftState);
+            displayState.UpdateFromAtopState(atopState);
     }
 }

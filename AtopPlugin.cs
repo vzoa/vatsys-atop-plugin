@@ -13,13 +13,21 @@ public class AtopPlugin : ILabelPlugin, IStripPlugin
 
     public AtopPlugin()
     {
+        RegisterEventHandlers();
+    }
+
+    private static void RegisterEventHandlers()
+    {
         Network.PrivateMessagesChanged += PrivateMessagesChangedHandler.Handle;
+        FdrPropertyChangesListener.RegisterAllHandlers();
     }
 
     public void OnFDRUpdate(FDP2.FDR updated)
     {
-        AtopPluginStateManager.ProcessStateUpdate(updated);
+        AtopPluginStateManager.ProcessFdrUpdate(updated);
+        AtopPluginStateManager.ProcessDisplayUpdate(updated);
         JurisdictionManager.HandleFdrUpdate(updated);
+        FdrPropertyChangesListener.RegisterHandler(updated);
     }
 
     public void OnRadarTrackUpdate(RDP.RadarTrack updated)
@@ -27,24 +35,24 @@ public class AtopPlugin : ILabelPlugin, IStripPlugin
         JurisdictionManager.HandleRadarTrackUpdate(updated);
     }
 
-    public CustomStripItem GetCustomStripItem(string itemType, Track track, FDP2.FDR flightDataRecord,
+    public CustomStripItem? GetCustomStripItem(string itemType, Track track, FDP2.FDR flightDataRecord,
         RDP.RadarTrack radarTrack)
     {
         return StripItemRenderer.RenderStripItem(itemType, track, flightDataRecord, radarTrack);
     }
 
-    public CustomLabelItem GetCustomLabelItem(string itemType, Track track, FDP2.FDR flightDataRecord,
+    public CustomLabelItem? GetCustomLabelItem(string itemType, Track track, FDP2.FDR flightDataRecord,
         RDP.RadarTrack radarTrack)
     {
         return LabelItemRenderer.RenderLabelItem(itemType, track, flightDataRecord, radarTrack);
     }
 
-    public CustomColour SelectASDTrackColour(Track track)
+    public CustomColour? SelectASDTrackColour(Track track)
     {
         return TrackColorRenderer.GetAsdColor(track);
     }
 
-    public CustomColour SelectGroundTrackColour(Track track)
+    public CustomColour? SelectGroundTrackColour(Track track)
     {
         return null;
     }
