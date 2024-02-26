@@ -9,10 +9,10 @@ public static class StripItemRenderer
     public static CustomStripItem? RenderStripItem(string itemType, Track track, FDP2.FDR? fdr,
         RDP.RadarTrack radarTrack)
     {
-        if (fdr == null) return null;
+        if (fdr?.GetAtopState() == null || fdr.GetDisplayState() == null) return null;
 
-        var atopState = fdr.GetAtopState();
-        var displayState = fdr.GetDisplayState();
+        var atopState = fdr.GetAtopState()!;
+        var displayState = fdr.GetDisplayState()!;
 
         return itemType switch
         {
@@ -100,12 +100,12 @@ public static class StripItemRenderer
 
     private static CustomStripItem RenderAdsbCpdlcStripItem(FDP2.FDR fdr)
     {
-        var stripItem = GetStripItemWithColorsForDirection(fdr.GetAtopState().DirectionOfFlight);
-        stripItem.Text = fdr.GetDisplayState().CpdlcAdsbSymbol;
+        var stripItem = GetStripItemWithColorsForDirection(fdr.GetAtopState()?.DirectionOfFlight);
+        stripItem.Text = fdr.GetDisplayState()!.CpdlcAdsbSymbol;
         return stripItem;
     }
 
-    private static CustomStripItem GetStripItemWithColorsForDirection(DirectionOfFlight directionOfFlight)
+    private static CustomStripItem GetStripItemWithColorsForDirection(DirectionOfFlight? directionOfFlight)
     {
         var foreColorIdentity = directionOfFlight == DirectionOfFlight.Eastbound
             ? Colours.Identities.StripBackground

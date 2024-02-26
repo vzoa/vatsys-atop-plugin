@@ -19,7 +19,8 @@ public class AtopPlugin : ILabelPlugin, IStripPlugin
     private static void RegisterEventHandlers()
     {
         Network.PrivateMessagesChanged += PrivateMessagesChangedHandler.Handle;
-        
+        Network.Disconnected += DisconnectHandler.Handle;
+
         // changes to cleared flight level do not register an FDR update
         // we need to create custom handlers to be able to update the label/strip
         FdrPropertyChangesListener.RegisterAllHandlers();

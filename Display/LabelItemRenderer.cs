@@ -26,7 +26,7 @@ public static class LabelItemRenderer
 
     private static CustomLabelItem? RenderLabelItemDelegate(string itemType, Track track, FDP2.FDR? fdr)
     {
-        if (fdr == null) return null;
+        if (fdr?.GetAtopState() == null || fdr.GetDisplayState() == null) return null;
 
         var atopState = fdr.GetAtopState()!;
         var displayState = fdr.GetDisplayState()!;

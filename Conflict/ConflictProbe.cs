@@ -83,7 +83,7 @@ public static class ConflictProbe
                                             && data.Top.Time.Add(data.LongTimesep) > DateTime.UtcNow &&
                                             data.Top.Time.Subtract(data.LongTimesep) < DateTime.UtcNow;
                 }
-                catch (Exception e)
+                catch (Exception)
                 {
                     // ignored - we were unable to calculate time of passing for some reason
                 }

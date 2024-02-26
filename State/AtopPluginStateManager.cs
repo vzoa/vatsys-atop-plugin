@@ -63,4 +63,10 @@ public static class AtopPluginStateManager
             await Task.Run(() => displayState.UpdateFromAtopState(atopState));
         }
     }
+
+    public static void Reset()
+    {
+        AircraftStates.Clear();
+        DisplayStates.Clear();
+    }
 }

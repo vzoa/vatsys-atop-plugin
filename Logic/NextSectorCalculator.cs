@@ -20,7 +20,7 @@ public static class NextSectorCalculator
 
         if (nextSector == null) return nextSector;
 
-        SectorsVolumes.Sector sector = null;
+        SectorsVolumes.Sector? sector = null;
         foreach (var s2 in SectorsVolumes.SectorGroupings.Keys)
             if (s2.SubSectors.Contains(nextSector) &&
                 (sector == null || sector.SubSectors.Count > s2.SubSectors.Count))

@@ -65,16 +65,16 @@ public static class MinimaCalculator
 
     private static bool HasDatalink(FDP2.FDR fdr)
     {
-        return fdr.GetAtopState().CalculatedFlightData is { Pbcs: true, Adsc: true, Cpdlc: true };
+        return fdr.GetAtopState()?.CalculatedFlightData is { Pbcs: true, Adsc: true, Cpdlc: true };
     }
 
     private static bool CanApplyRnp4(FDP2.FDR fdr)
     {
-        return HasDatalink(fdr) && fdr.GetAtopState().CalculatedFlightData.Rnp4;
+        return HasDatalink(fdr) && fdr.GetAtopState()?.CalculatedFlightData is { Rnp4: true };
     }
 
     private static bool CanApplyRnp10(FDP2.FDR fdr)
     {
-        return fdr.GetAtopState().CalculatedFlightData is { Rnp10: true };
+        return fdr.GetAtopState()?.CalculatedFlightData is { Rnp10: true };
     }
 }
