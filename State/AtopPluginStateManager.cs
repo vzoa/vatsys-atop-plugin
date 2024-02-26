@@ -1,4 +1,5 @@
 ﻿using System.Collections.Concurrent;
+using System.Threading.Tasks;
 using vatsys;
 
 namespace AtopPlugin.State;
@@ -22,7 +23,7 @@ public static class AtopPluginStateManager
         return found ? state : null;
     }
 
-    public static void ProcessFdrUpdate(FDP2.FDR updated)
+    public static async Task ProcessFdrUpdate(FDP2.FDR updated)
     {
         var callsign = updated.Callsign;
 
@@ -36,16 +37,16 @@ public static class AtopPluginStateManager
         var aircraftState = GetAircraftState(callsign);
         if (aircraftState == null)
         {
-            aircraftState = new AtopAircraftState(updated);
+            aircraftState = await Task.Run(() => new AtopAircraftState(updated));
             AircraftStates.TryAdd(callsign, aircraftState);
         }
         else
         {
-            aircraftState.UpdateFromFdr(updated);
+            await Task.Run(() => aircraftState.UpdateFromFdr(updated));
         }
     }
 
-    public static void ProcessDisplayUpdate(FDP2.FDR fdr)
+    public static async Task ProcessDisplayUpdate(FDP2.FDR fdr)
     {
         var callsign = fdr.Callsign;
         var atopState = fdr.GetAtopState();
@@ -53,8 +54,13 @@ public static class AtopPluginStateManager
 
         var displayState = GetDisplayState(callsign);
         if (displayState == null)
-            DisplayStates.TryAdd(callsign, new AtopAircraftDisplayState(atopState));
+        {
+            displayState = await Task.Run(() => new AtopAircraftDisplayState(atopState));
+            DisplayStates.TryAdd(callsign, displayState);
+        }
         else
-            displayState.UpdateFromAtopState(atopState);
+        {
+            await Task.Run(() => displayState.UpdateFromAtopState(atopState));
+        }
     }
 }

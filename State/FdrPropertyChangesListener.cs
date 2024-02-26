@@ -23,11 +23,11 @@ public static class FdrPropertyChangesListener
         fdr.PropertyChanged += Handle;
     }
 
-    private static void Handle(object sender, PropertyChangedEventArgs eventArgs)
+    private static async void Handle(object sender, PropertyChangedEventArgs eventArgs)
     {
         if (sender is not FDP2.FDR fdr) return;
         if (!RelevantProperties.Contains(eventArgs.PropertyName)) return;
-        AtopPluginStateManager.ProcessFdrUpdate(fdr);
-        AtopPluginStateManager.ProcessDisplayUpdate(fdr);
+        await AtopPluginStateManager.ProcessFdrUpdate(fdr);
+        await AtopPluginStateManager.ProcessDisplayUpdate(fdr);
     }
 }
