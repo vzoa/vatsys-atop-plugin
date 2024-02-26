@@ -19,6 +19,9 @@ public class AtopPlugin : ILabelPlugin, IStripPlugin
     private static void RegisterEventHandlers()
     {
         Network.PrivateMessagesChanged += PrivateMessagesChangedHandler.Handle;
+        
+        // changes to cleared flight level do not register an FDR update
+        // we need to create custom handlers to be able to update the label/strip
         FdrPropertyChangesListener.RegisterAllHandlers();
     }
 
@@ -26,13 +29,16 @@ public class AtopPlugin : ILabelPlugin, IStripPlugin
     {
         AtopPluginStateManager.ProcessFdrUpdate(updated);
         AtopPluginStateManager.ProcessDisplayUpdate(updated);
-        JurisdictionManager.HandleFdrUpdate(updated);
         FdrPropertyChangesListener.RegisterHandler(updated);
+
+        // don't manage jurisdiction if not connected as ATC
+        if (Network.Me.IsRealATC) JurisdictionManager.HandleFdrUpdate(updated);
     }
 
     public void OnRadarTrackUpdate(RDP.RadarTrack updated)
     {
-        JurisdictionManager.HandleRadarTrackUpdate(updated);
+        // don't manage jurisdiction if not connected as ATC
+        if (Network.Me.IsRealATC) JurisdictionManager.HandleRadarTrackUpdate(updated);
     }
 
     public CustomStripItem? GetCustomStripItem(string itemType, Track track, FDP2.FDR flightDataRecord,
