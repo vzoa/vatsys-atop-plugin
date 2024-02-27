@@ -37,7 +37,7 @@ public class AtopAircraftDisplayState
         IsMntFlagToggled = atopAircraftState.Fdr.IsJet();
         HasAnnotations = !string.IsNullOrEmpty(atopAircraftState.Fdr.LabelOpData);
         IsRestrictionsIndicatorToggled = GetRestrictionsIndicatorToggled(atopAircraftState);
-        CurrentLevel = (atopAircraftState.Fdr.PRL / 100).ToString();
+        CurrentLevel = GetCurrentLevel(atopAircraftState);
         ClearedLevel = GetClearedLevel(atopAircraftState);
         RequestedLevel = GetRequestedLevel(atopAircraftState);
         AltitudeBorderFlags = GetAltitudeBorderFlags(atopAircraftState);
@@ -82,6 +82,12 @@ public class AtopAircraftDisplayState
     private static bool GetRestrictionsIndicatorToggled(AtopAircraftState atopAircraftState)
     {
         return RestrictionLabels.Any(label => atopAircraftState.Fdr.LabelOpData.Contains(label));
+    }
+
+    private static string GetCurrentLevel(AtopAircraftState atopAircraftState)
+    {
+        var prlHundreds = atopAircraftState.Fdr.PRL / 100;
+        return prlHundreds == 0 ? "" : prlHundreds.ToString();
     }
 
     private static string GetClearedLevel(AtopAircraftState atopAircraftState)

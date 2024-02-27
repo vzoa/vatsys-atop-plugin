@@ -19,9 +19,9 @@ public static class AltitudeCalculator
     {
         var altitudeBlock = AltitudeBlock.ExtractAltitudeBlock(fdr);
         var (altitudeLower, altitudeUpper) = altitudeBlock;
-        var isOutsideThreshold = !IsWithinThreshold(fdr.PRL, altitudeBlock);
+        var isOutsideThresholdAndNotBlank = !IsWithinThreshold(fdr.PRL, altitudeBlock) && !IsBlank(fdr.PRL);
 
-        return isOutsideThreshold switch
+        return isOutsideThresholdAndNotBlank switch
         {
             true when pendingAltitudeChange && fdr.PRL < altitudeLower => AltitudeFlag.Climbing,
             true when pendingAltitudeChange && fdr.PRL > altitudeUpper => AltitudeFlag.Descending,
@@ -36,5 +36,10 @@ public static class AltitudeCalculator
         var lowerWithThreshold = altitudeBlock.LowerAltitude - LevelFlightThreshold;
         var upperWithThreshold = altitudeBlock.UpperAltitude + LevelFlightThreshold;
         return pilotReportedAltitude > lowerWithThreshold && pilotReportedAltitude < upperWithThreshold;
+    }
+
+    private static bool IsBlank(int altitude)
+    {
+        return altitude < 100;
     }
 }
