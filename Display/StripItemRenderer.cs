@@ -76,7 +76,7 @@ public static class StripItemRenderer
 
     private static CustomStripItem RenderCallsignStripItem(FDP2.FDR fdr)
     {
-        var stripItem = GetStripItemWithColorsForDirection(fdr.GetAtopState().DirectionOfFlight);
+        var stripItem = GetStripItemWithColorsForDirection(fdr.GetAtopState()?.DirectionOfFlight);
         stripItem.Text = fdr.Callsign;
         return stripItem;
     }
@@ -98,10 +98,13 @@ public static class StripItemRenderer
         return stripItem;
     }
 
-    private static CustomStripItem RenderAdsbCpdlcStripItem(FDP2.FDR fdr)
+    private static CustomStripItem? RenderAdsbCpdlcStripItem(FDP2.FDR fdr)
     {
+        var text = fdr.GetDisplayState()!.CpdlcAdsbSymbol;
+        if (string.IsNullOrEmpty(text)) return null;
+        
         var stripItem = GetStripItemWithColorsForDirection(fdr.GetAtopState()?.DirectionOfFlight);
-        stripItem.Text = fdr.GetDisplayState()!.CpdlcAdsbSymbol;
+        stripItem.Text = text;
         return stripItem;
     }
 
