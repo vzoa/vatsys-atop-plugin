@@ -32,11 +32,13 @@ public static class StripItemRenderer
                 ? new CustomStripItem { Text = Symbols.Mnt }
                 : null,
 
-            StripConstants.StripItemDistFlag => new CustomStripItem
-            {
-                Text = displayState.AdsFlag, ForeColourIdentity = Colours.Identities.Custom,
-                CustomForeColour = CustomColors.SepFlags
-            },
+            StripConstants.StripItemDistFlag => !string.IsNullOrEmpty(displayState.AdsFlag)
+                ? new CustomStripItem
+                {
+                    Text = displayState.AdsFlag, BackColourIdentity = Colours.Identities.Custom,
+                    CustomBackColour = CustomColors.SepFlags
+                }
+                : null,
 
             StripConstants.StripItemRvsmFlag => fdr.RVSM
                 ? new CustomStripItem
@@ -64,7 +66,13 @@ public static class StripItemRenderer
                 ? new CustomStripItem { Text = Symbols.ScratchpadFlag }
                 : new CustomStripItem { Text = Symbols.EmptyAnnotations },
 
-            StripConstants.StripItemLateralFlag => new CustomStripItem { Text = displayState.LateralFlag },
+            StripConstants.StripItemLateralFlag => !string.IsNullOrEmpty(displayState.LateralFlag)
+                ? new CustomStripItem
+                {
+                    Text = displayState.LateralFlag, BackColourIdentity = Colours.Identities.Custom,
+                    CustomBackColour = CustomColors.SepFlags
+                }
+                : null,
 
             StripConstants.StripItemRestr => displayState.IsRestrictionsIndicatorToggled
                 ? new CustomStripItem { Text = Symbols.RestrictionsFlag }
@@ -102,7 +110,7 @@ public static class StripItemRenderer
     {
         var text = fdr.GetDisplayState()!.CpdlcAdsbSymbol;
         if (string.IsNullOrEmpty(text)) return null;
-        
+
         var stripItem = GetStripItemWithColorsForDirection(fdr.GetAtopState()?.DirectionOfFlight);
         stripItem.Text = text;
         return stripItem;
