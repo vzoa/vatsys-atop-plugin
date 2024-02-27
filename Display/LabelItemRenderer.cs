@@ -94,7 +94,23 @@ public static class LabelItemRenderer
                     CustomForeColour = displayState.AltitudeColor
                 },
 
-            LabelConstants.LabelItemVmi => new CustomLabelItem { Text = atopState.AltitudeFlag?.Value ?? "" },
+            LabelConstants.LabelItemVmi => displayState.AltitudeColor == null
+                ? new CustomLabelItem
+                {
+                    Text = atopState.AltitudeFlag?.Value ?? "",
+                    Border = displayState.AltitudeBorderFlags,
+                    BorderColourIdentity = Colours.Identities.Custom,
+                    CustomBorderColour = CustomColors.NotCda
+                }
+                : new CustomLabelItem
+                {
+                    Text = atopState.AltitudeFlag?.Value ?? "",
+                    Border = displayState.AltitudeBorderFlags,
+                    BorderColourIdentity = Colours.Identities.Custom,
+                    CustomBorderColour = CustomColors.NotCda,
+                    ForeColourIdentity = Colours.Identities.Custom,
+                    CustomForeColour = displayState.AltitudeColor
+                },
 
             LabelConstants.LabelItemClearedLevel => displayState.AltitudeColor == null
                 ? new CustomLabelItem
