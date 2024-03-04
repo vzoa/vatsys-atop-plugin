@@ -10,7 +10,7 @@ public static class CustomColors
     public static readonly CustomColour WestboundColour = new(240, 231, 140);
     public static readonly CustomColour NonRvsm = new(242, 133, 0);
     public static readonly CustomColour Probe = new(0, 255, 0);
-    public static readonly CustomColour NotCda = new(100, 0, 100);
+    public static readonly CustomColour NotCda = new(211, 28, 111);
     public static readonly CustomColour Advisory = new(255, 165, 0);
     public static readonly CustomColour Imminent = new(255, 0, 0);
     public static readonly CustomColour SpecialConditionCode = new(255, 255, 0);
@@ -23,7 +23,7 @@ public static class Symbols
 
     public const string NoCpdlcNoAdsb = "⎕";
     public const string CpdlcNoAdsb = "⧆";
-    public const string CpdlcAndAdsb = "✱";
+    public const string CpdlcAndAdsb = "*";//✱
 
     public const string D30 = "3";
     public const string D50 = "D";
