@@ -1,5 +1,6 @@
 ﻿using System.Collections.Concurrent;
 using System.Threading.Tasks;
+using AtopPlugin.Conflict;
 using vatsys;
 
 namespace AtopPlugin.State;
@@ -10,6 +11,8 @@ public static class AtopPluginStateManager
 
     private static readonly ConcurrentDictionary<string, AtopAircraftState> AircraftStates = new();
     private static readonly ConcurrentDictionary<string, AtopAircraftDisplayState> DisplayStates = new();
+    private static readonly ConcurrentDictionary<string, ConflictProbe.Conflicts> Conflicts = new();
+    private static bool _probeEnabled = true;
 
     public static AtopAircraftState? GetAircraftState(string callsign)
     {
@@ -20,6 +23,12 @@ public static class AtopPluginStateManager
     public static AtopAircraftDisplayState? GetDisplayState(string callsign)
     {
         var found = DisplayStates.TryGetValue(callsign, out var state);
+        return found ? state : null;
+    }
+
+    public static ConflictProbe.Conflicts? GetConflicts(string callsign)
+    {
+        var found = Conflicts.TryGetValue(callsign, out var state);
         return found ? state : null;
     }
 
@@ -64,9 +73,30 @@ public static class AtopPluginStateManager
         }
     }
 
+    public static async Task RunConflictProbe(FDP2.FDR fdr)
+    {
+        if (_probeEnabled)
+        {
+            var newConflicts = await Task.Run(() => ConflictProbe.Probe(fdr));
+            Conflicts.AddOrUpdate(fdr.Callsign, newConflicts, (_, _) => newConflicts);
+        }
+    }
+
+    public static bool IsConflictProbeEnabled()
+    {
+        return _probeEnabled;
+    }
+
+    public static void SetConflictProbe(bool conflictProbeEnabled)
+    {
+        _probeEnabled = conflictProbeEnabled;
+        if (!_probeEnabled) Conflicts.Clear();
+    }
+
     public static void Reset()
     {
         AircraftStates.Clear();
         DisplayStates.Clear();
+        Conflicts.Clear();
     }
 }
