@@ -6,8 +6,7 @@ namespace AtopPlugin.Logic;
 
 public class BatchCollectingQueue<T> : ConcurrentQueue<T>
 {
-
-    private readonly ConcurrentQueue<T> _delegate = new();
+    
     private readonly object _delegateLock = new();
 
     [MethodImpl(MethodImplOptions.Synchronized)]
@@ -16,9 +15,9 @@ public class BatchCollectingQueue<T> : ConcurrentQueue<T>
         lock (_delegateLock)
         {
             var resultList = new List<T>();
-            while (!_delegate.IsEmpty)
+            while (!IsEmpty)
             {
-                _delegate.TryDequeue(out var dequeued);
+                TryDequeue(out var dequeued);
                 resultList.Add(dequeued);
             }
 

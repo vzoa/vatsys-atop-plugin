@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
@@ -23,12 +22,10 @@ public static class FdrPropertyChangesListener
         fdr.PropertyChanged += Handle;
     }
 
-    private static async void Handle(object sender, PropertyChangedEventArgs eventArgs)
+    private static void Handle(object sender, PropertyChangedEventArgs eventArgs)
     {
         if (sender is not FDP2.FDR fdr) return;
         if (!RelevantProperties.Contains(eventArgs.PropertyName)) return;
-        await AtopPluginStateManager.ProcessFdrUpdate(fdr);
-        await AtopPluginStateManager.ProcessDisplayUpdate(fdr);
-        await AtopPluginStateManager.RunConflictProbe(fdr);
+        FdrUpdateProcessor.ProcessFdrUpdate(fdr);
     }
 }
