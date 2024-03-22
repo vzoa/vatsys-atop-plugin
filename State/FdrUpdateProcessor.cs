@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using AtopPlugin.Logic;
 using vatsys;
@@ -34,7 +36,15 @@ public static class FdrUpdateProcessor
 
     private static void ProcessUpdatesBatch(object _)
     {
-        FdrUpdates.DequeueAll().ForEach(ProcessSingleFdr);
+        var latestUpdatesPerAircraft = new Dictionary<string, FDP2.FDR>();
+        
+        FdrUpdates.DequeueAll().ForEach(fdr =>
+        {
+            latestUpdatesPerAircraft.Remove(fdr.Callsign);
+            latestUpdatesPerAircraft.Add(fdr.Callsign, fdr);
+        });
+        
+        latestUpdatesPerAircraft.Values.ToList().ForEach(ProcessSingleFdr);
     }
 
     private static void ProcessSingleFdr(FDP2.FDR updated)
