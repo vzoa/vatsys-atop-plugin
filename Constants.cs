@@ -23,7 +23,7 @@ public static class Symbols
 
     public const string NoCpdlcNoAdsb = "⎕";
     public const string CpdlcNoAdsb = "⧆";
-    public const string CpdlcAndAdsb = "*";//✱
+    public const string CpdlcAndAdsb = "*"; //✱
 
     public const string D30 = "3";
     public const string D50 = "D";

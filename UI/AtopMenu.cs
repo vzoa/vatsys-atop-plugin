@@ -17,9 +17,11 @@ public static class AtopMenu
         InitializeSettingsMenu();
         InitializeActivationToggle();
     }
-    
+
     // empty method to force static class initialization to happen
-    public static void Initialize() {}
+    public static void Initialize()
+    {
+    }
 
     private static void InitializeSettingsMenu()
     {

@@ -122,7 +122,7 @@ public static class AtopPluginStateManager
                 MessageBox.Show(@"Session deactivated");
                 break;
         }
-        
+
         Activated = newActivationState;
     }
 
