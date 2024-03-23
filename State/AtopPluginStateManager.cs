@@ -1,6 +1,8 @@
 ﻿using System.Collections.Concurrent;
 using System.Threading.Tasks;
+using System.Windows.Forms;
 using AtopPlugin.Conflict;
+using AtopPlugin.UI;
 using vatsys;
 
 namespace AtopPlugin.State;
@@ -13,6 +15,17 @@ public static class AtopPluginStateManager
     private static readonly ConcurrentDictionary<string, AtopAircraftDisplayState> DisplayStates = new();
     private static readonly ConcurrentDictionary<string, ConflictProbe.Conflicts> Conflicts = new();
     private static bool _probeEnabled = true;
+    private static bool _activated = false;
+
+    public static bool Activated
+    {
+        get => _activated;
+        set
+        {
+            _activated = value;
+            AtopMenu.SetActivationState(value);
+        }
+    }
 
     public static AtopAircraftState? GetAircraftState(string callsign)
     {
@@ -93,10 +106,31 @@ public static class AtopPluginStateManager
         if (!_probeEnabled) Conflicts.Clear();
     }
 
+    public static void ToggleActivated()
+    {
+        var newActivationState = !Activated;
+
+        switch (newActivationState)
+        {
+            case true when !Network.IsConnected:
+                MessageBox.Show(@"Please connect to the network before activating");
+                return;
+            case true:
+                MessageBox.Show(@"Session activated");
+                break;
+            case false:
+                MessageBox.Show(@"Session deactivated");
+                break;
+        }
+        
+        Activated = newActivationState;
+    }
+
     public static void Reset()
     {
         AircraftStates.Clear();
         DisplayStates.Clear();
         Conflicts.Clear();
+        Activated = false;
     }
 }

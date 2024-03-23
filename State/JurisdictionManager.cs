@@ -15,14 +15,15 @@ public static class JurisdictionManager
         var atopState = fdr.GetAtopState();
 
         // check if aircraft previously tracked to avoid re-tracking manually dropped/handed off tracks
-        if (isInControlledSector && !fdr.IsTracked && atopState is { PreviouslyTracked: false })
-        {
+        if (AtopPluginStateManager.Activated && isInControlledSector && !fdr.IsTracked &&
+            atopState is { WasHandedOff: false })
             MMI.AcceptJurisdiction(fdr);
-            atopState.PreviouslyTracked = true;
-        }
 
         // if they're outside sector, currently tracked, and not going to re-enter, drop them
-        if (!isInControlledSector && fdr.IsTrackedByMe && !await WillEnter(fdr)) MMI.HandoffToNone(fdr);
+        // also drop them if we are not activated
+        if ((!isInControlledSector && fdr.IsTrackedByMe && !await WillEnter(fdr)) ||
+            (fdr.IsTrackedByMe && !AtopPluginStateManager.Activated))
+            MMI.HandoffToNone(fdr);
     }
 
     public static async Task HandleRadarTrackUpdate(RDP.RadarTrack rt)
