@@ -1,3 +1,4 @@
+using System.Drawing;
 using System.Windows.Forms;
 using AtopPlugin.State;
 using vatsys;
@@ -14,8 +15,9 @@ public static class AtopMenu
 
     static AtopMenu()
     {
-        InitializeSettingsMenu();
         InitializeActivationToggle();
+        InitializeSettingsMenu();
+        InitializeVersionItem();
     }
 
     // empty method to force static class initialization to happen
@@ -43,6 +45,21 @@ public static class AtopMenu
         };
         activationMenuItem.Item.Click += (_, _) => MMI.InvokeOnGUI(AtopPluginStateManager.ToggleActivated);
         MMI.AddCustomMenuItem(activationMenuItem);
+    }
+
+    private static void InitializeVersionItem()
+    {
+        var stripMenuItem = new ToolStripMenuItem(Version.GetVersionString())
+        {
+            Enabled = false,
+            RightToLeft = RightToLeft.Yes
+        };
+        var versionMenuItem = new CustomToolStripMenuItem(CustomToolStripMenuItemWindowType.Main,
+            CustomToolStripMenuItemCategory.Custom, stripMenuItem)
+        {
+            CustomCategoryName = CategoryName
+        };
+        MMI.AddCustomMenuItem(versionMenuItem);
     }
 
     public static void SetActivationState(bool state)

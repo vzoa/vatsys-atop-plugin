@@ -89,6 +89,7 @@
             <DependentUpon>SettingsWindow.cs</DependentUpon>
         </Compile>
         <Compile Include="UI\TempActivationMessagePopup.cs"/>
+        <Compile Include="Version.cs"/>
     </ItemGroup>
     <ItemGroup>
         <None Include="packages.config"/>
