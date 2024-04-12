@@ -13,5 +13,5 @@ public class SccFlag
     public static SccFlag Emg => new("EMG");
     public static SccFlag Rcf => new("RCF");
     public static SccFlag Mti => new("MTI");
-    public static SccFlag Or => new("OR"); // out of range flag to represent pilot has has disconnected
+    public static SccFlag Adsc => new("ADSC"); // ADSC flag to represent pilot has disconnected
 }
