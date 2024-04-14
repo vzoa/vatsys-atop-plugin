@@ -14,8 +14,18 @@ public static class AtopPluginStateManager
     private static readonly ConcurrentDictionary<string, AtopAircraftState> AircraftStates = new();
     private static readonly ConcurrentDictionary<string, AtopAircraftDisplayState> DisplayStates = new();
     private static readonly ConcurrentDictionary<string, ConflictProbe.Conflicts> Conflicts = new();
-    private static bool _probeEnabled = true;
+    private static bool _probeEnabled = Config.ConflictProbeEnabled;
     private static bool _activated = false;
+
+    private static bool ProbeEnabled
+    {
+        get => _probeEnabled;
+        set
+        {
+            _probeEnabled = value;
+            Config.ConflictProbeEnabled = value;
+        }
+    }
 
     public static bool Activated
     {
@@ -88,7 +98,7 @@ public static class AtopPluginStateManager
 
     public static async Task RunConflictProbe(FDP2.FDR fdr)
     {
-        if (_probeEnabled)
+        if (ProbeEnabled)
         {
             var newConflicts = await Task.Run(() => ConflictProbe.Probe(fdr));
             Conflicts.AddOrUpdate(fdr.Callsign, newConflicts, (_, _) => newConflicts);
@@ -97,13 +107,13 @@ public static class AtopPluginStateManager
 
     public static bool IsConflictProbeEnabled()
     {
-        return _probeEnabled;
+        return ProbeEnabled;
     }
 
     public static void SetConflictProbe(bool conflictProbeEnabled)
     {
-        _probeEnabled = conflictProbeEnabled;
-        if (!_probeEnabled) Conflicts.Clear();
+        ProbeEnabled = conflictProbeEnabled;
+        if (!ProbeEnabled) Conflicts.Clear();
     }
 
     public static void ToggleActivated()

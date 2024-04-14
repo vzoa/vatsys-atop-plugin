@@ -36,11 +36,11 @@ public static class ConflictProbe
             var block2 = AltitudeBlock.ExtractAltitudeBlock(fdr2);
 
             data.VerticalAct = AltitudeBlock.Difference(block1, block2);
-            data.VerticalSep = MinimaCalculator.GetVerticalMinima(fdr, fdr2);
+            data.VerticalSep = MinimaCalculator.Instance.GetVerticalMinima(fdr, fdr2);
 
             if (data.VerticalAct >= data.VerticalSep) continue;
 
-            data.LatSep = MinimaCalculator.GetLateralMinima(fdr, fdr2);
+            data.LatSep = MinimaCalculator.Instance.GetLateralMinima(fdr, fdr2);
 
             // TODO(msalikhov): figure out what this was trying to do - it had no effect
             // else if (data.latSep != 100 && data.latSep == 100) ;
@@ -59,9 +59,9 @@ public static class ConflictProbe
             var failedLateral = conflictSegments1.Count > 0;
             if (firstConflictTime == null || firstConflictTime2 == null) continue;
 
-            data.LongTimesep = MinimaCalculator.GetLongitudinalTime(fdr, fdr2);
+            data.LongTimesep = MinimaCalculator.Instance.GetLongitudinalTimeMinima(fdr, fdr2);
             data.LongTimeact = (firstConflictTime2.StartTime - firstConflictTime.StartTime).Duration();
-            data.LongDistsep = MinimaCalculator.GetLongitudinalDistance(fdr, fdr2);
+            data.LongDistsep = MinimaCalculator.Instance.GetLongitudinalDistanceMinima(fdr, fdr2);
             data.LongDistact = Conversions.CalculateDistance(firstConflictTime.StartLatlong,
                 firstConflictTime2.StartLatlong);
             data.TimeLongsame = sameDir && failedLateral && firstConflictTime.EndTime > DateTime.UtcNow
