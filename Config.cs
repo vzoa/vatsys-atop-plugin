@@ -1,6 +1,7 @@
 using System.IO;
 using System.Reflection;
 using System.Xml.Serialization;
+using AtopPlugin.Conflict;
 
 namespace AtopPlugin;
 
@@ -20,6 +21,8 @@ public static class Config
             SaveConfigurationToFile(Configuration);
         }
     }
+
+    public static MinimaRegion MinimaRegion => MinimaRegion.Pacific;
 
     private static AtopPluginConfiguration LoadFromFile()
     {
@@ -45,5 +48,6 @@ public static class Config
     public record AtopPluginConfiguration
     {
         public bool EnableConflictProbe { get; set; } = true;
+        public MinimaRegion MinimaRegion { get; set; } = MinimaRegion.Pacific;
     }
 }

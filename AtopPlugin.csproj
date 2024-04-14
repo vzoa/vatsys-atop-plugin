@@ -56,7 +56,9 @@
         <Compile Include="Config.cs"/>
         <Compile Include="Conflict\ConflictAreaCalculator.cs"/>
         <Compile Include="Conflict\ConflictProbe.cs"/>
+        <Compile Include="Conflict\Minima.cs"/>
         <Compile Include="Conflict\MinimaCalculator.cs"/>
+        <Compile Include="Conflict\PacificMinimaDelegate.cs"/>
         <Compile Include="Constants.cs"/>
         <Compile Include="Display\LabelItemRenderer.cs"/>
         <Compile Include="Display\StripItemRenderer.cs"/>
