@@ -33,7 +33,7 @@ public class MinimaCalculator : IMinimaCalculator
         return Config.MinimaRegion switch
         {
             MinimaRegion.Pacific => new PacificMinimaDelegate(),
-            MinimaRegion.NorthAtlantic => throw new ArgumentOutOfRangeException(),
+            MinimaRegion.NorthAtlantic => new NorthAtlanticMinimaDelegate(),
             _ => throw new ArgumentOutOfRangeException()
         };
     }

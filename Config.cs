@@ -22,7 +22,7 @@ public static class Config
         }
     }
 
-    public static MinimaRegion MinimaRegion => MinimaRegion.Pacific;
+    public static MinimaRegion MinimaRegion => Configuration.MinimaRegion;
 
     private static AtopPluginConfiguration LoadFromFile()
     {
