@@ -48,7 +48,7 @@ public static class StripItemRenderer
                 }
                 : null,
 
-            StripConstants.StripItemVmi => new CustomStripItem { Text = atopState.AltitudeFlag?.Value ?? "" },
+            StripConstants.StripItemVmi => new CustomStripItem { Text = displayState.AltitudeFlag?.Value ?? "" },
 
             StripConstants.StripItemComplex => displayState.IsRestrictionsIndicatorToggled
                 ? new CustomStripItem() { Text = Symbols.ComplexFlag }

@@ -29,6 +29,7 @@ public class AtopAircraftDisplayState
     public CustomColour? AltitudeColor { get; private set; }
     public string FiledSpeed { get; private set; }
     public string GroundSpeed { get; private set; }
+    public AltitudeFlag? AltitudeFlag { get; private set; }
 
     public void UpdateFromAtopState(AtopAircraftState atopAircraftState)
     {
@@ -45,6 +46,8 @@ public class AtopAircraftDisplayState
         AltitudeColor = atopAircraftState.Fdr.RVSM ? null : CustomColors.NonRvsm;
         FiledSpeed = GetFiledSpeed(atopAircraftState);
         GroundSpeed = GetGroundSpeed(atopAircraftState);
+        AltitudeFlag =
+            AltitudeCalculator.CalculateAltitudeFlag(atopAircraftState.Fdr, atopAircraftState.PendingAltitudeChange);
     }
 
     private static string GetCpdlcAdsbSymbol(AtopAircraftState atopAircraftState)

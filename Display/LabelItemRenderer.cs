@@ -1,4 +1,5 @@
-﻿using AtopPlugin.State;
+﻿using AtopPlugin.Display.Label;
+using AtopPlugin.State;
 using vatsys;
 using vatsys.Plugin;
 
@@ -97,14 +98,14 @@ public static class LabelItemRenderer
             LabelConstants.LabelItemVmi => displayState.AltitudeColor == null
                 ? new CustomLabelItem
                 {
-                    Text = (atopState.AltitudeFlag?.Value ?? "").PadLeft(1),
+                    Text = (displayState.AltitudeFlag?.Value ?? "").PadLeft(1),
                     Border = displayState.AltitudeBorderFlags,
                     BorderColourIdentity = Colours.Identities.Custom,
                     CustomBorderColour = CustomColors.NotCda
                 }
                 : new CustomLabelItem
                 {
-                    Text = (atopState.AltitudeFlag?.Value ?? "").PadLeft(1),
+                    Text = (displayState.AltitudeFlag?.Value ?? "").PadLeft(1),
                     Border = displayState.AltitudeBorderFlags,
                     BorderColourIdentity = Colours.Identities.Custom,
                     CustomBorderColour = CustomColors.NotCda,
@@ -144,7 +145,7 @@ public static class LabelItemRenderer
 
             LabelConstants.LabelItemDestination => new CustomLabelItem { Text = fdr.DesAirport },
 
-            _ => null
+            _ => LabelItemRegistry.GetLabelItem(itemType)?.Render(fdr, displayState, atopState)
         };
     }
 }

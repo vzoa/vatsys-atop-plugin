@@ -19,7 +19,6 @@ public class AtopAircraftState
     public CalculatedFlightData CalculatedFlightData { get; private set; }
     public DirectionOfFlight DirectionOfFlight { get; private set; }
     public SccFlag? HighestSccFlag { get; private set; }
-    public AltitudeFlag? AltitudeFlag { get; private set; }
     public SectorsVolumes.Sector? NextSector { get; private set; }
     public bool DownlinkIndicator { get; set; }
     public bool RadarToggleIndicator { get; set; }
@@ -40,7 +39,6 @@ public class AtopAircraftState
         // ensure the bool for altitude change is calculated first since it is used in the altitude flag calculation
         PendingAltitudeChange =
             AltitudeCalculator.CalculateAltitudeChangePending(updatedFdr, PreviousAltitudeBlock, PendingAltitudeChange);
-        AltitudeFlag = AltitudeCalculator.CalculateAltitudeFlag(updatedFdr, PendingAltitudeChange);
 
         NextSector = NextSectorCalculator.GetNextSector(updatedFdr);
 
