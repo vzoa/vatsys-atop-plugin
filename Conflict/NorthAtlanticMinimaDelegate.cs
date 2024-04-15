@@ -22,7 +22,7 @@ public class NorthAtlanticMinimaDelegate : IMinimaDelegate
 
     public MinimaRegion GetRegion()
     {
-        return MinimaRegion.Pacific;
+        return MinimaRegion.NorthAtlantic;
     }
 
     public int GetLateralMinima(FDP2.FDR fdr1, FDP2.FDR fdr2)
