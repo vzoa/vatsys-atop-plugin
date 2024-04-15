@@ -62,6 +62,9 @@
         <Compile Include="Conflict\PacificMinimaDelegate.cs"/>
         <Compile Include="Constants.cs"/>
         <Compile Include="Display\LabelItemRenderer.cs"/>
+        <Compile Include="Display\Label\AltitudeLabelItem.cs"/>
+        <Compile Include="Display\Label\ILabelItem.cs"/>
+        <Compile Include="Display\Label\LabelItemRegistry.cs"/>
         <Compile Include="Display\StripItemRenderer.cs"/>
         <Compile Include="Display\TrackColorRenderer.cs"/>
         <Compile Include="Extensions.cs"/>

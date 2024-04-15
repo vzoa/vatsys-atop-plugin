@@ -111,6 +111,7 @@ public static class LabelConstants
     public const string LabelItemLevel = "AURORA_LEVEL"; //field g(3)
     public const string LabelItemVmi = "AURORA_VMI"; //field h(1)
     public const string LabelItemClearedLevel = "AURORA_CLEARED_LEVEL"; //field i(7)
+    public const string LabelItemAltitude = "AURORA_ALTITUDE"; // fields g(3) + h(1) + i(7)
     public const string LabelItemHandoffInd = "AURORA_HO_IND"; //field j(4)
     public const string LabelItemRadarInd = "AURORA_RADAR_IND"; //field k(1)
     public const string LabelItemInhibitInd = "AURORA_INHIBIT_IND"; //field l(1)

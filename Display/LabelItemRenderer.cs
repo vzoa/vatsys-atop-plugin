@@ -1,4 +1,5 @@
-﻿using AtopPlugin.State;
+﻿using AtopPlugin.Display.Label;
+using AtopPlugin.State;
 using vatsys;
 using vatsys.Plugin;
 
@@ -144,7 +145,7 @@ public static class LabelItemRenderer
 
             LabelConstants.LabelItemDestination => new CustomLabelItem { Text = fdr.DesAirport },
 
-            _ => null
+            _ => LabelItemRegistry.GetLabelItem(itemType)?.Render(fdr)
         };
     }
 }
