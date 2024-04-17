@@ -7,8 +7,13 @@ namespace AtopPlugin.State;
 
 public static class JurisdictionManager
 {
+    private const int FdrUpdateDelay = 5000;
+
     public static async Task HandleFdrUpdate(FDP2.FDR fdr)
     {
+        // Delay the processing so that vatSys can sync EST state
+        await Task.Delay(FdrUpdateDelay);
+
         if (!fdr.ESTed && MMI.IsMySectorConcerned(fdr)) MMI.EstFDR(fdr);
 
         var isInControlledSector = await IsInControlledSector(fdr.GetLocation(), fdr.PRL);
