@@ -97,7 +97,13 @@ public static class ConflictProbe
                 lossOfSep && crossing ? ConflictType.Crossing :
                 lossOfSep && oppoDir ? ConflictType.OppositeDirection : null;
             data.EarliestLos = failedLateral && oppoDir
-                ? data.Top?.Time.Subtract(new TimeSpan(0, 0, 10, 0)) ?? DateTime.MaxValue
+                ? data.Top?.Time.Subtract(new TimeSpan(0, 0, 15, 0)) ?? DateTime.MaxValue
+                : DateTime.Compare(firstConflictTime.StartTime, firstConflictTime2.StartTime) < 0
+                    ? firstConflictTime2.StartTime
+                    : firstConflictTime.StartTime;
+
+            data.LatestLos = failedLateral && oppoDir
+                ? data.Top?.Time.Add(new TimeSpan(0, 0, 15, 0)) ?? DateTime.MaxValue
                 : DateTime.Compare(firstConflictTime.StartTime, firstConflictTime2.StartTime) < 0
                     ? firstConflictTime.StartTime
                     : firstConflictTime2.StartTime;
@@ -161,6 +167,7 @@ public static class ConflictProbe
         public ConflictType? ConflictType;
         public bool DistLongsame;
         public DateTime EarliestLos;
+        public DateTime LatestLos;
         public FDP2.FDR Fdr2;
         public int LatSep;
         public double LongDistact;

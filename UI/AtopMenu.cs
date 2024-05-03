@@ -11,19 +11,30 @@ public static class AtopMenu
 
     private static readonly SettingsWindow SettingsWindow = new();
     private static readonly ToolStripMenuItem ActivationToggle = new("Activate");
+    private static readonly ConflictSummaryTable ConflictWindow = new();
 
     static AtopMenu()
     {
         InitializeActivationToggle();
         InitializeSettingsMenu();
         InitializeVersionItem();
+        InitializeConflictWindow();
     }
 
     // empty method to force static class initialization to happen
     public static void Initialize()
     {
     }
-
+    private static void InitializeConflictWindow()
+    {
+        var conflictWindowItem = new CustomToolStripMenuItem(CustomToolStripMenuItemWindowType.Main,
+            CustomToolStripMenuItemCategory.Custom, new ToolStripMenuItem("Conflict Summary"))
+        {
+            CustomCategoryName = CategoryName
+        };
+        conflictWindowItem.Item.Click += (_, _) => MMI.InvokeOnGUI(ConflictWindow.Show);
+        MMI.AddCustomMenuItem(conflictWindowItem);
+    }
     private static void InitializeSettingsMenu()
     {
         var settingsMenuItem = new CustomToolStripMenuItem(CustomToolStripMenuItemWindowType.Main,
