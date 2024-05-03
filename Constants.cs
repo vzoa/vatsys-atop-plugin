@@ -21,6 +21,10 @@ public static class Symbols
 {
     public const string Empty = "";
 
+    public const string SameDirection = ">>";
+    public const string Crossing = "X";
+    public const string OppositeDirection = "><";
+
     public const string NoCpdlcNoAdsb = "⎕";
     public const string CpdlcNoAdsb = "⧆";
     public const string CpdlcAndAdsb = "*"; //✱
