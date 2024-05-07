@@ -28,8 +28,6 @@
         /// </summary>
         private void InitializeComponent()
         {
-            System.Windows.Forms.ListViewItem listViewItem2 = new System.Windows.Forms.ListViewItem(new string[] {
-            ""}, -1, System.Drawing.Color.White, System.Drawing.Color.Red, null);
             this.textBox1 = new System.Windows.Forms.TextBox();
             this.textBox2 = new System.Windows.Forms.TextBox();
             this.textBox3 = new System.Windows.Forms.TextBox();
@@ -39,6 +37,14 @@
             this.textBox7 = new System.Windows.Forms.TextBox();
             this.textBox8 = new System.Windows.Forms.TextBox();
             this.listView1 = new System.Windows.Forms.ListView();
+            this.Intruder = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
+            this.Att = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
+            this.Active = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
+            this.Att2 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
+            this.Ovrd = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
+            this.Type = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
+            this.StartTime = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
+            this.EndTime = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.SuspendLayout();
             // 
             // textBox1
@@ -140,15 +146,25 @@
             // listView1
             // 
             this.listView1.BackColor = System.Drawing.Color.Red;
+            this.listView1.Columns.AddRange(new System.Windows.Forms.ColumnHeader[] {
+            this.Intruder,
+            this.Att,
+            this.Active,
+            this.Att2,
+            this.Ovrd,
+            this.Type,
+            this.StartTime,
+            this.EndTime});
             this.listView1.ForeColor = System.Drawing.Color.White;
+            this.listView1.FullRowSelect = true;
             this.listView1.HideSelection = false;
-            this.listView1.Items.AddRange(new System.Windows.Forms.ListViewItem[] {
-            listViewItem2});
+            this.listView1.ImeMode = System.Windows.Forms.ImeMode.Off;
             this.listView1.Location = new System.Drawing.Point(26, 43);
             this.listView1.Name = "listView1";
             this.listView1.Size = new System.Drawing.Size(662, 220);
             this.listView1.TabIndex = 8;
             this.listView1.UseCompatibleStateImageBehavior = false;
+            this.listView1.SelectedIndexChanged += new System.EventHandler(this.listView1_SelectedIndexChanged_1);
             // 
             // ConflictSummaryTable
             // 
@@ -189,5 +205,13 @@
         private System.Windows.Forms.TextBox textBox7;
         private System.Windows.Forms.TextBox textBox8;
         private System.Windows.Forms.ListView listView1;
+        private System.Windows.Forms.ColumnHeader Intruder;
+        private System.Windows.Forms.ColumnHeader Att;
+        private System.Windows.Forms.ColumnHeader Active;
+        private System.Windows.Forms.ColumnHeader Att2;
+        private System.Windows.Forms.ColumnHeader Ovrd;
+        private System.Windows.Forms.ColumnHeader Type;
+        private System.Windows.Forms.ColumnHeader StartTime;
+        private System.Windows.Forms.ColumnHeader EndTime;
     }
 }
