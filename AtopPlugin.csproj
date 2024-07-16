@@ -57,6 +57,7 @@
   <ItemGroup>
     <Compile Include="AtopPlugin.cs" />
     <Compile Include="Config.cs" />
+    <Compile Include="Conflict\ConflictData.cs" />
     <Compile Include="Conflict\ConflictAreaCalculator.cs" />
     <Compile Include="Conflict\ConflictProbe.cs" />
     <Compile Include="Conflict\Minima.cs" />
@@ -77,6 +78,7 @@
     <Compile Include="Logic\SccFlagCalculator.cs" />
     <Compile Include="Models\AltitudeBlock.cs" />
     <Compile Include="Models\AltitudeFlag.cs" />
+    <Compile Include="Models\ConflictFlag.cs" />
     <Compile Include="Models\ConflictStatus.cs" />
     <Compile Include="Models\ConflictType.cs" />
     <Compile Include="Models\DirectionOfFlight.cs" />

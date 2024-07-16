@@ -3,11 +3,16 @@ using System.Collections.Generic;
 using System.Linq;
 using AtopPlugin.Models;
 using vatsys;
+using static System.Windows.Forms.VisualStyles.VisualStyleElement;
+using static vatsys.FDP2;
 
 namespace AtopPlugin.Conflict;
 
 public static class ConflictProbe
 {
+    public static List<ConflictData> ConflictDatas { get; set; } = new List<ConflictData>();
+
+    public static event EventHandler ConflictsUpdated;
     public static Conflicts Probe(FDP2.FDR fdr)
     {
         if (!MMI.IsMySectorConcerned(fdr)) return EmptyConflicts();
@@ -18,10 +23,11 @@ public static class ConflictProbe
         foreach (var fdr2 in FDP2.GetFDRs.Where(fdr2 =>
                      fdr2 != null && fdr.Callsign != fdr2.Callsign && MMI.IsMySectorConcerned(fdr2)))
         {
-            var data = new ConflictData
-            {
-                Fdr2 = fdr2
-            };
+            var data = new ConflictData();
+
+            data.Active = fdr2;
+            data.Intruder = fdr;
+
             var rte = fdr.ParsedRoute;
             var rte2 = fdr2.ParsedRoute;
             var trk = Conversions.CalculateTrack(rte.First().Intersection.LatLong,
@@ -126,12 +132,34 @@ public static class ConflictProbe
                             data.EarliestLos.Subtract(DateTime.UtcNow).Duration()
                             && data.EarliestLos.Subtract(DateTime.UtcNow).Duration() >=
                             new TimeSpan(0, 0, 30, 0, 0); //check if  2 hours > timediff > 30 mins
-
+            
             data.ConflictStatus = ConflictStatusUtils.From(actual, imminent, advisory);
 
             if (data.ConflictStatus != ConflictStatus.None) discoveredConflicts.Add(data);
-        }
 
+            discoveredConflicts.Add(new ConflictData(
+            data.ConflictStatus,
+            data.ConflictType,
+            data.EarliestLos,
+            data.LatestLos,
+            data.Intruder,
+            data.Active,
+            data.LatSep,
+            data.LongDistact,
+            data.LongDistsep,
+            data.LongTimeact,
+            data.LongTimesep,
+            data.LongType,
+            data.TimeLongcross,
+            data.TimeLongsame,
+            data.Top,
+            data.TrkAngle,
+            data.VerticalSep,
+            data.VerticalAct));
+
+            ConflictDatas = discoveredConflicts;     //update the list
+            ConflictsUpdated?.Invoke(null, new EventArgs());
+        }        
         return GroupConflicts(discoveredConflicts);
     }
 
@@ -161,26 +189,14 @@ public static class ConflictProbe
         List<ConflictData> ImminentConflicts,
         List<ConflictData> AdvisoryConflicts);
 
-    public record ConflictData
-    {
-        public ConflictStatus ConflictStatus;
-        public ConflictType? ConflictType;
-        public bool DistLongsame;
-        public DateTime EarliestLos;
-        public DateTime LatestLos;
-        public FDP2.FDR Fdr2;
-        public int LatSep;
-        public double LongDistact;
-        public int? LongDistsep;
-        public TimeSpan LongTimeact;
-        public TimeSpan LongTimesep;
-        public bool LongType;
-        public bool TimeLongcross;
-        public bool TimeLongopposite;
-        public bool TimeLongsame;
-        public TimeOfPassing? Top;
-        public double TrkAngle;
-        public int VerticalAct;
-        public int VerticalSep;
-    }
+    //public static AircraftConflict()
+    //{
+    //    var active = new List<ConflictData>();
+    //
+    //    foreach (var intruder in GetFDRs.OrderBy(time => time.GetConflicts()).ToArray())
+    //    {
+    //        active.Add(intruder);
+    //    }
+    //}
+
 }

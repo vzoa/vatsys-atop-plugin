@@ -8,12 +8,15 @@ using System.Threading.Tasks;
 using static vatsys.FDP2;
 using AtopPlugin.State;
 using System.Linq;
+using static vatsys.CPDLC;
+
 
 namespace AtopPlugin.UI
 {
     public partial class ConflictSummaryTable : BaseForm
-    {
-        public static List<ConflictProbe.Conflicts?> cpars = new List<ConflictProbe.Conflicts?>();
+    {       
+
+        public static ConflictProbe.Conflicts cpars;
 
         public static AtopAircraftState Fdr;
 
@@ -24,16 +27,19 @@ namespace AtopPlugin.UI
         public ConflictSummaryTable()
         {
             InitializeComponent();
-            this.Shown += new EventHandler(this.ConflictWindow_Shown);
+            //this.Shown += new EventHandler(this.ConflictWindow_Shown);
 
-            UpdateConflicts();
-            _loopTask = Task.Run(async () => {
-                for (; ; )
-                {
-                    await Task.Delay(updateInterval);
-                    UpdateConflicts();
-                }
-            });
+
+            ConflictProbe.ConflictsUpdated += UpdateConflicts;
+
+            //_loopTask = Task.Run(async () => {
+            //    for (; ; )
+            //    {
+            //        await Task.Delay(updateInterval);
+            //        //UpdateConflicts();
+            //        DisplayConflicts();
+            //    }
+            //});
         }
 
         ~ConflictSummaryTable()
@@ -41,100 +47,49 @@ namespace AtopPlugin.UI
             _loopTask.Dispose();
         }
 
-        private void UpdateConflicts()
+        private void UpdateConflicts(object sender, EventArgs e)
         {
-                      
-           
-            //listView1.Items.Clear();
-            foreach (var intruder in GetFDRs.OrderBy(time => time.GetConflicts()).ToArray())
-            {
-                AddConflict(intruder.GetConflicts());
-            }
-
-            //AddConflict(new 
-            //
-            //{
-            //    
-            //    ConflictType = Models.ConflictType.SameDirection,
-            //    EarliestLos = new DateTime(),
-            //    LatestLos = new DateTime()
-            //
-            //});
+            DisplayConflicts();
         }
 
-        public void AddConflict(ConflictProbe.Conflicts? intruder)
-        {
-            //cpar.ConflictType.Equals.Models.ConflictType.SameDirection ? AtopPlugin.Symbols.SameDirection : default;
-
-            for (var a = 0; a < intruder?.ActualConflicts.Count; a++)
-            {
-                cpars.Add(intruder);
-
-                ListViewItem item = new ListViewItem(intruder?.ActualConflicts[a].Fdr2.Callsign.ToString());
-                item.SubItems.Add(intruder?.ActualConflicts[a].ConflictType.ToString());
-                item.SubItems.Add(intruder?.ActualConflicts[a].EarliestLos.ToString("HH:mm"));
-                item.SubItems.Add(intruder?.ActualConflicts[a].LatestLos.ToString("HH:mm"));
-
-                listView1.Items.Add(item);
-            }
-            for (var r = 0; r < intruder?.ImminentConflicts.Count; r++)
-            {
-                cpars.Add(intruder);
-
-                ListViewItem item = new ListViewItem(intruder?.ActualConflicts[r].Fdr2.Callsign.ToString());
-                item.SubItems.Add(intruder?.ActualConflicts[r].ConflictType.ToString());
-                item.SubItems.Add(intruder?.ActualConflicts[r].EarliestLos.ToString("HH:mm"));
-                item.SubItems.Add(intruder?.ActualConflicts[r].LatestLos.ToString("HH:mm"));
-
-                listView1.Items.Add(item);
-            }
-            for (var o = 0; o < intruder?.AdvisoryConflicts.Count; o++)
-            {
-                cpars.Add(intruder);
-
-                ListViewItem item = new ListViewItem(intruder?.ActualConflicts[o].Fdr2.Callsign.ToString());
-                item.SubItems.Add(intruder?.ActualConflicts[o].ConflictType.ToString());
-                item.SubItems.Add(intruder?.ActualConflicts[o].EarliestLos.ToString("HH:mm"));
-                item.SubItems.Add(intruder?.ActualConflicts[o].LatestLos.ToString("HH:mm"));
-
-                listView1.Items.Add(item);
-            }
-
-
-        }
-
-        private void listView1_SelectedIndexChanged(object sender, EventArgs e)
-        {
-        }
 
         private void ConflictSummaryTable_Load(object sender, EventArgs e)
         {
-
+            DisplayConflicts();
         }
 
-        private void groupBox1_Enter(object sender, EventArgs e)
+
+        private void ConflictWindow_Shown(object sender, EventArgs e)
         {
-            throw new System.NotImplementedException();
+            DisplayConflicts();
         }
-
-        private void ConflictWindow_Shown(object sender, EventArgs e) => this.Invalidate();
 
         private void listView1_SelectedIndexChanged_1(object sender, EventArgs e)
         {
+            DisplayConflicts();
+        }
+        private void DisplayConflicts()
+        {
+            listView1.Items.Clear();
+            labelConflictData.Text = string.Empty;
 
+            foreach (var conflict in ConflictProbe.ConflictDatas.OrderBy(t => t.EarliestLos))
+            {
+
+                //ListViewItem item = new ListViewItem(conflict.Intruder?.Callsign);
+                //item.SubItems.Add($"{conflict.Active.Callsign} {conflict.ConflictType} {conflict.EarliestLos:HHmm} {conflict.LatestLos:HHmm}");
+                //item.Font = MMI.eurofont_winsml;
+                labelConflictData.Text += conflict.Intruder?.Callsign.PadRight(7) + " ".ToString().PadRight(3) + conflict.Active.Callsign.PadRight(7) + " ".ToString().PadRight(3) + conflict.ConflictType + " ".ToString().PadRight(3) + conflict.EarliestLos.ToString("HHmm") + " ".ToString().PadRight(3) + conflict.LatestLos.ToString("HHmm") + "\n";
+            }
+            if (ConflictProbe.ConflictDatas.Count > 0)
+            {
+                this.Show();
+            }
+            else if (ConflictProbe.ConflictDatas.Count == 0)
+            {
+                this.Close();
+            }
         }
 
-
-        // private void InitializeComponent()
-        // {
-        //     this.SuspendLayout();
-        //     // 
-        //     // ConflictSummaryTable
-        //     // 
-        //     this.ClientSize = new System.Drawing.Size(1080, 804);
-        //     this.Name = "ConflictSummaryTable";
-        //     this.ResumeLayout(false);
-        //
-        // }
     }
 }

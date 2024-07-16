@@ -24,10 +24,14 @@ public static class Symbols
     public const string SameDirection = ">>";
     public const string Crossing = "X";
     public const string OppositeDirection = "><";
+    public const string ClimbingProfile = "C";
+    public const string DescendingProfile = "D";
+    public const string LevelProfile = "-";
+
 
     public const string NoCpdlcNoAdsb = "⎕";
     public const string CpdlcNoAdsb = "⧆";
-    public const string CpdlcAndAdsb = "*"; //✱
+    public const string CpdlcAndAdsb = "✱"; //*
 
     public const string D30 = "3";
     public const string D50 = "D";

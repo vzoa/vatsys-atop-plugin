@@ -31,19 +31,19 @@ public class AtopPlugin : ILabelPlugin, IStripPlugin
 
     public void OnFDRUpdate(FDP2.FDR updated)
     {
-        AtopPluginStateManager.ProcessFdrUpdate(updated);
-        AtopPluginStateManager.ProcessDisplayUpdate(updated);
-        AtopPluginStateManager.RunConflictProbe(updated);
+        _ = AtopPluginStateManager.ProcessFdrUpdate(updated);
+        _ = AtopPluginStateManager.ProcessDisplayUpdate(updated);
+        _ = AtopPluginStateManager.RunConflictProbe(updated);
         FdrPropertyChangesListener.RegisterHandler(updated);
 
         // don't manage jurisdiction if not connected as ATC
-        if (Network.Me.IsRealATC) JurisdictionManager.HandleFdrUpdate(updated);
+        if (Network.Me.IsRealATC) _ = JurisdictionManager.HandleFdrUpdate(updated);
     }
 
     public void OnRadarTrackUpdate(RDP.RadarTrack updated)
     {
         // don't manage jurisdiction if not connected as ATC
-        if (Network.Me.IsRealATC) JurisdictionManager.HandleRadarTrackUpdate(updated);
+        if (Network.Me.IsRealATC) _ = JurisdictionManager.HandleRadarTrackUpdate(updated);
     }
 
     public CustomStripItem? GetCustomStripItem(string itemType, Track track, FDP2.FDR flightDataRecord,
