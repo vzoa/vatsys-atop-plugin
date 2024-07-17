@@ -30,7 +30,7 @@ public static class ConflictProbe
 
             var rte = fdr.ParsedRoute;
             var rte2 = fdr2.ParsedRoute;
-            var trk = Conversions.CalculateTrack(rte.First().Intersection.LatLong,
+            var trk = Conversions.CalculateTrack(rte.First().Intersection.LatLong,         //should be checking for segments, not first and last points of FP
                 rte.Last().Intersection.LatLong);
             var trk2 = Conversions.CalculateTrack(rte2.First().Intersection.LatLong,
                 rte2.Last().Intersection.LatLong);
@@ -40,22 +40,35 @@ public static class ConflictProbe
                            (data.TrkAngle >= 315 && data.TrkAngle <= 225);
             var oppoDir = data.TrkAngle > 135 && data.TrkAngle < 225;
             var block2 = AltitudeBlock.ExtractAltitudeBlock(fdr2);
-
+            var fdr1StartTime = fdr.ATD;
+            var fdr2StartTime = fdr2.ATD;
+            var fdr1EndTime = rte.Last().ETO;
+            var fdr2EndTime = rte2.Last().ETO;            
             data.VerticalAct = AltitudeBlock.Difference(block1, block2);
             data.VerticalSep = MinimaCalculator.Instance.GetVerticalMinima(fdr, fdr2);
+            var maxAltFilter = data.VerticalAct > PacificMinimaDelegate.Above600Vertical;
+            ///Coarse Filtering
 
+            //Temporal Test
+            if ((fdr1StartTime - fdr2EndTime).Duration() < TimeSpan.FromMinutes(0) 
+                || (fdr2StartTime - fdr1EndTime).Duration() < TimeSpan.FromMinutes(0)) continue;
+
+            //Vertical Test
+            if (maxAltFilter) continue;
+
+            //Graphical Test
+            if (LateralConflictCalculator.CalculateRectangleOverlap(fdr, fdr2)) continue;
+
+
+            ///Detailed Filtering
+            //Vertical Test
             if (data.VerticalAct >= data.VerticalSep) continue;
 
+            //Lateral Test
             data.LatSep = MinimaCalculator.Instance.GetLateralMinima(fdr, fdr2);
 
-            // TODO(msalikhov): figure out what this was trying to do - it had no effect
-            // else if (data.latSep != 100 && data.latSep == 100) ;
-            // {
-            //     data.latSep = (50 + 100) / 2;
-            // }
-
-            var conflictSegments1 = ConflictAreaCalculator.CalculateAreaOfConflict(fdr, fdr2, data.LatSep);
-            var conflictSegments2 = ConflictAreaCalculator.CalculateAreaOfConflict(fdr2, fdr, data.LatSep);
+            var conflictSegments1 = LateralConflictCalculator.CalculateAreaOfConflict(fdr, fdr2, data.LatSep);
+            var conflictSegments2 = LateralConflictCalculator.CalculateAreaOfConflict(fdr2, fdr, data.LatSep);
 
             conflictSegments1.Sort((s, t) => s.StartTime.CompareTo(t.StartTime)); //sort by first conflict time
             conflictSegments2.Sort((s, t) => s.StartTime.CompareTo(t.StartTime)); //sort by first conflict time
@@ -63,8 +76,9 @@ public static class ConflictProbe
             var firstConflictTime = conflictSegments1.FirstOrDefault();
             var firstConflictTime2 = conflictSegments2.FirstOrDefault();
             var failedLateral = conflictSegments1.Count > 0;
-            if (firstConflictTime == null || firstConflictTime2 == null) continue;
-
+            if (firstConflictTime == null || firstConflictTime2 == null || !failedLateral) continue;
+            
+            //Longitudinal Test
             data.LongTimesep = MinimaCalculator.Instance.GetLongitudinalTimeMinima(fdr, fdr2);
             data.LongTimeact = (firstConflictTime2.StartTime - firstConflictTime.StartTime).Duration();
             data.LongDistsep = MinimaCalculator.Instance.GetLongitudinalDistanceMinima(fdr, fdr2);
@@ -78,7 +92,7 @@ public static class ConflictProbe
                                  .Duration() < new TimeSpan(0, 0, 15, 0);
             data.DistLongsame = sameDir && failedLateral && firstConflictTime.EndTime > DateTime.UtcNow
                                 && data.LongDistact < data.LongDistsep;
-
+           
             data.TimeLongopposite = false;
 
             if (failedLateral && oppoDir)
@@ -99,33 +113,41 @@ public static class ConflictProbe
                 : data.DistLongsame;
 
             var lossOfSep = data.LongType || data.TimeLongcross || data.TimeLongopposite;
+
             data.ConflictType = lossOfSep && sameDir ? ConflictType.SameDirection :
                 lossOfSep && crossing ? ConflictType.Crossing :
                 lossOfSep && oppoDir ? ConflictType.OppositeDirection : null;
-            data.EarliestLos = failedLateral && oppoDir
+
+            data.EarliestLos = oppoDir
                 ? data.Top?.Time.Subtract(new TimeSpan(0, 0, 15, 0)) ?? DateTime.MaxValue
                 : DateTime.Compare(firstConflictTime.StartTime, firstConflictTime2.StartTime) < 0
                     ? firstConflictTime2.StartTime
                     : firstConflictTime.StartTime;
 
-            data.LatestLos = failedLateral && oppoDir
+            data.LatestLos = oppoDir
                 ? data.Top?.Time.Add(new TimeSpan(0, 0, 15, 0)) ?? DateTime.MaxValue
                 : DateTime.Compare(firstConflictTime.StartTime, firstConflictTime2.StartTime) < 0
                     ? firstConflictTime.StartTime
                     : firstConflictTime2.StartTime;
 
-            var actual = failedLateral && oppoDir && data.VerticalAct < data.VerticalSep
+            data.ConflictEnd = oppoDir
+                ? data.Top?.Time.Add(new TimeSpan(0, 0, 15, 1)) ?? DateTime.MaxValue
+                : DateTime.Compare(firstConflictTime.EndTime, firstConflictTime2.EndTime) < 0
+                    ? firstConflictTime2.EndTime
+                    : firstConflictTime.EndTime;
+            
+            var actual =  oppoDir && data.VerticalAct < data.VerticalSep
                 ? new TimeSpan(0, 0, 1, 0, 0) >= data.EarliestLos.Subtract(DateTime.UtcNow).Duration()
                 : (lossOfSep && new TimeSpan(0, 0, 1, 0, 0) >=
                       data.EarliestLos.Subtract(DateTime.UtcNow).Duration()) ||
                   data.EarliestLos < DateTime.UtcNow;
 
-            var imminent = failedLateral && oppoDir && data.VerticalAct < data.VerticalSep
+            var imminent = oppoDir && data.VerticalAct < data.VerticalSep
                 ? new TimeSpan(0, 0, 30, 0, 0) >= data.EarliestLos.Subtract(DateTime.UtcNow).Duration()
                 : lossOfSep && new TimeSpan(0, 0, 30, 0, 0) >=
                 data.EarliestLos.Subtract(DateTime.UtcNow).Duration(); //check if timediff < 30 min
 
-            var advisory = failedLateral && oppoDir && data.VerticalAct < data.VerticalSep
+            var advisory = oppoDir && data.VerticalAct < data.VerticalSep
                 ? new TimeSpan(0, 2, 0, 0, 0) > data.EarliestLos.Subtract(DateTime.UtcNow).Duration()
                   && data.EarliestLos.Subtract(DateTime.UtcNow).Duration() >= new TimeSpan(0, 0, 30, 0, 0)
                 : lossOfSep && new TimeSpan(0, 2, 0, 0, 0) >
@@ -142,6 +164,7 @@ public static class ConflictProbe
             data.ConflictType,
             data.EarliestLos,
             data.LatestLos,
+            data.ConflictEnd,
             data.Intruder,
             data.Active,
             data.LatSep,
@@ -188,15 +211,5 @@ public static class ConflictProbe
         List<ConflictData> ActualConflicts,
         List<ConflictData> ImminentConflicts,
         List<ConflictData> AdvisoryConflicts);
-
-    //public static AircraftConflict()
-    //{
-    //    var active = new List<ConflictData>();
-    //
-    //    foreach (var intruder in GetFDRs.OrderBy(time => time.GetConflicts()).ToArray())
-    //    {
-    //        active.Add(intruder);
-    //    }
-    //}
 
 }

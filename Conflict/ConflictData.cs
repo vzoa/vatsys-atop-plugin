@@ -11,13 +11,14 @@ namespace AtopPlugin.Conflict
     public class ConflictData
     {
         public ConflictData() { }
-        public ConflictData(ConflictStatus status, ConflictType? type, DateTime start, DateTime end, FDP2.FDR intruder, FDP2.FDR active, int latsep, double longdistact, 
+        public ConflictData(ConflictStatus status, ConflictType? type, DateTime earlystart, DateTime latestart, DateTime end, FDP2.FDR intruder, FDP2.FDR active, int latsep, double longdistact, 
             int? longdistsep, TimeSpan longtimeact, TimeSpan longtimesep, bool longtype, bool timelongcross, bool timelongsame, TimeOfPassing top, double trkangle, int vertsep, int vertact) 
         {
             ConflictStatus = status;
             ConflictType = type;
-            EarliestLos = start;
-            LatestLos = end;
+            EarliestLos = earlystart;
+            LatestLos = latestart;
+            ConflictEnd = end;
             Intruder = intruder;
             Active = active;
             LatSep = latsep;
@@ -44,6 +45,7 @@ namespace AtopPlugin.Conflict
         public DateTime EarliestLos { get; set; }
 
         public DateTime LatestLos { get; set; }
+        public DateTime ConflictEnd { get; set; }
 
         public FDP2.FDR Intruder { get; set; }
 

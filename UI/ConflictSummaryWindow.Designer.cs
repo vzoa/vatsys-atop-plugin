@@ -188,7 +188,6 @@
             this.listView1.FullRowSelect = true;
             this.listView1.HideSelection = false;
             this.listView1.ImeMode = System.Windows.Forms.ImeMode.Off;
-            this.listView1.LabelEdit = true;
             this.listView1.Location = new System.Drawing.Point(12, 43);
             this.listView1.Name = "listView1";
             this.listView1.Size = new System.Drawing.Size(510, 220);
@@ -213,6 +212,7 @@
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 17F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
+            this.AutoScroll = true;
             this.AutoSize = true;
             this.BackColor = System.Drawing.SystemColors.Control;
             this.ClientSize = new System.Drawing.Size(534, 290);

@@ -13,7 +13,7 @@ public class PacificMinimaDelegate : IMinimaDelegate
     private const int StandardVertical = 1000;
     private const int NonRvsmVertical = 2000;
     private const int SupersonicVertical = 4000;
-    private const int Above600Vertical = 5000;
+    public const int Above600Vertical = 5000;
 
     private const int TimeLongitudinal = 15;
     private const int JetLongitudinal = 10;

@@ -58,7 +58,7 @@
     <Compile Include="AtopPlugin.cs" />
     <Compile Include="Config.cs" />
     <Compile Include="Conflict\ConflictData.cs" />
-    <Compile Include="Conflict\ConflictAreaCalculator.cs" />
+    <Compile Include="Conflict\LateralConflictCalculator.cs" />
     <Compile Include="Conflict\ConflictProbe.cs" />
     <Compile Include="Conflict\Minima.cs" />
     <Compile Include="Conflict\MinimaCalculator.cs" />
@@ -85,6 +85,11 @@
     <Compile Include="Models\CalculatedFlightData.cs" />
     <Compile Include="Models\SccFlag.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Properties\Resources.Designer.cs">
+      <AutoGen>True</AutoGen>
+      <DesignTime>True</DesignTime>
+      <DependentUpon>Resources.resx</DependentUpon>
+    </Compile>
     <Compile Include="State\AtopAircraftDisplayState.cs" />
     <Compile Include="State\AtopPluginStateManager.cs" />
     <Compile Include="State\AtopAircraftState.cs" />
@@ -113,6 +118,10 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
+    <EmbeddedResource Include="Properties\Resources.resx">
+      <Generator>ResXFileCodeGenerator</Generator>
+      <LastGenOutput>Resources.Designer.cs</LastGenOutput>
+    </EmbeddedResource>
     <EmbeddedResource Include="UI\ConflictSummaryWindow.resx">
       <DependentUpon>ConflictSummaryWindow.cs</DependentUpon>
     </EmbeddedResource>
