@@ -32,7 +32,7 @@ public static class ConflictProbe
             var rte2 = fdr2.ParsedRoute;
             for (var p = 0; p < rte.Count; p++)
             {
-                var trk = Conversions.CalculateTrack(rte[p].Intersection.LatLong,         
+                var trk = Conversions.CalculateTrack(rte[p].Intersection.LatLong,         //check exception out of range
                 rte[p + 1].Intersection.LatLong);
 
                 for (var p2 = 0; p2 < rte2.Count; p2++)
