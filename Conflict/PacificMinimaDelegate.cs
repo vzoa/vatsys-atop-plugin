@@ -1,6 +1,7 @@
 using System;
 using AtopPlugin.Models;
 using vatsys;
+using System.Linq;
 
 namespace AtopPlugin.Conflict;
 
@@ -30,6 +31,10 @@ public class PacificMinimaDelegate : IMinimaDelegate
         if (CanApplyRnp4(fdr1) && CanApplyRnp4(fdr2)) return Rnp4Lateral;
 
         if (CanApplyRnp10(fdr1) && CanApplyRnp10(fdr2)) return Rnp10Lateral;
+
+        if (CanApplyRnp4(fdr1) && CanApplyRnp10(fdr2) || CanApplyRnp10(fdr1) && CanApplyRnp4(fdr2)) return (Rnp4Lateral + Rnp10Lateral) / 2 ; //Need to validate if real ATOP does this or just defaults to RNP10
+
+        if (!CanApplyRnp4(fdr1) && !CanApplyRnp10(fdr1) && CanApplyRnp10(fdr2) || CanApplyRnp4(fdr2)) return (Rnp10Lateral + StandardLateral) / 2 ;
 
         return StandardLateral;
     }

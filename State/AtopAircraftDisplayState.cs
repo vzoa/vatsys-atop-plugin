@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Linq;
+using AtopPlugin.Conflict;
 using AtopPlugin.Logic;
 using AtopPlugin.Models;
 using vatsys;
@@ -30,7 +31,8 @@ public class AtopAircraftDisplayState
     public string FiledSpeed { get; private set; }
     public string GroundSpeed { get; private set; }
     public AltitudeFlag? AltitudeFlag { get; private set; }
-    public ConflictFlag? ConflictFlag { get; private set; }
+    public ConflictFlag? ConflictAttitudeFlag { get; private set; }
+
 
     public void UpdateFromAtopState(AtopAircraftState atopAircraftState)
     {
@@ -47,27 +49,29 @@ public class AtopAircraftDisplayState
         AltitudeColor = atopAircraftState.Fdr.RVSM ? null : CustomColors.NonRvsm;
         FiledSpeed = GetFiledSpeed(atopAircraftState);
         GroundSpeed = GetGroundSpeed(atopAircraftState);
+
         AltitudeFlag =
             AltitudeCalculator.CalculateAltitudeFlag(atopAircraftState.Fdr, atopAircraftState.PendingAltitudeChange);
+        ConflictAttitudeFlag =
+            AltitudeCalculator.CalculateConflictAttitudeFlag(atopAircraftState.Fdr, atopAircraftState.PendingAltitudeChange);
     }
 
 
-    //private static string GetConflictSymbol(AtopAircraftState atopAircraftState)
-    //{
-    //    var climbing = ;
-    //    var descending = atopAircraftState.;
-    //    var level =;
-    //    var same =;
-    //    var opposite =;
-    //    var crossing =;
-    //    return (adsb, cpdlc) switch
-    //    {
-    //        { adsb: true, cpdlc: true } => Symbols.CpdlcAndAdsb,
-    //        { adsb: true, cpdlc: false } => Symbols.Empty,
-    //        { adsb: false, cpdlc: true } => Symbols.CpdlcNoAdsb,
-    //        { adsb: false, cpdlc: false } => Symbols.NoCpdlcNoAdsb
-    //    };
-    //}
+    public static string GetConflictSymbol(ConflictData data)
+    {
+        var crossing = ConflictType.Crossing;
+        var opposite = ConflictType.OppositeDirection;
+
+
+        if (data.ConflictType == crossing)
+            return Symbols.Crossing;
+
+        if (data.ConflictType == opposite)
+            return Symbols.OppositeDirection;
+
+        return Symbols.SameDirection;
+
+    }
 
     private static string GetCpdlcAdsbSymbol(AtopAircraftState atopAircraftState)
     {
