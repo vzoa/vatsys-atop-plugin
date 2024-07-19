@@ -38,7 +38,7 @@ public static class ConflictProbe
                 for (var p2 = 0; p2 < rte2.Count; p2++)
                 {
                     var trk2 = Conversions.CalculateTrack(rte[p2].Intersection.LatLong,
-                    rte[p + 1].Intersection.LatLong);
+                    rte[p2 + 1].Intersection.LatLong);
                     data.TrkAngle = Math.Abs(trk2 - trk);
                     var sameDir = data.TrkAngle < 45;
                     var crossing = (data.TrkAngle >= 45 && data.TrkAngle <= 135) ||
@@ -93,7 +93,7 @@ public static class ConflictProbe
                         firstConflictTime2.StartLatlong);
                     data.TimeLongsame = sameDir && failedLateral && firstConflictTime.EndTime > DateTime.UtcNow
                                         && data.LongTimeact <
-                                        data.LongTimesep; //check time based longitudinal for same direction                    
+                                        data.LongTimesep; //check time based longitudinal for same direction                   
                     data.TimeLongcross = crossing && failedLateral && firstConflictTime.EndTime > DateTime.UtcNow
                                          && (firstConflictTime2.StartTime - firstConflictTime.StartTime)
                                          .Duration() < new TimeSpan(0, 0, 15, 0);
