@@ -84,25 +84,7 @@ public static class StripConstants
     public const string StripItemAnnotInd = "AURORA_ANNOT_STRIP";
     public const string StripItemLateralFlag = "AURORA_LATERAL_FLAG";
     public const string StripItemRestr = "AURORA_RESTR_STRIP";
-    public const string StripItemClrdRte = "AURORA_CLRD_RTE";
-    public const string CparItemType = "CPAR_TYP";
-    public const string CparItemRequired = "CPAR_REQUIRED";
-    public const string CparItemIntruder = "CPAR_INT";
-    public const string CparItemLos = "CPAR_LOS";
-    public const string CparItemActual = "CPAR_ACTUAL";
-    public const string CparItemPassing = "CPAR_PASSING";
-    public const string CparItemConfSegStart1 = "CPAR_CONF_SEG_START_1";
-    public const string CparItemConfSegStart2 = "CPAR_CONF_SEG_START_2";
-    public const string CparItemConfSegEnd1 = "CPAR_CONF_SEG_END_1";
-    public const string CparItemConfSegEnd2 = "CPAR_CONF_SEG_END_2";
-    public const string CparItemStartime1 = "CPAR_START_TIME_1";
-    public const string CparItemStartime2 = "CPAR_START_TIME_2";
-    public const string CparItemEndtime1 = "CPAR_END_TIME_1";
-    public const string CparItemEndtime2 = "CPAR_END_TIME_2";
-    public const string CparItemAid2 = "CPAR_AID_2";
-    public const string CparItemTyp2 = "CPAR_TYP_2";
-    public const string CparItemSpd2 = "CPAR_SPD_2";
-    public const string CparItemAlt2 = "CPAR_ALT_2";
+    public const string StripItemClrdRte = "AURORA_CLRD_RTE";    
 }
 
 public static class LabelConstants
