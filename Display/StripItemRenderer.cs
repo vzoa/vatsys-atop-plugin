@@ -91,36 +91,28 @@ public static class StripItemRenderer
     {
 
         StripItem stripItem = new StripItem();
-        var customItem = new CustomStripItem { Text = "TEST" };
-        for (var segment = 0; segment <= fdr.ParsedRoute.Count; ++segment)
+
+        FDP2.FDR.ExtractedRoute.Segment segment = (FDP2.FDR.ExtractedRoute.Segment)null;
+        segment = fdr.ParsedRoute[stripItem.PointIndex + 1];
+        string text = segment.Intersection.Name;
+        var customItem = new CustomStripItem { Text = text };
+        if (stripItem.PointIndexSpecified && fdr.ParsedRoute.Count > stripItem.PointIndex)
         {
-            string text = fdr.ParsedRoute[segment].Intersection.Name;
-            //FDP2.FDR.ExtractedRoute.Segment segment = (FDP2.FDR.ExtractedRoute.Segment)null;
-
-            if (Airspace2.GetIntersection(text, fdr.ParsedRoute[segment].Intersection.LatLong) == null)
+                       
+            if (Airspace2.GetIntersection(text, segment.Intersection.LatLong) == null)
             {
-                text = Conversions.ConvertToReadableLatLongDDDMM(fdr.ParsedRoute[segment].Intersection.LatLong);
+                text = Conversions.ConvertToReadableLatLongDDDMM(segment.Intersection.LatLong).ToString();
             }
-            else if (fdr.ParsedRoute[segment].Intersection.Type == Airspace2.Intersection.Types.Unknown && fdr.ParsedRoute[segment].Intersection.FullName != "")
+            else if (segment.Intersection.Type == Airspace2.Intersection.Types.Unknown && segment.Intersection.FullName != "")
             {
-                text = fdr.ParsedRoute[segment].Intersection.FullName;
+                text = segment.Intersection.FullName;
             }
-
-            if (item.PointIndexSpecified && rte.Count > item.PointIndex)
-                segment = rte[item.PointIndex];
 
             customItem = new CustomStripItem { Text = text };
-
         }
+
+
         return customItem;
-
-        //if (stripItem.PointIndexSpecified && fdr.ParsedRoute.Count > stripItem.PointIndex)
-        //segment = fdr.ParsedRoute[stripItem.PointIndex];
-
-
-
-
-
     }
     private static CustomStripItem RenderCallsignStripItem(FDP2.FDR fdr)
     {

@@ -30,15 +30,15 @@ public static class ConflictProbe
 
             var rte = fdr.ParsedRoute;
             var rte2 = fdr2.ParsedRoute;
-            for (var p = 0; p < rte.Count + 1; p++)
+            for (var p = 0; p < rte.Count - 1; p++)
             {
-                var trk = Conversions.CalculateTrack(rte[p].Intersection.LatLong,         //check exception out of range
+                var trk = Conversions.CalculateTrack(rte[p].Intersection.LatLong,
                 rte[p + 1].Intersection.LatLong);
 
-                for (var p2 = 0; p2 < rte2.Count + 1; p2++)
+                for (var p2 = 0; p2 < rte2.Count - 1; p2++)
                 {
-                    var trk2 = Conversions.CalculateTrack(rte[p2].Intersection.LatLong,
-                    rte[p2 + 1].Intersection.LatLong);
+                    var trk2 = Conversions.CalculateTrack(rte2[p2].Intersection.LatLong,
+                    rte2[p2 + 1].Intersection.LatLong);
                     data.TrkAngle = Math.Abs(trk2 - trk);
                     var sameDir = data.TrkAngle < 45;
                     var crossing = (data.TrkAngle >= 45 && data.TrkAngle <= 135) ||
