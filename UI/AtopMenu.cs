@@ -11,7 +11,7 @@ public static class AtopMenu
 
     private static readonly SettingsWindow SettingsWindow = new();
     private static readonly ToolStripMenuItem ActivationToggle = new("Activate");
-    private static readonly ConflictSummaryTable ConflictWindow = new();
+    private static readonly ConflictReportWindow ConflictWindow = new();
 
     static AtopMenu()
     {
@@ -28,7 +28,7 @@ public static class AtopMenu
     private static void InitializeConflictWindow()
     {
         var conflictWindowItem = new CustomToolStripMenuItem(CustomToolStripMenuItemWindowType.Main,
-            CustomToolStripMenuItemCategory.Custom, new ToolStripMenuItem("Conflict Summary"))
+            CustomToolStripMenuItemCategory.Custom, new ToolStripMenuItem("Conflict Report"))
         {
             CustomCategoryName = CategoryName
         };

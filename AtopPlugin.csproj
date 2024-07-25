@@ -99,6 +99,12 @@
     <Compile Include="State\PrivateMessagesChangedHandler.cs" />
     <Compile Include="State\RadarFlagToggleHandler.cs" />
     <Compile Include="UI\AtopMenu.cs" />
+    <Compile Include="UI\ConflictReportWindow.cs">
+      <SubType>designer</SubType>
+    </Compile>
+    <Compile Include="UI\ConflictReportWindow.Designer.cs">
+      <DependentUpon>ConflictReportWindow.cs</DependentUpon>
+    </Compile>
     <Compile Include="UI\ConflictSummaryWindow.cs">
       <SubType>designer</SubType>
     </Compile>
@@ -121,6 +127,9 @@
     <EmbeddedResource Include="Properties\Resources.resx">
       <Generator>ResXFileCodeGenerator</Generator>
       <LastGenOutput>Resources.Designer.cs</LastGenOutput>
+    </EmbeddedResource>
+    <EmbeddedResource Include="UI\ConflictReportWindow.resx">
+      <DependentUpon>ConflictReportWindow.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="UI\ConflictSummaryWindow.resx">
       <DependentUpon>ConflictSummaryWindow.cs</DependentUpon>

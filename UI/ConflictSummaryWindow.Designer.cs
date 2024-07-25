@@ -1,6 +1,6 @@
 ﻿namespace AtopPlugin.UI
 {
-    partial class ConflictSummaryTable
+    partial class ConflictSummaryWindow
     {
         /// <summary>
         /// Required designer variable.
@@ -52,7 +52,7 @@
             // 
             this.textBox1.BackColor = System.Drawing.SystemColors.Control;
             this.textBox1.Cursor = System.Windows.Forms.Cursors.Default;
-            this.textBox1.Font = new System.Drawing.Font("Terminus (TTF)", 8F);
+            this.textBox1.Font = new System.Drawing.Font("Terminus (TTF)", 7.999999F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.textBox1.ForeColor = System.Drawing.SystemColors.ControlDark;
             this.textBox1.HasBorder = false;
             this.textBox1.InteractiveText = false;
@@ -189,6 +189,8 @@
             this.listView1.HideSelection = false;
             this.listView1.ImeMode = System.Windows.Forms.ImeMode.Off;
             this.listView1.Location = new System.Drawing.Point(12, 43);
+            this.listView1.MaximumSize = new System.Drawing.Size(510, 905);
+            this.listView1.MinimumSize = new System.Drawing.Size(510, 80);
             this.listView1.Name = "listView1";
             this.listView1.Size = new System.Drawing.Size(510, 220);
             this.listView1.TabIndex = 8;
@@ -208,14 +210,14 @@
             this.labelConflictData.TabIndex = 9;
             this.labelConflictData.Text = "CONFLICT";
             // 
-            // ConflictSummaryTable
+            // ConflictSummaryWindow
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 17F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.AutoScroll = true;
             this.AutoSize = true;
             this.BackColor = System.Drawing.SystemColors.Control;
-            this.ClientSize = new System.Drawing.Size(534, 290);
+            this.ClientSize = new System.Drawing.Size(534, 287);
             this.Controls.Add(this.labelConflictData);
             this.Controls.Add(this.textBox8);
             this.Controls.Add(this.textBox7);
@@ -228,11 +230,13 @@
             this.Controls.Add(this.listView1);
             this.HasCloseButton = false;
             this.HasMinimizeButton = false;
-            this.Name = "ConflictSummaryTable";
+            this.MaximumSize = new System.Drawing.Size(538, 1000);
+            this.MinimumSize = new System.Drawing.Size(538, 150);
+            this.Name = "ConflictSummaryWindow";
             this.RightToLeft = System.Windows.Forms.RightToLeft.No;
             this.Text = "CONFLICT SUMMARY";
             this.TopMost = true;
-            this.Load += new System.EventHandler(this.ConflictSummaryTable_Load);
+            this.Load += new System.EventHandler(this.ConflictSummaryWindow_Load);
             this.ResumeLayout(false);
             this.PerformLayout();
 

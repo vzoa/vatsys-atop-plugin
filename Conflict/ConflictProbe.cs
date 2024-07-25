@@ -169,6 +169,7 @@ public static class ConflictProbe
                     if (data.ConflictStatus != ConflictStatus.None) discoveredConflicts.Add(data);
 
                     discoveredConflicts.Add(new ConflictData(
+                    data.ConflictSegmentData,
                     data.ConflictStatus,
                     data.ConflictType,
                     data.EarliestLos,

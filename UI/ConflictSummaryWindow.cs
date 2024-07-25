@@ -13,10 +13,10 @@ using static vatsys.CPDLC;
 
 namespace AtopPlugin.UI
 {
-    public partial class ConflictSummaryTable : BaseForm
-    {       
+    public partial class ConflictSummaryWindow : BaseForm
+    {
 
-        public static ConflictProbe.Conflicts cpars;
+        public static ConflictData SelectedConflict;
 
         public static AtopAircraftState Fdr;
 
@@ -24,7 +24,7 @@ namespace AtopPlugin.UI
 
         public static int updateInterval = 10000;
 
-        public ConflictSummaryTable()
+        public ConflictSummaryWindow()
         {
             InitializeComponent();
             //this.Shown += new EventHandler(this.ConflictWindow_Shown);
@@ -42,7 +42,7 @@ namespace AtopPlugin.UI
             //});
         }
 
-        ~ConflictSummaryTable()
+        ~ConflictSummaryWindow()
         {
             _loopTask.Dispose();
         }
@@ -53,7 +53,7 @@ namespace AtopPlugin.UI
         }
 
 
-        private void ConflictSummaryTable_Load(object sender, EventArgs e)
+        private void ConflictSummaryWindow_Load(object sender, EventArgs e)
         {
             DisplayConflicts();
         }
@@ -77,12 +77,9 @@ namespace AtopPlugin.UI
             {
                 AtopAircraftDisplayState intAtt = new AtopAircraftDisplayState(conflict.Intruder.GetAtopState());
                 AtopAircraftDisplayState actAtt = new AtopAircraftDisplayState(conflict.Active.GetAtopState());
-                //ListViewItem item = new ListViewItem(conflict.Intruder?.Callsign);
-                //item.SubItems.Add($"{conflict.Active.Callsign} {conflict.ConflictType} {conflict.EarliestLos:HHmm} {conflict.LatestLos:HHmm}");
-                //item.Font = MMI.eurofont_winsml;
-                labelConflictData.Text += conflict.Intruder?.Callsign.PadRight(7) + " ".ToString().PadRight(3) + intAtt.ConflictAttitudeFlag.Value 
+                labelConflictData.Text += conflict.Intruder?.Callsign.PadRight(7) + " ".ToString().PadRight(3) + intAtt.ConflictAttitudeFlag.Value
                     + " ".ToString().PadRight(5) + conflict.Active.Callsign.PadRight(7) + " ".ToString().PadRight(3) + actAtt.ConflictAttitudeFlag.Value
-                    + " ".ToString().PadRight(10) + AtopAircraftDisplayState.GetConflictSymbol(conflict) + " ".ToString().PadRight(5) 
+                    + " ".ToString().PadRight(10) + AtopAircraftDisplayState.GetConflictSymbol(conflict) + " ".ToString().PadRight(5)
                     + conflict.EarliestLos.ToString("HHmm") + " ".ToString().PadRight(8) + conflict.ConflictEnd.ToString("HHmm") + "\n";
             }
             if (ConflictProbe.ConflictDatas.Count > 0)
@@ -93,7 +90,18 @@ namespace AtopPlugin.UI
             {
                 this.Close();
             }
-        }
+            Label conflictLabel = new Label();
+            conflictLabel.MouseDown += (sender, e) =>
+            {
+                SelectedConflict = new ConflictData();
 
+                if (e.Button == MouseButtons.Left)
+                {
+                    ConflictReportWindow window = new ConflictReportWindow();
+                    window.Show(ActiveForm);
+                }
+            };
+
+        }
     }
 }
