@@ -78,26 +78,27 @@ public static class ConflictProbe
                     var conflictSegments2 = LateralConflictCalculator.CalculateAreaOfConflict(fdr2, fdr, data.LatSep);
 
                     conflictSegments1.Sort((s, t) => s.StartTime.CompareTo(t.StartTime)); //sort by first conflict time
-                    conflictSegments2.Sort((s, t) => s.StartTime.CompareTo(t.StartTime)); //sort by first conflict time
+                    conflictSegments2.Sort((s, t) => s.StartTime.CompareTo(t.StartTime)); //sort by first conflict time                   
 
-                    var firstConflictTime = conflictSegments1.FirstOrDefault();
-                    var firstConflictTime2 = conflictSegments2.FirstOrDefault();
+                    data.FirstConflictTime = conflictSegments1.FirstOrDefault();
+                    data.FirstConflictTime2 = conflictSegments2.FirstOrDefault();
+                    
                     var failedLateral = conflictSegments1.Count > 0;
-                    if (firstConflictTime == null || firstConflictTime2 == null || !failedLateral) continue;
+                    if (data.FirstConflictTime == null || data.FirstConflictTime2 == null || !failedLateral) continue;
 
                     //Longitudinal Test
                     data.LongTimesep = MinimaCalculator.Instance.GetLongitudinalTimeMinima(fdr, fdr2);
-                    data.LongTimeact = (firstConflictTime2.StartTime - firstConflictTime.StartTime).Duration();
+                    data.LongTimeact = (data.FirstConflictTime2.StartTime - data.FirstConflictTime.StartTime).Duration();
                     data.LongDistsep = MinimaCalculator.Instance.GetLongitudinalDistanceMinima(fdr, fdr2);
-                    data.LongDistact = Conversions.CalculateDistance(firstConflictTime.StartLatlong,
-                        firstConflictTime2.StartLatlong);
-                    data.TimeLongsame = sameDir && failedLateral && firstConflictTime.EndTime > DateTime.UtcNow
+                    data.LongDistact = Conversions.CalculateDistance(data.FirstConflictTime.StartLatlong,
+                        data.FirstConflictTime2.StartLatlong);
+                    data.TimeLongsame = sameDir && failedLateral && data.FirstConflictTime.EndTime > DateTime.UtcNow
                                         && data.LongTimeact <
                                         data.LongTimesep; //check time based longitudinal for same direction                   
-                    data.TimeLongcross = crossing && failedLateral && firstConflictTime.EndTime > DateTime.UtcNow
-                                         && (firstConflictTime2.StartTime - firstConflictTime.StartTime)
+                    data.TimeLongcross = crossing && failedLateral && data.FirstConflictTime.EndTime > DateTime.UtcNow
+                                         && (data.FirstConflictTime2.StartTime - data.FirstConflictTime.StartTime)
                                          .Duration() < new TimeSpan(0, 0, 15, 0);
-                    data.DistLongsame = sameDir && failedLateral && firstConflictTime.EndTime > DateTime.UtcNow
+                    data.DistLongsame = sameDir && failedLateral && data.FirstConflictTime.EndTime > DateTime.UtcNow
                                         && data.LongDistact < data.LongDistsep;
 
                     data.TimeLongopposite = false;
@@ -129,21 +130,21 @@ public static class ConflictProbe
 
                     data.EarliestLos = oppoDir
                         ? data.Top?.Time.Subtract(new TimeSpan(0, 0, 15, 0)) ?? DateTime.MaxValue
-                        : DateTime.Compare(firstConflictTime.StartTime, firstConflictTime2.StartTime) < 0
-                            ? firstConflictTime2.StartTime
-                            : firstConflictTime.StartTime;
+                        : DateTime.Compare(data.FirstConflictTime.StartTime, data.FirstConflictTime2.StartTime) < 0
+                            ? data.FirstConflictTime2.StartTime
+                            : data.FirstConflictTime.StartTime;
 
                     data.LatestLos = oppoDir
                         ? data.Top?.Time.Add(new TimeSpan(0, 0, 15, 0)) ?? DateTime.MaxValue
-                        : DateTime.Compare(firstConflictTime.StartTime, firstConflictTime2.StartTime) < 0
-                            ? firstConflictTime.StartTime
-                            : firstConflictTime2.StartTime;
+                        : DateTime.Compare(data.FirstConflictTime.StartTime, data.FirstConflictTime2.StartTime) < 0
+                            ? data.FirstConflictTime.StartTime
+                            : data.FirstConflictTime2.StartTime;
 
                     data.ConflictEnd = oppoDir
                         ? data.Top?.Time.Add(new TimeSpan(0, 0, 15, 1)) ?? DateTime.MaxValue
-                        : DateTime.Compare(firstConflictTime.EndTime, firstConflictTime2.EndTime) < 0
-                            ? firstConflictTime2.EndTime
-                            : firstConflictTime.EndTime;
+                        : DateTime.Compare(data.FirstConflictTime.EndTime, data.FirstConflictTime2.EndTime) < 0
+                            ? data.FirstConflictTime2.EndTime
+                            : data.FirstConflictTime.EndTime;
 
                     var actual = oppoDir && data.VerticalAct < data.VerticalSep
                         ? new TimeSpan(0, 0, 1, 0, 0) >= data.EarliestLos.Subtract(DateTime.UtcNow).Duration()
@@ -166,10 +167,11 @@ public static class ConflictProbe
 
                     data.ConflictStatus = ConflictStatusUtils.From(actual, imminent, advisory);
 
-                    if (data.ConflictStatus != ConflictStatus.None) discoveredConflicts.Add(data);
-
+                    if (data.ConflictStatus != ConflictStatus.None)
+                    {
                     discoveredConflicts.Add(new ConflictData(
-                    data.ConflictSegmentData,
+                    data.FirstConflictTime,
+                    data.FirstConflictTime2,
                     data.ConflictStatus,
                     data.ConflictType,
                     data.EarliestLos,
@@ -190,7 +192,12 @@ public static class ConflictProbe
                     data.VerticalSep,
                     data.VerticalAct));
 
-                    ConflictDatas = discoveredConflicts;     //update the list
+                        ConflictDatas = discoveredConflicts;     //update the list
+                    }//discoveredConflicts.Add(data);
+
+                    
+
+
                     ConflictsUpdated?.Invoke(null, new EventArgs());
                 }
             }

@@ -35,12 +35,13 @@
             this.IntAlt = new System.Windows.Forms.Label();
             this.ACTcs = new System.Windows.Forms.Label();
             this.ACTAlt = new System.Windows.Forms.Label();
+            this.INTTOPdata = new System.Windows.Forms.Label();
+            this.ACTTOPdata = new System.Windows.Forms.Label();
             this.tableLayoutPanel2 = new System.Windows.Forms.TableLayoutPanel();
             this.ACTconfend = new System.Windows.Forms.Label();
             this.ACTconfstart = new System.Windows.Forms.Label();
             this.INTconfend = new System.Windows.Forms.Label();
             this.INTconfstart = new System.Windows.Forms.Label();
-            this.listBox1 = new System.Windows.Forms.ListBox();
             this.DrawButton = new System.Windows.Forms.Button();
             this.CloseButton = new System.Windows.Forms.Button();
             this.ConflictType = new System.Windows.Forms.Label();
@@ -53,8 +54,6 @@
             this.PassingPointLabel = new System.Windows.Forms.Label();
             this.ConflictSegLabel = new System.Windows.Forms.Label();
             this.LOSTime = new System.Windows.Forms.Label();
-            this.INTTOPdata = new System.Windows.Forms.Label();
-            this.ACTTOPdata = new System.Windows.Forms.Label();
             this.tableLayoutPanel1.SuspendLayout();
             this.tableLayoutPanel2.SuspendLayout();
             this.SuspendLayout();
@@ -68,7 +67,7 @@
             this.labelConflictData.ImageAlign = System.Drawing.ContentAlignment.TopCenter;
             this.labelConflictData.Location = new System.Drawing.Point(21, 53);
             this.labelConflictData.Name = "labelConflictData";
-            this.labelConflictData.Size = new System.Drawing.Size(72, 17);
+            this.labelConflictData.Size = new System.Drawing.Size(106, 24);
             this.labelConflictData.TabIndex = 9;
             this.labelConflictData.Text = "CONFLICT";
             // 
@@ -77,15 +76,18 @@
             this.ConflictDataList.BackColor = System.Drawing.SystemColors.ActiveBorder;
             this.ConflictDataList.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
             this.ConflictDataList.HideSelection = false;
-            this.ConflictDataList.Location = new System.Drawing.Point(12, 12);
+            this.ConflictDataList.Location = new System.Drawing.Point(12, 3);
             this.ConflictDataList.Name = "ConflictDataList";
-            this.ConflictDataList.Size = new System.Drawing.Size(637, 106);
+            this.ConflictDataList.Size = new System.Drawing.Size(596, 76);
             this.ConflictDataList.TabIndex = 11;
             this.ConflictDataList.UseCompatibleStateImageBehavior = false;
             // 
             // tableLayoutPanel1
             // 
-            this.tableLayoutPanel1.Anchor = System.Windows.Forms.AnchorStyles.None;
+            this.tableLayoutPanel1.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+            this.tableLayoutPanel1.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink;
             this.tableLayoutPanel1.BackColor = System.Drawing.SystemColors.ButtonFace;
             this.tableLayoutPanel1.CellBorderStyle = System.Windows.Forms.TableLayoutPanelCellBorderStyle.InsetDouble;
             this.tableLayoutPanel1.ColumnCount = 7;
@@ -104,12 +106,12 @@
             this.tableLayoutPanel1.Controls.Add(this.ACTTOPdata, 3, 1);
             this.tableLayoutPanel1.Enabled = false;
             this.tableLayoutPanel1.GrowStyle = System.Windows.Forms.TableLayoutPanelGrowStyle.FixedSize;
-            this.tableLayoutPanel1.Location = new System.Drawing.Point(12, 151);
+            this.tableLayoutPanel1.Location = new System.Drawing.Point(7, 102);
             this.tableLayoutPanel1.Name = "tableLayoutPanel1";
             this.tableLayoutPanel1.RowCount = 2;
             this.tableLayoutPanel1.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 50F));
             this.tableLayoutPanel1.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 50F));
-            this.tableLayoutPanel1.Size = new System.Drawing.Size(637, 145);
+            this.tableLayoutPanel1.Size = new System.Drawing.Size(599, 147);
             this.tableLayoutPanel1.TabIndex = 12;
             // 
             // INTcs
@@ -118,9 +120,9 @@
             this.INTcs.AutoSize = true;
             this.INTcs.Font = new System.Drawing.Font("Terminus (TTF)", 14.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.INTcs.ForeColor = System.Drawing.SystemColors.ControlText;
-            this.INTcs.Location = new System.Drawing.Point(19, 27);
+            this.INTcs.Location = new System.Drawing.Point(9, 7);
             this.INTcs.Name = "INTcs";
-            this.INTcs.Size = new System.Drawing.Size(59, 19);
+            this.INTcs.Size = new System.Drawing.Size(73, 60);
             this.INTcs.TabIndex = 22;
             this.INTcs.Text = "INTcs";
             this.INTcs.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
@@ -131,9 +133,9 @@
             this.IntAlt.AutoSize = true;
             this.IntAlt.Font = new System.Drawing.Font("Terminus (TTF)", 14.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.IntAlt.ForeColor = System.Drawing.SystemColors.ControlText;
-            this.IntAlt.Location = new System.Drawing.Point(104, 18);
+            this.IntAlt.Location = new System.Drawing.Point(99, 3);
             this.IntAlt.Name = "IntAlt";
-            this.IntAlt.Size = new System.Drawing.Size(49, 38);
+            this.IntAlt.Size = new System.Drawing.Size(43, 69);
             this.IntAlt.TabIndex = 21;
             this.IntAlt.Text = "INTalt";
             this.IntAlt.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
@@ -144,9 +146,9 @@
             this.ACTcs.AutoSize = true;
             this.ACTcs.Font = new System.Drawing.Font("Terminus (TTF)", 14.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.ACTcs.ForeColor = System.Drawing.SystemColors.ControlText;
-            this.ACTcs.Location = new System.Drawing.Point(19, 98);
+            this.ACTcs.Location = new System.Drawing.Point(9, 79);
             this.ACTcs.Name = "ACTcs";
-            this.ACTcs.Size = new System.Drawing.Size(59, 19);
+            this.ACTcs.Size = new System.Drawing.Size(73, 60);
             this.ACTcs.TabIndex = 23;
             this.ACTcs.Text = "ACTcs";
             this.ACTcs.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
@@ -157,15 +159,44 @@
             this.ACTAlt.AutoSize = true;
             this.ACTAlt.Font = new System.Drawing.Font("Terminus (TTF)", 14.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.ACTAlt.ForeColor = System.Drawing.SystemColors.ControlText;
-            this.ACTAlt.Location = new System.Drawing.Point(104, 89);
+            this.ACTAlt.Location = new System.Drawing.Point(99, 75);
             this.ACTAlt.Name = "ACTAlt";
-            this.ACTAlt.Size = new System.Drawing.Size(49, 38);
+            this.ACTAlt.Size = new System.Drawing.Size(43, 69);
             this.ACTAlt.TabIndex = 24;
             this.ACTAlt.Text = "ACTAlt";
             this.ACTAlt.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             // 
+            // INTTOPdata
+            // 
+            this.INTTOPdata.Anchor = System.Windows.Forms.AnchorStyles.None;
+            this.INTTOPdata.AutoSize = true;
+            this.INTTOPdata.Font = new System.Drawing.Font("Terminus (TTF)", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.INTTOPdata.ForeColor = System.Drawing.SystemColors.ControlText;
+            this.INTTOPdata.Location = new System.Drawing.Point(249, 13);
+            this.INTTOPdata.Name = "INTTOPdata";
+            this.INTTOPdata.Size = new System.Drawing.Size(70, 48);
+            this.INTTOPdata.TabIndex = 25;
+            this.INTTOPdata.Text = "INTTOPdata";
+            this.INTTOPdata.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // ACTTOPdata
+            // 
+            this.ACTTOPdata.Anchor = System.Windows.Forms.AnchorStyles.None;
+            this.ACTTOPdata.AutoSize = true;
+            this.ACTTOPdata.Font = new System.Drawing.Font("Terminus (TTF)", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.ACTTOPdata.ForeColor = System.Drawing.SystemColors.ControlText;
+            this.ACTTOPdata.Location = new System.Drawing.Point(249, 85);
+            this.ACTTOPdata.Name = "ACTTOPdata";
+            this.ACTTOPdata.Size = new System.Drawing.Size(70, 48);
+            this.ACTTOPdata.TabIndex = 26;
+            this.ACTTOPdata.Text = "ACTTOPdata";
+            this.ACTTOPdata.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
             // tableLayoutPanel2
             // 
+            this.tableLayoutPanel2.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
             this.tableLayoutPanel2.BackColor = System.Drawing.SystemColors.ActiveBorder;
             this.tableLayoutPanel2.CellBorderStyle = System.Windows.Forms.TableLayoutPanelCellBorderStyle.OutsetDouble;
             this.tableLayoutPanel2.ColumnCount = 2;
@@ -176,12 +207,12 @@
             this.tableLayoutPanel2.Controls.Add(this.INTconfend, 1, 0);
             this.tableLayoutPanel2.Controls.Add(this.INTconfstart, 0, 0);
             this.tableLayoutPanel2.ForeColor = System.Drawing.SystemColors.ActiveCaptionText;
-            this.tableLayoutPanel2.Location = new System.Drawing.Point(459, 151);
+            this.tableLayoutPanel2.Location = new System.Drawing.Point(424, 102);
             this.tableLayoutPanel2.Name = "tableLayoutPanel2";
             this.tableLayoutPanel2.RowCount = 2;
-            this.tableLayoutPanel2.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 50F));
-            this.tableLayoutPanel2.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 50F));
-            this.tableLayoutPanel2.Size = new System.Drawing.Size(190, 145);
+            this.tableLayoutPanel2.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 48.67257F));
+            this.tableLayoutPanel2.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 51.32743F));
+            this.tableLayoutPanel2.Size = new System.Drawing.Size(184, 147);
             this.tableLayoutPanel2.TabIndex = 13;
             // 
             // ACTconfend
@@ -190,9 +221,9 @@
             this.ACTconfend.AutoSize = true;
             this.ACTconfend.Font = new System.Drawing.Font("Terminus (TTF)", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.ACTconfend.ForeColor = System.Drawing.SystemColors.ControlText;
-            this.ACTconfend.Location = new System.Drawing.Point(101, 91);
+            this.ACTconfend.Location = new System.Drawing.Point(96, 84);
             this.ACTconfend.Name = "ACTconfend";
-            this.ACTconfend.Size = new System.Drawing.Size(80, 34);
+            this.ACTconfend.Size = new System.Drawing.Size(82, 48);
             this.ACTconfend.TabIndex = 8;
             this.ACTconfend.Text = "ACTconfend";
             this.ACTconfend.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
@@ -203,9 +234,9 @@
             this.ACTconfstart.AutoSize = true;
             this.ACTconfstart.Font = new System.Drawing.Font("Terminus (TTF)", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.ACTconfstart.ForeColor = System.Drawing.SystemColors.ControlText;
-            this.ACTconfstart.Location = new System.Drawing.Point(8, 91);
+            this.ACTconfstart.Location = new System.Drawing.Point(11, 73);
             this.ACTconfstart.Name = "ACTconfstart";
-            this.ACTconfstart.Size = new System.Drawing.Size(80, 34);
+            this.ACTconfstart.Size = new System.Drawing.Size(70, 71);
             this.ACTconfstart.TabIndex = 7;
             this.ACTconfstart.Text = "ACTconfstart";
             this.ACTconfstart.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
@@ -216,9 +247,9 @@
             this.INTconfend.AutoSize = true;
             this.INTconfend.Font = new System.Drawing.Font("Terminus (TTF)", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.INTconfend.ForeColor = System.Drawing.SystemColors.ControlText;
-            this.INTconfend.Location = new System.Drawing.Point(101, 20);
+            this.INTconfend.Location = new System.Drawing.Point(96, 12);
             this.INTconfend.Name = "INTconfend";
-            this.INTconfend.Size = new System.Drawing.Size(80, 34);
+            this.INTconfend.Size = new System.Drawing.Size(82, 48);
             this.INTconfend.TabIndex = 6;
             this.INTconfend.Text = "INTconfend";
             this.INTconfend.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
@@ -229,28 +260,18 @@
             this.INTconfstart.AutoSize = true;
             this.INTconfstart.Font = new System.Drawing.Font("Terminus (TTF)", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.INTconfstart.ForeColor = System.Drawing.SystemColors.ControlText;
-            this.INTconfstart.Location = new System.Drawing.Point(8, 20);
+            this.INTconfstart.Location = new System.Drawing.Point(11, 3);
             this.INTconfstart.Name = "INTconfstart";
-            this.INTconfstart.Size = new System.Drawing.Size(80, 34);
+            this.INTconfstart.Size = new System.Drawing.Size(70, 67);
             this.INTconfstart.TabIndex = 5;
             this.INTconfstart.Text = "INTconfstart";
             this.INTconfstart.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
-            // 
-            // listBox1
-            // 
-            this.listBox1.BackColor = System.Drawing.SystemColors.MenuText;
-            this.listBox1.FormattingEnabled = true;
-            this.listBox1.ItemHeight = 17;
-            this.listBox1.Location = new System.Drawing.Point(450, 151);
-            this.listBox1.Name = "listBox1";
-            this.listBox1.Size = new System.Drawing.Size(10, 140);
-            this.listBox1.TabIndex = 14;
             // 
             // DrawButton
             // 
             this.DrawButton.FlatStyle = System.Windows.Forms.FlatStyle.Popup;
             this.DrawButton.ForeColor = System.Drawing.SystemColors.ActiveCaptionText;
-            this.DrawButton.Location = new System.Drawing.Point(17, 328);
+            this.DrawButton.Location = new System.Drawing.Point(7, 255);
             this.DrawButton.Name = "DrawButton";
             this.DrawButton.Size = new System.Drawing.Size(75, 44);
             this.DrawButton.TabIndex = 15;
@@ -261,7 +282,7 @@
             // 
             this.CloseButton.FlatStyle = System.Windows.Forms.FlatStyle.Popup;
             this.CloseButton.ForeColor = System.Drawing.SystemColors.ControlText;
-            this.CloseButton.Location = new System.Drawing.Point(569, 333);
+            this.CloseButton.Location = new System.Drawing.Point(529, 261);
             this.CloseButton.Name = "CloseButton";
             this.CloseButton.Size = new System.Drawing.Size(79, 38);
             this.CloseButton.TabIndex = 16;
@@ -273,7 +294,7 @@
             // 
             this.ConflictType.AutoSize = true;
             this.ConflictType.ForeColor = System.Drawing.SystemColors.ControlText;
-            this.ConflictType.Location = new System.Drawing.Point(21, 35);
+            this.ConflictType.Location = new System.Drawing.Point(19, 12);
             this.ConflictType.Name = "ConflictType";
             this.ConflictType.Size = new System.Drawing.Size(104, 17);
             this.ConflictType.TabIndex = 17;
@@ -284,9 +305,9 @@
             this.Degrees.AutoSize = true;
             this.Degrees.Font = new System.Drawing.Font("Terminus (TTF)", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.Degrees.ForeColor = System.Drawing.SystemColors.ControlText;
-            this.Degrees.Location = new System.Drawing.Point(21, 91);
+            this.Degrees.Location = new System.Drawing.Point(19, 53);
             this.Degrees.Name = "Degrees";
-            this.Degrees.Size = new System.Drawing.Size(64, 17);
+            this.Degrees.Size = new System.Drawing.Size(94, 24);
             this.Degrees.TabIndex = 18;
             this.Degrees.Text = "degrees";
             // 
@@ -294,7 +315,7 @@
             // 
             this.LOSlabel.AutoSize = true;
             this.LOSlabel.ForeColor = System.Drawing.SystemColors.ControlText;
-            this.LOSlabel.Location = new System.Drawing.Point(189, 91);
+            this.LOSlabel.Location = new System.Drawing.Point(161, 53);
             this.LOSlabel.Name = "LOSlabel";
             this.LOSlabel.Size = new System.Drawing.Size(32, 17);
             this.LOSlabel.TabIndex = 19;
@@ -304,7 +325,7 @@
             // 
             this.ActualLabel.AutoSize = true;
             this.ActualLabel.ForeColor = System.Drawing.SystemColors.ControlText;
-            this.ActualLabel.Location = new System.Drawing.Point(299, 91);
+            this.ActualLabel.Location = new System.Drawing.Point(271, 53);
             this.ActualLabel.Name = "ActualLabel";
             this.ActualLabel.Size = new System.Drawing.Size(56, 17);
             this.ActualLabel.TabIndex = 20;
@@ -314,7 +335,7 @@
             // 
             this.RequiredLabel.AutoSize = true;
             this.RequiredLabel.ForeColor = System.Drawing.SystemColors.ControlText;
-            this.RequiredLabel.Location = new System.Drawing.Point(299, 35);
+            this.RequiredLabel.Location = new System.Drawing.Point(271, 12);
             this.RequiredLabel.Name = "RequiredLabel";
             this.RequiredLabel.Size = new System.Drawing.Size(72, 17);
             this.RequiredLabel.TabIndex = 21;
@@ -324,7 +345,7 @@
             // 
             this.RequiredSep.AutoSize = true;
             this.RequiredSep.ForeColor = System.Drawing.SystemColors.ControlText;
-            this.RequiredSep.Location = new System.Drawing.Point(388, 35);
+            this.RequiredSep.Location = new System.Drawing.Point(360, 12);
             this.RequiredSep.Name = "RequiredSep";
             this.RequiredSep.Size = new System.Drawing.Size(96, 17);
             this.RequiredSep.TabIndex = 22;
@@ -334,7 +355,7 @@
             // 
             this.ActualSep.AutoSize = true;
             this.ActualSep.ForeColor = System.Drawing.SystemColors.ControlText;
-            this.ActualSep.Location = new System.Drawing.Point(388, 91);
+            this.ActualSep.Location = new System.Drawing.Point(360, 53);
             this.ActualSep.Name = "ActualSep";
             this.ActualSep.Size = new System.Drawing.Size(80, 17);
             this.ActualSep.TabIndex = 23;
@@ -344,7 +365,7 @@
             // 
             this.PassingPointLabel.AutoSize = true;
             this.PassingPointLabel.ForeColor = System.Drawing.SystemColors.ControlText;
-            this.PassingPointLabel.Location = new System.Drawing.Point(259, 131);
+            this.PassingPointLabel.Location = new System.Drawing.Point(241, 82);
             this.PassingPointLabel.Name = "PassingPointLabel";
             this.PassingPointLabel.Size = new System.Drawing.Size(112, 17);
             this.PassingPointLabel.TabIndex = 24;
@@ -354,7 +375,7 @@
             // 
             this.ConflictSegLabel.AutoSize = true;
             this.ConflictSegLabel.ForeColor = System.Drawing.SystemColors.ControlText;
-            this.ConflictSegLabel.Location = new System.Drawing.Point(492, 131);
+            this.ConflictSegLabel.Location = new System.Drawing.Point(463, 82);
             this.ConflictSegLabel.Name = "ConflictSegLabel";
             this.ConflictSegLabel.Size = new System.Drawing.Size(112, 17);
             this.ConflictSegLabel.TabIndex = 25;
@@ -364,37 +385,11 @@
             // 
             this.LOSTime.AutoSize = true;
             this.LOSTime.ForeColor = System.Drawing.SystemColors.ControlText;
-            this.LOSTime.Location = new System.Drawing.Point(229, 91);
+            this.LOSTime.Location = new System.Drawing.Point(201, 53);
             this.LOSTime.Name = "LOSTime";
             this.LOSTime.Size = new System.Drawing.Size(64, 17);
             this.LOSTime.TabIndex = 26;
             this.LOSTime.Text = "LOSTime";
-            // 
-            // INTTOPdata
-            // 
-            this.INTTOPdata.Anchor = System.Windows.Forms.AnchorStyles.None;
-            this.INTTOPdata.AutoSize = true;
-            this.INTTOPdata.Font = new System.Drawing.Font("Terminus (TTF)", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.INTTOPdata.ForeColor = System.Drawing.SystemColors.ControlText;
-            this.INTTOPdata.Location = new System.Drawing.Point(263, 20);
-            this.INTTOPdata.Name = "INTTOPdata";
-            this.INTTOPdata.Size = new System.Drawing.Size(80, 34);
-            this.INTTOPdata.TabIndex = 25;
-            this.INTTOPdata.Text = "INTTOPdata";
-            this.INTTOPdata.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
-            // 
-            // ACTTOPdata
-            // 
-            this.ACTTOPdata.Anchor = System.Windows.Forms.AnchorStyles.None;
-            this.ACTTOPdata.AutoSize = true;
-            this.ACTTOPdata.Font = new System.Drawing.Font("Terminus (TTF)", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.ACTTOPdata.ForeColor = System.Drawing.SystemColors.ControlText;
-            this.ACTTOPdata.Location = new System.Drawing.Point(263, 91);
-            this.ACTTOPdata.Name = "ACTTOPdata";
-            this.ACTTOPdata.Size = new System.Drawing.Size(80, 34);
-            this.ACTTOPdata.TabIndex = 26;
-            this.ACTTOPdata.Text = "ACTTOPdata";
-            this.ACTTOPdata.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             // 
             // ConflictReportWindow
             // 
@@ -404,7 +399,7 @@
             this.AutoSize = true;
             this.BackColor = System.Drawing.SystemColors.ActiveBorder;
             this.BackgroundImageLayout = System.Windows.Forms.ImageLayout.None;
-            this.ClientSize = new System.Drawing.Size(661, 384);
+            this.ClientSize = new System.Drawing.Size(618, 305);
             this.Controls.Add(this.LOSTime);
             this.Controls.Add(this.ConflictSegLabel);
             this.Controls.Add(this.PassingPointLabel);
@@ -417,19 +412,20 @@
             this.Controls.Add(this.ConflictType);
             this.Controls.Add(this.CloseButton);
             this.Controls.Add(this.DrawButton);
-            this.Controls.Add(this.listBox1);
             this.Controls.Add(this.tableLayoutPanel2);
-            this.Controls.Add(this.tableLayoutPanel1);
             this.Controls.Add(this.ConflictDataList);
             this.Controls.Add(this.labelConflictData);
+            this.Controls.Add(this.tableLayoutPanel1);
             this.ForeColor = System.Drawing.SystemColors.ActiveBorder;
-            this.HasCloseButton = false;
             this.HasMinimizeButton = false;
-            this.MaximumSize = new System.Drawing.Size(665, 412);
-            this.MinimumSize = new System.Drawing.Size(665, 412);
+            this.HideOnClose = true;
+            this.MaximumSize = new System.Drawing.Size(622, 333);
+            this.MinimumSize = new System.Drawing.Size(622, 333);
             this.Name = "ConflictReportWindow";
+            this.Resizeable = false;
             this.RightToLeft = System.Windows.Forms.RightToLeft.No;
             this.Text = "CONFLICT REPORT";
+            this.TitleTextColor = System.Drawing.SystemColors.ActiveCaptionText;
             this.TopMost = true;
             this.Load += new System.EventHandler(this.ConflictReportWindow_Load);
             this.tableLayoutPanel1.ResumeLayout(false);
@@ -446,7 +442,6 @@
         private System.Windows.Forms.ListView ConflictDataList;
         private System.Windows.Forms.TableLayoutPanel tableLayoutPanel1;
         private System.Windows.Forms.TableLayoutPanel tableLayoutPanel2;
-        private System.Windows.Forms.ListBox listBox1;
         private System.Windows.Forms.Button DrawButton;
         private System.Windows.Forms.Button CloseButton;
         private System.Windows.Forms.Label ConflictType;

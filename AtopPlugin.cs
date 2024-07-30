@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel.Composition;
+using System.Threading;
 using AtopPlugin.Display;
 using AtopPlugin.State;
 using AtopPlugin.UI;
@@ -14,6 +15,7 @@ public class AtopPlugin : ILabelPlugin, IStripPlugin
 
     public AtopPlugin()
     {
+        ConflictSummaryWindow.Initialize(SynchronizationContext.Current); // Init error handler on ui thread
         RegisterEventHandlers();
         AtopMenu.Initialize();
         TempActivationMessagePopup.PopUpActivationMessageIfFirstTime();
