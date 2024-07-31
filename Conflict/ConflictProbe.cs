@@ -15,13 +15,15 @@ public static class ConflictProbe
     public static event EventHandler ConflictsUpdated;
     public static Conflicts Probe(FDP2.FDR fdr)
     {
-        if (!MMI.IsMySectorConcerned(fdr)) return EmptyConflicts();
+        if (!MMI.IsMySectorConcerned(fdr) 
+            && (fdr.State is FDR.FDRStates.STATE_INACTIVE or FDR.FDRStates.STATE_PREACTIVE or FDR.FDRStates.STATE_FINISHED)) return EmptyConflicts();
 
         var discoveredConflicts = new List<ConflictData>();
 
         var block1 = AltitudeBlock.ExtractAltitudeBlock(fdr);
         foreach (var fdr2 in FDP2.GetFDRs.Where(fdr2 =>
-                     fdr2 != null && fdr.Callsign != fdr2.Callsign && MMI.IsMySectorConcerned(fdr2)))
+                     fdr2 != null && fdr.Callsign != fdr2.Callsign && MMI.IsMySectorConcerned(fdr2)
+            && (fdr2.State is FDR.FDRStates.STATE_COORDINATED or FDR.FDRStates.STATE_CONTROLLED or FDR.FDRStates.STATE_HANDOVER)))
         {
             var data = new ConflictData();
 
@@ -57,8 +59,7 @@ public static class ConflictProbe
                     ///Coarse Filtering
 
                     //Temporal Test
-                    if ((fdr1StartTime - fdr2EndTime).Duration() < TimeSpan.FromMinutes(0)
-                        || (fdr2StartTime - fdr1EndTime).Duration() < TimeSpan.FromMinutes(0)) continue;
+                    if (!PassesTemporalTest(fdr1StartTime, fdr1EndTime, fdr2StartTime, fdr2EndTime)) continue;
 
                     //Vertical Test
                     if (maxAltFilter) continue;
@@ -203,6 +204,20 @@ public static class ConflictProbe
             }
         }        
         return GroupConflicts(discoveredConflicts);
+    }
+    public static bool PassesTemporalTest(DateTime fdr1StartTime, DateTime fdr1EndTime, DateTime fdr2StartTime, DateTime fdr2EndTime)
+    {
+        if ((fdr1StartTime - fdr2EndTime) > TimeSpan.Zero)
+        {
+            return false;
+        }
+
+        if ((fdr2StartTime - fdr1EndTime) > TimeSpan.Zero)
+        {
+            return false;
+        }
+
+        return true;
     }
 
     private static Conflicts EmptyConflicts()
