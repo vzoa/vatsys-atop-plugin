@@ -15,6 +15,7 @@ public static class ConflictProbe
     public static event EventHandler ConflictsUpdated;
     public static Conflicts Probe(FDP2.FDR fdr)
     {
+        ConflictDatas.Clear(); // Clear the list
         if (!MMI.IsMySectorConcerned(fdr) 
             && (fdr.State is FDR.FDRStates.STATE_INACTIVE or FDR.FDRStates.STATE_PREACTIVE or FDR.FDRStates.STATE_FINISHED)) return EmptyConflicts();
 
@@ -23,7 +24,7 @@ public static class ConflictProbe
         var block1 = AltitudeBlock.ExtractAltitudeBlock(fdr);
         foreach (var fdr2 in FDP2.GetFDRs.Where(fdr2 =>
                      fdr2 != null && fdr.Callsign != fdr2.Callsign && MMI.IsMySectorConcerned(fdr2)
-            && (fdr2.State is FDR.FDRStates.STATE_COORDINATED or FDR.FDRStates.STATE_CONTROLLED or FDR.FDRStates.STATE_HANDOVER)))
+            && (fdr2.State is FDR.FDRStates.STATE_COORDINATED or FDR.FDRStates.STATE_HANDOVER_FIRST or FDR.FDRStates.STATE_CONTROLLED or FDR.FDRStates.STATE_HANDOVER or FDR.FDRStates.STATE_UNCONTROLLED)))
         {
             var data = new ConflictData();
 
@@ -194,7 +195,7 @@ public static class ConflictProbe
                     data.VerticalAct));
 
                         ConflictDatas = discoveredConflicts;     //update the list
-                    }//discoveredConflicts.Add(data);
+                    }
 
                     
 

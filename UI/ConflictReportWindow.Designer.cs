@@ -105,6 +105,7 @@
             this.tableLayoutPanel1.Controls.Add(this.INTTOPdata, 3, 0);
             this.tableLayoutPanel1.Controls.Add(this.ACTTOPdata, 3, 1);
             this.tableLayoutPanel1.Enabled = false;
+            this.tableLayoutPanel1.ForeColor = System.Drawing.SystemColors.ControlText;
             this.tableLayoutPanel1.GrowStyle = System.Windows.Forms.TableLayoutPanelGrowStyle.FixedSize;
             this.tableLayoutPanel1.Location = new System.Drawing.Point(7, 102);
             this.tableLayoutPanel1.Name = "tableLayoutPanel1";

@@ -52,6 +52,8 @@ namespace AtopPlugin.UI
             InitializeComponent();
 
             ConflictsUpdated += UpdateConflicts;
+
+            conflictListView.MouseClick += ConflictListView_MouseClick; // Subscribe to the event only once   
         }
         private void UpdateConflicts(object sender, EventArgs e)
         {
@@ -97,10 +99,7 @@ namespace AtopPlugin.UI
                 item.SubItems.Add(conflict.ConflictEnd.ToString("HHmm").PadRight(4));
                 item.Tag = conflict;
                 conflictListView.Items.Add(item);
-
-
-
-                conflictListView.MouseClick += ConflictListView_MouseClick; // Subscribe to the event only once                
+             
 
                 conflictListView.Refresh();
                 this.Invoke((Action)(() => this.Visible = ConflictDatas.Any()));

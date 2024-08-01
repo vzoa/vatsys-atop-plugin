@@ -28,7 +28,7 @@ public static class JurisdictionManager
         // also drop them if we are not activated
         if ((!isInControlledSector && fdr.IsTrackedByMe && !await WillEnter(fdr)) ||
             (fdr.IsTrackedByMe && !AtopPluginStateManager.Activated))
-            MMI.HandoffToNone(fdr);
+            MMI.HandoffJurisdiction(fdr, atopState.NextSector);
     }
 
     public static async Task HandleRadarTrackUpdate(RDP.RadarTrack rt)
