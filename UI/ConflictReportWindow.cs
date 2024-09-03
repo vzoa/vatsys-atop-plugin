@@ -106,7 +106,7 @@ namespace AtopPlugin.UI
                 ACTcs.Text = SelectedConflict.Active.AircraftType + "\n" + SelectedConflict.Active.Callsign + "\n" + SelectedConflict.Active.TAS;
                 ACTAlt.Text = "F" + AltitudeBlock.ExtractAltitudeBlock(SelectedConflict.Active);
                 ACTTOPdata.Text = SelectedConflict.ConflictType == Models.ConflictType.OppositeDirection
-                    ? ConvertToArinc424(SelectedConflict.Top.Position1.Latitude, SelectedConflict.Top.Position2.Longitude) + "\n" + SelectedConflict.Top.Time : null;
+                    ? ConvertToArinc424(SelectedConflict.Top.Position1.Latitude, SelectedConflict.Top.Position2.Longitude) + "\n" + SelectedConflict.Top.Time.ToString("HHmm") : null;
                 ACTconfstart.Text = ConvertToArinc424(SelectedConflict.FirstConflictTime2.StartLatlong.Latitude, SelectedConflict.FirstConflictTime2.StartLatlong.Longitude) 
                     + "\n" + SelectedConflict.FirstConflictTime2.StartTime.ToString("HHmm");
                 ACTconfend.Text = ConvertToArinc424(SelectedConflict.FirstConflictTime2.EndLatlong.Latitude, SelectedConflict.FirstConflictTime2.EndLatlong.Longitude)
