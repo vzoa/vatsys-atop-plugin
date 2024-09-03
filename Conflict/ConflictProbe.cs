@@ -1,10 +1,19 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Drawing;
 using System.Linq;
 using AtopPlugin.Models;
 using vatsys;
 using static System.Windows.Forms.VisualStyles.VisualStyleElement;
 using static vatsys.FDP2;
+using SharpDX;
+using SharpDX.Direct2D1;
+using SharpDX.Direct3D;
+using SharpDX.Direct3D11;
+using SharpDX.DirectWrite;
+using SharpDX.DXGI;
+using SharpDX.Mathematics.Interop;
+using SharpDX.Windows;
 
 namespace AtopPlugin.Conflict;
 
@@ -16,10 +25,10 @@ public static class ConflictProbe
     public static Conflicts Probe(FDP2.FDR fdr)
     {
         ConflictDatas.Clear(); // Clear the list
-        if (!MMI.IsMySectorConcerned(fdr) 
+        if (!MMI.IsMySectorConcerned(fdr)
             && (fdr.State is FDR.FDRStates.STATE_INACTIVE or FDR.FDRStates.STATE_PREACTIVE or FDR.FDRStates.STATE_FINISHED)) return EmptyConflicts();
 
-        var discoveredConflicts = new List<ConflictData>();
+        var discoveredConflicts = new HashSet<ConflictData>();
 
         var block1 = AltitudeBlock.ExtractAltitudeBlock(fdr);
         foreach (var fdr2 in FDP2.GetFDRs.Where(fdr2 =>
@@ -84,7 +93,7 @@ public static class ConflictProbe
 
                     data.FirstConflictTime = conflictSegments1.FirstOrDefault();
                     data.FirstConflictTime2 = conflictSegments2.FirstOrDefault();
-                    
+
                     var failedLateral = conflictSegments1.Count > 0;
                     if (data.FirstConflictTime == null || data.FirstConflictTime2 == null || !failedLateral) continue;
 
@@ -171,41 +180,48 @@ public static class ConflictProbe
 
                     if (data.ConflictStatus != ConflictStatus.None)
                     {
-                    discoveredConflicts.Add(new ConflictData(
-                    data.FirstConflictTime,
-                    data.FirstConflictTime2,
-                    data.ConflictStatus,
-                    data.ConflictType,
-                    data.EarliestLos,
-                    data.LatestLos,
-                    data.ConflictEnd,
-                    data.Intruder,
-                    data.Active,
-                    data.LatSep,
-                    data.LongDistact,
-                    data.LongDistsep,
-                    data.LongTimeact,
-                    data.LongTimesep,
-                    data.LongType,
-                    data.TimeLongcross,
-                    data.TimeLongsame,
-                    data.Top,
-                    data.TrkAngle,
-                    data.VerticalSep,
-                    data.VerticalAct));
+                        var existingConflict = discoveredConflicts.FirstOrDefault(c =>
+                            c.Active == data.Active &&
+                            c.Intruder == data.Intruder &&
+                            c.ConflictType == data.ConflictType &&
+                            c.EarliestLos == data.EarliestLos &&
+                            c.LatestLos == data.LatestLos);
 
-                        ConflictDatas = discoveredConflicts;     //update the list
+                        if (existingConflict == null)
+                        {
+                            discoveredConflicts.Add(new ConflictData(
+                            data.FirstConflictTime,
+                            data.FirstConflictTime2,
+                            data.ConflictStatus,
+                            data.ConflictType,
+                            data.EarliestLos,
+                            data.LatestLos,
+                            data.ConflictEnd,
+                            data.Intruder,
+                            data.Active,
+                            data.LatSep,
+                            data.LongDistact,
+                            data.LongDistsep,
+                            data.LongTimeact,
+                            data.LongTimesep,
+                            data.LongType,
+                            data.TimeLongcross,
+                            data.TimeLongsame,
+                            data.Top,
+                            data.TrkAngle,
+                            data.VerticalSep,
+                            data.VerticalAct));
+
+                            ConflictDatas = discoveredConflicts.ToList();     //update the list
+                        }
+
+                        ConflictsUpdated?.Invoke(null, new EventArgs());
                     }
-
-                    
-
-
-                    ConflictsUpdated?.Invoke(null, new EventArgs());
                 }
-            }
-        }        
-        return GroupConflicts(discoveredConflicts);
-    }
+            }            
+        }
+        return GroupConflicts(discoveredConflicts.ToList());
+    } 
     public static bool PassesTemporalTest(DateTime fdr1StartTime, DateTime fdr1EndTime, DateTime fdr2StartTime, DateTime fdr2EndTime)
     {
         if ((fdr1StartTime - fdr2EndTime) > TimeSpan.Zero)
@@ -246,5 +262,6 @@ public static class ConflictProbe
         List<ConflictData> ActualConflicts,
         List<ConflictData> ImminentConflicts,
         List<ConflictData> AdvisoryConflicts);
+
 
 }

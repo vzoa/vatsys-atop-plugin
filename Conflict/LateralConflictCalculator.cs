@@ -7,8 +7,9 @@ using static vatsys.FDP2;
 
 namespace AtopPlugin.Conflict;
 
-public static class LateralConflictCalculator
+public class LateralConflictCalculator
 {
+    public List<ConflictSegment> ConflictSegments = new List<ConflictSegment>();
     public static List<ConflictSegment> CalculateAreaOfConflict(FDP2.FDR fdr1, FDP2.FDR fdr2, int value)
     {
         var fdr2SegmentsConflictingWithFdr1 = new List<ConflictSegment>();
