@@ -21,9 +21,9 @@ namespace AtopPlugin.UI
     {
         private static ConflictSummaryWindow instance;
 
-        public static ConflictData SelectedConflict;
-
         public static AtopAircraftState Fdr;
+
+        private static ConflictReportWindow report;
 
 
         private SynchronizationContext uiContext;
@@ -82,9 +82,9 @@ namespace AtopPlugin.UI
 
             conflictListView.Items.Clear();
 
-            var conflictDatas = await Task.Run(() => ConflictDatas.Distinct().OrderBy(t => t.EarliestLos));
+            var conflictDatas = await Task.Run(() => ConflictDatas.OrderBy(t => t.EarliestLos));
 
-            foreach (ConflictData conflict in conflictDatas.Distinct())
+            foreach (ConflictData conflict in conflictDatas)
             {
                 AtopAircraftDisplayState intAtt = new AtopAircraftDisplayState(conflict.Intruder.GetAtopState());
                 AtopAircraftDisplayState actAtt = new AtopAircraftDisplayState(conflict.Active.GetAtopState());
@@ -102,22 +102,34 @@ namespace AtopPlugin.UI
              
 
                 conflictListView.Refresh();
-                this.Invoke((Action)(() => this.Visible = ConflictDatas.Any()));
+                this.Invoke((Action)(() => this.Visible = ConflictDatas.Distinct().Any()));
             }
 
         }
+        private ConflictReportWindow reportWindow;
         private void ConflictListView_MouseClick(object sender, MouseEventArgs e)
         {
             if (e.Button == MouseButtons.Left)
             {
-                    ListViewItem item = conflictListView.SelectedItems[0];
-                    ConflictData conflictData = (ConflictData)item.Tag;
+                ListViewItem item = conflictListView.SelectedItems[0];
+                ConflictData conflictData = (ConflictData)item.Tag;
 
-                    ConflictReportWindow reportWindow = new ConflictReportWindow(conflictData);
-                    reportWindow.ShowDialog();
-                    reportWindow.DisplayConflictDetails();
-                    //reportWindow.Show(ActiveForm);               
+                DoShowreport(conflictData);
             }
+        }
+
+        private static void DoShowreport(ConflictData conflict)
+        {
+            if (report == null || report.IsDisposed)
+            {
+                report = new ConflictReportWindow(conflict);
+            }
+            else if (report.Visible)
+            {
+                return;
+            }
+
+            report.Show(Form.ActiveForm);
         }
     }
 }

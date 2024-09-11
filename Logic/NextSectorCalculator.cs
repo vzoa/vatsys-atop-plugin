@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Linq;
 using vatsys;
+using static vatsys.FDP2.FDR.ExtractedRoute;
 
 namespace AtopPlugin.Logic;
 
@@ -28,5 +29,14 @@ public static class NextSectorCalculator
         if (sector != null) nextSector = sector;
 
         return nextSector;
+    }
+
+    public static DateTime GetBoundaryTime(FDP2.FDR fdr)
+    {
+        var boundary = (from s in fdr.ParsedRoute.ToList()
+        where s.Type == FDP2.FDR.ExtractedRoute.Segment.SegmentTypes.ZPOINT 
+        select s).FirstOrDefault(s => s.ETO > DateTime.UtcNow);
+
+        return boundary?.ETO ?? DateTime.MaxValue;
     }
 }

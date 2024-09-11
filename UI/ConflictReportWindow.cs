@@ -117,10 +117,13 @@ namespace AtopPlugin.UI
             {
                 this.Close();
             }
-            this.Show(ActiveForm);
         }
 
-        private void CloseButton_Click(object sender, EventArgs e) => this.Close();
+        private void CloseButton_Click(object sender, EventArgs e) 
+        {
+            Close();
+            Dispose();
+        }
 
 
     }

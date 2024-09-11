@@ -1,25 +1,18 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Drawing;
 using System.Linq;
 using AtopPlugin.Models;
 using vatsys;
 using static System.Windows.Forms.VisualStyles.VisualStyleElement;
 using static vatsys.FDP2;
-using SharpDX;
-using SharpDX.Direct2D1;
-using SharpDX.Direct3D;
-using SharpDX.Direct3D11;
-using SharpDX.DirectWrite;
-using SharpDX.DXGI;
-using SharpDX.Mathematics.Interop;
-using SharpDX.Windows;
 
 namespace AtopPlugin.Conflict;
 
 public static class ConflictProbe
 {
     public static List<ConflictData> ConflictDatas { get; set; } = new List<ConflictData>();
+
+    
 
     public static event EventHandler ConflictsUpdated;
     public static Conflicts Probe(FDP2.FDR fdr)
@@ -180,42 +173,35 @@ public static class ConflictProbe
 
                     if (data.ConflictStatus != ConflictStatus.None)
                     {
-                        var existingConflict = discoveredConflicts.FirstOrDefault(c =>
-                            c.Active == data.Active &&
-                            c.Intruder == data.Intruder &&
-                            c.ConflictType == data.ConflictType &&
-                            c.EarliestLos == data.EarliestLos &&
-                            c.LatestLos == data.LatestLos);
+                        var newConflict = new ConflictData(
+                                data.FirstConflictTime,
+                                data.FirstConflictTime2,
+                                data.ConflictStatus,
+                                data.ConflictType,
+                                data.EarliestLos,
+                                data.LatestLos,
+                                data.ConflictEnd,
+                                data.Intruder,
+                                data.Active,
+                                data.LatSep,
+                                data.LongDistact,
+                                data.LongDistsep,
+                                data.LongTimeact,
+                                data.LongTimesep,
+                                data.LongType,
+                                data.TimeLongcross,
+                                data.TimeLongsame,
+                                data.Top,
+                                data.TrkAngle,
+                                data.VerticalSep,
+                                data.VerticalAct);
 
-                        if (existingConflict == null)
+                        if (!discoveredConflicts.Any(conflict => conflict.Equals(newConflict))) //check for duplicates
                         {
-                            discoveredConflicts.Add(new ConflictData(
-                            data.FirstConflictTime,
-                            data.FirstConflictTime2,
-                            data.ConflictStatus,
-                            data.ConflictType,
-                            data.EarliestLos,
-                            data.LatestLos,
-                            data.ConflictEnd,
-                            data.Intruder,
-                            data.Active,
-                            data.LatSep,
-                            data.LongDistact,
-                            data.LongDistsep,
-                            data.LongTimeact,
-                            data.LongTimesep,
-                            data.LongType,
-                            data.TimeLongcross,
-                            data.TimeLongsame,
-                            data.Top,
-                            data.TrkAngle,
-                            data.VerticalSep,
-                            data.VerticalAct));
-
-                            ConflictDatas = discoveredConflicts.ToList();     //update the list
+                            discoveredConflicts.Add(newConflict);
+                            ConflictDatas = discoveredConflicts.ToList();
+                            ConflictsUpdated?.Invoke(null, new EventArgs());
                         }
-
-                        ConflictsUpdated?.Invoke(null, new EventArgs());
                     }
                 }
             }            
