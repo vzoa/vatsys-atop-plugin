@@ -16,43 +16,71 @@ public static class AtopPluginStateManager
     private static readonly ConcurrentDictionary<string, ConflictProbe.Conflicts> Conflicts = new();
     private static bool _probeEnabled = Config.ConflictProbeEnabled;
     private static bool _activated = false;
+    private static readonly object _lock = new object();
 
     private static bool ProbeEnabled
     {
-        get => _probeEnabled;
+        get
+        {
+            lock (_lock)
+            {
+                return _probeEnabled;
+            }
+        }
         set
         {
-            _probeEnabled = value;
-            Config.ConflictProbeEnabled = value;
+            lock (_lock)
+            {
+                _probeEnabled = value;
+                Config.ConflictProbeEnabled = value;
+            }
         }
     }
 
     public static bool Activated
     {
-        get => _activated;
+        get
+        {
+            lock (_lock)
+            {
+                return _activated;
+            }
+        }
         set
         {
-            _activated = value;
-            AtopMenu.SetActivationState(value);
+            lock (_lock)
+            {
+                _activated = value;
+                AtopMenu.SetActivationState(value);
+            }
         }
     }
 
     public static AtopAircraftState? GetAircraftState(string callsign)
     {
-        var found = AircraftStates.TryGetValue(callsign, out var state);
-        return found ? state : null;
+        lock (_lock)
+        {
+            var found = AircraftStates.TryGetValue(callsign, out var state);
+            return found ? state : null;
+        }
     }
 
     public static AtopAircraftDisplayState? GetDisplayState(string callsign)
     {
-        var found = DisplayStates.TryGetValue(callsign, out var state);
-        return found ? state : null;
+        lock (_lock)
+        {
+            var found = DisplayStates.TryGetValue(callsign, out var state);
+            return found ? state : null;
+        }
     }
 
     public static ConflictProbe.Conflicts? GetConflicts(string callsign)
     {
-        var found = Conflicts.TryGetValue(callsign, out var state);
-        return found ? state : null;
+        lock (_lock)
+        {
+            var found = Conflicts.TryGetValue(callsign, out var state);
+            return found ? state : null;
+        }
     }
 
     public static async Task ProcessFdrUpdate(FDP2.FDR updated)
@@ -61,8 +89,11 @@ public static class AtopPluginStateManager
 
         if (FDP2.GetFDRIndex(callsign) == MissingFromFdpState)
         {
-            AircraftStates.TryRemove(callsign, out _);
-            DisplayStates.TryRemove(callsign, out _);
+            lock (_lock)
+            {
+                AircraftStates.TryRemove(callsign, out _);
+                DisplayStates.TryRemove(callsign, out _);
+            }
             return;
         }
 
@@ -70,7 +101,10 @@ public static class AtopPluginStateManager
         if (aircraftState == null)
         {
             aircraftState = await Task.Run(() => new AtopAircraftState(updated));
-            AircraftStates.TryAdd(callsign, aircraftState);
+            lock (_lock)
+            {
+                AircraftStates.TryAdd(callsign, aircraftState);
+            }
         }
         else
         {
@@ -88,7 +122,10 @@ public static class AtopPluginStateManager
         if (displayState == null)
         {
             displayState = await Task.Run(() => new AtopAircraftDisplayState(atopState));
-            DisplayStates.TryAdd(callsign, displayState);
+            lock (_lock)
+            {
+                DisplayStates.TryAdd(callsign, displayState);
+            }
         }
         else
         {
@@ -101,46 +138,61 @@ public static class AtopPluginStateManager
         if (ProbeEnabled)
         {
             var newConflicts = await Task.Run(() => ConflictProbe.Probe(fdr));
-            Conflicts.AddOrUpdate(fdr.Callsign, newConflicts, (_, _) => newConflicts);
+            lock (_lock)
+            {
+                Conflicts.AddOrUpdate(fdr.Callsign, newConflicts, (_, _) => newConflicts);
+            }
         }
     }
 
     public static bool IsConflictProbeEnabled()
     {
-        return ProbeEnabled;
+        lock (_lock)
+        {
+            return ProbeEnabled;
+        }
     }
 
     public static void SetConflictProbe(bool conflictProbeEnabled)
     {
-        ProbeEnabled = conflictProbeEnabled;
-        if (!ProbeEnabled) Conflicts.Clear();
+        lock (_lock)
+        {
+            ProbeEnabled = conflictProbeEnabled;
+            if (!ProbeEnabled) Conflicts.Clear();
+        }
     }
 
     public static void ToggleActivated()
     {
-        var newActivationState = !Activated;
-
-        switch (newActivationState)
+        lock (_lock)
         {
-            case true when !Network.IsConnected:
-                MessageBox.Show(@"Please connect to the network before activating");
-                return;
-            case true:
-                MessageBox.Show(@"Session activated");
-                break;
-            case false:
-                MessageBox.Show(@"Session deactivated");
-                break;
-        }
+            var newActivationState = !Activated;
 
-        Activated = newActivationState;
+            switch (newActivationState)
+            {
+                case true when !Network.IsConnected:
+                    MessageBox.Show(@"Please connect to the network before activating");
+                    return;
+                case true:
+                    MessageBox.Show(@"Session activated");
+                    break;
+                case false:
+                    MessageBox.Show(@"Session deactivated");
+                    break;
+            }
+
+            Activated = newActivationState;
+        }
     }
 
     public static void Reset()
     {
-        AircraftStates.Clear();
-        DisplayStates.Clear();
-        Conflicts.Clear();
-        Activated = false;
+        lock (_lock)
+        {
+            AircraftStates.Clear();
+            DisplayStates.Clear();
+            Conflicts.Clear();
+            Activated = false;
+        }
     }
 }

@@ -116,6 +116,7 @@ namespace AtopPlugin.UI
             if(!ConflictProbe.ConflictDatas.Any())
             {
                 this.Close();
+                this.Dispose();
             }
         }
 
