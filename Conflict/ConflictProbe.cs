@@ -11,18 +11,11 @@ namespace AtopPlugin.Conflict;
 public static class ConflictProbe
 {
     public static List<ConflictData> ConflictDatas { get; set; } = new List<ConflictData>();
-    private static DateTime lastProbeTime = DateTime.MinValue;
-    private const int cooldownSeconds = 10;
 
     public static event EventHandler ConflictsUpdated;
     public static Conflicts Probe(FDP2.FDR fdr)
     {
-        if (DateTime.UtcNow - lastProbeTime < TimeSpan.FromSeconds(cooldownSeconds))
-            {
-            return EmptyConflicts();
-            }
-        lastProbeTime = DateTime.UtcNow;
-            ConflictDatas.Clear(); // Clear the list
+        ConflictDatas.Clear(); // Clear the list
         if (!MMI.IsMySectorConcerned(fdr)
             && (fdr.State is FDR.FDRStates.STATE_INACTIVE or FDR.FDRStates.STATE_PREACTIVE or FDR.FDRStates.STATE_FINISHED)) return EmptyConflicts();
 

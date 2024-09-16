@@ -1,7 +1,4 @@
-﻿using System;
-using System.ComponentModel.Composition;
-using System.IO;
-using System.Threading;
+﻿using System.ComponentModel.Composition;
 using AtopPlugin.Display;
 using AtopPlugin.State;
 using AtopPlugin.UI;
@@ -12,11 +9,8 @@ namespace AtopPlugin
 {
 
     [Export(typeof(IPlugin))]
-    public class AtopPlugin : IPlugin
+    public class AtopPlugin : ILabelPlugin, IStripPlugin
     {
-        private DateTime lastFdrUpdate = DateTime.MinValue;
-        private TimeSpan cooldownDuration = TimeSpan.FromSeconds(10);
-
         public AtopPlugin()
         {
             RegisterEventHandlers();
@@ -40,13 +34,6 @@ namespace AtopPlugin
 
         public void OnFDRUpdate(FDP2.FDR updated)
         {
-            if (DateTime.Now - lastFdrUpdate < cooldownDuration)
-            {
-                return; // Ignore the update if cooldown duration hasn't passed
-            }
-
-            lastFdrUpdate = DateTime.Now;
-
             _ = AtopPluginStateManager.ProcessFdrUpdate(updated);
             _ = AtopPluginStateManager.ProcessDisplayUpdate(updated);
             _ = AtopPluginStateManager.RunConflictProbe(updated);
