@@ -32,9 +32,11 @@ public class PacificMinimaDelegate : IMinimaDelegate
 
         if (CanApplyRnp10(fdr1) && CanApplyRnp10(fdr2)) return Rnp10Lateral;
 
-        if (CanApplyRnp4(fdr1) && CanApplyRnp10(fdr2) || CanApplyRnp10(fdr1) && CanApplyRnp4(fdr2)) return Rnp10Lateral;
+        if ((CanApplyRnp4(fdr1) && CanApplyRnp10(fdr2)) || (CanApplyRnp10(fdr1) && CanApplyRnp4(fdr2)))
+            return Rnp10Lateral;
 
-        if (!CanApplyRnp4(fdr1) && !CanApplyRnp10(fdr1) && CanApplyRnp10(fdr2) || CanApplyRnp4(fdr2)) return (Rnp10Lateral + StandardLateral) / 2 ;
+        if ((!CanApplyRnp4(fdr1) && !CanApplyRnp10(fdr1) && CanApplyRnp10(fdr2)) || CanApplyRnp4(fdr2))
+            return (Rnp10Lateral + StandardLateral) / 2;
 
         return StandardLateral;
     }

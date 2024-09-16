@@ -27,7 +27,8 @@ public static class JurisdictionManager
 
         // Normal state of an aircraft progressing towards the next FIR, implicit transfer of control 1 min prior to boundary
         if (AtopPluginStateManager.Activated && isInControlledSector && fdr.IsTracked &&
-            atopState is { WasHandedOff: false } && DateTime.UtcNow == atopState.BoundaryTime.Subtract(TimeSpan.FromMinutes(1)))
+            atopState is { WasHandedOff: false } &&
+            DateTime.UtcNow == atopState.BoundaryTime.Subtract(TimeSpan.FromMinutes(1)))
             MMI.HandoffJurisdiction(fdr, atopState.NextSector);
 
 

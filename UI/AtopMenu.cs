@@ -20,7 +20,6 @@ public static class AtopMenu
         InitializeSettingsMenu();
         InitializeVersionItem();
         InitializeConflictSummaryWindow();
-
     }
 
     // empty method to force static class initialization to happen
@@ -38,6 +37,7 @@ public static class AtopMenu
         conflictWindowItem.Item.Click += (_, _) => MMI.InvokeOnGUI(ConflictSummaryWindow.Show);
         MMI.AddCustomMenuItem(conflictWindowItem);
     }
+
     private static void InitializeSettingsMenu()
     {
         var settingsMenuItem = new CustomToolStripMenuItem(CustomToolStripMenuItemWindowType.Main,

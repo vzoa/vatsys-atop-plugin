@@ -53,7 +53,8 @@ public class AtopAircraftDisplayState
         AltitudeFlag =
             AltitudeCalculator.CalculateAltitudeFlag(atopAircraftState.Fdr, atopAircraftState.PendingAltitudeChange);
         ConflictAttitudeFlag =
-            AltitudeCalculator.CalculateConflictAttitudeFlag(atopAircraftState.Fdr, atopAircraftState.PendingAltitudeChange);
+            AltitudeCalculator.CalculateConflictAttitudeFlag(atopAircraftState.Fdr,
+                atopAircraftState.PendingAltitudeChange);
     }
 
 
@@ -70,7 +71,6 @@ public class AtopAircraftDisplayState
             return Symbols.OppositeDirection;
 
         return Symbols.SameDirection;
-
     }
 
     private static string GetCpdlcAdsbSymbol(AtopAircraftState atopAircraftState)

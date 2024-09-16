@@ -84,7 +84,7 @@ public static class StripConstants
     public const string StripItemAnnotInd = "AURORA_ANNOT_STRIP";
     public const string StripItemLateralFlag = "AURORA_LATERAL_FLAG";
     public const string StripItemRestr = "AURORA_RESTR_STRIP";
-    public const string StripItemClrdRte = "AURORA_CLRD_RTE";    
+    public const string StripItemClrdRte = "AURORA_CLRD_RTE";
 }
 
 public static class LabelConstants

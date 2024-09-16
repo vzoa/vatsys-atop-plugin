@@ -89,24 +89,18 @@ public static class StripItemRenderer
 
     private static CustomStripItem RenderPointStripItem(FDP2.FDR fdr)
     {
+        var stripItem = new StripItem();
 
-        StripItem stripItem = new StripItem();
-
-        FDP2.FDR.ExtractedRoute.Segment segment = (FDP2.FDR.ExtractedRoute.Segment)null;
+        var segment = (Segment)null;
         segment = fdr.ParsedRoute[stripItem.PointIndex + 1];
-        string text = segment.Intersection.Name;
+        var text = segment.Intersection.Name;
         var customItem = new CustomStripItem { Text = text };
         if (stripItem.PointIndexSpecified && fdr.ParsedRoute.Count > stripItem.PointIndex)
         {
-                       
             if (Airspace2.GetIntersection(text, segment.Intersection.LatLong) == null)
-            {
                 text = Conversions.ConvertToReadableLatLongDDDMM(segment.Intersection.LatLong).ToString();
-            }
-            else if (segment.Intersection.Type == Airspace2.Intersection.Types.Unknown && segment.Intersection.FullName != "")
-            {
-                text = segment.Intersection.FullName;
-            }
+            else if (segment.Intersection.Type == Airspace2.Intersection.Types.Unknown &&
+                     segment.Intersection.FullName != "") text = segment.Intersection.FullName;
 
             customItem = new CustomStripItem { Text = text };
         }
@@ -114,6 +108,7 @@ public static class StripItemRenderer
 
         return customItem;
     }
+
     private static CustomStripItem RenderCallsignStripItem(FDP2.FDR fdr)
     {
         var stripItem = GetStripItemWithColorsForDirection(fdr.GetAtopState()?.DirectionOfFlight);

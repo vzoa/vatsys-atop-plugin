@@ -10,21 +10,25 @@ namespace AtopPlugin.Conflict;
 
 public static class ConflictProbe
 {
-    public static List<ConflictData> ConflictDatas { get; set; } = new List<ConflictData>();
+    public static List<ConflictData> ConflictDatas { get; set; } = new();
 
     public static event EventHandler ConflictsUpdated;
-    public static Conflicts Probe(FDP2.FDR fdr)
+
+    public static Conflicts Probe(FDR fdr)
     {
         ConflictDatas.Clear(); // Clear the list
         if (!MMI.IsMySectorConcerned(fdr)
-            && (fdr.State is FDR.FDRStates.STATE_INACTIVE or FDR.FDRStates.STATE_PREACTIVE or FDR.FDRStates.STATE_FINISHED)) return EmptyConflicts();
+            && fdr.State is FDR.FDRStates.STATE_INACTIVE or FDR.FDRStates.STATE_PREACTIVE
+                or FDR.FDRStates.STATE_FINISHED) return EmptyConflicts();
 
         var discoveredConflicts = new HashSet<ConflictData>();
 
         var block1 = AltitudeBlock.ExtractAltitudeBlock(fdr);
-        foreach (var fdr2 in FDP2.GetFDRs.Where(fdr2 =>
+        foreach (var fdr2 in GetFDRs.Where(fdr2 =>
                      fdr2 != null && fdr.Callsign != fdr2.Callsign && MMI.IsMySectorConcerned(fdr2)
-            && (fdr2.State is FDR.FDRStates.STATE_COORDINATED or FDR.FDRStates.STATE_HANDOVER_FIRST or FDR.FDRStates.STATE_CONTROLLED or FDR.FDRStates.STATE_HANDOVER or FDR.FDRStates.STATE_UNCONTROLLED)))
+                     && fdr2.State is FDR.FDRStates.STATE_COORDINATED or FDR.FDRStates.STATE_HANDOVER_FIRST
+                         or FDR.FDRStates.STATE_CONTROLLED or FDR.FDRStates.STATE_HANDOVER
+                         or FDR.FDRStates.STATE_UNCONTROLLED))
         {
             var data = new ConflictData();
 
@@ -36,12 +40,12 @@ public static class ConflictProbe
             for (var p = 0; p < rte.Count - 1; p++)
             {
                 var trk = Conversions.CalculateTrack(rte[p].Intersection.LatLong,
-                rte[p + 1].Intersection.LatLong);
+                    rte[p + 1].Intersection.LatLong);
 
                 for (var p2 = 0; p2 < rte2.Count - 1; p2++)
                 {
                     var trk2 = Conversions.CalculateTrack(rte2[p2].Intersection.LatLong,
-                    rte2[p2 + 1].Intersection.LatLong);
+                        rte2[p2 + 1].Intersection.LatLong);
                     data.TrkAngle = Math.Abs(trk2 - trk);
                     var sameDir = data.TrkAngle < 45;
                     var crossing = (data.TrkAngle >= 45 && data.TrkAngle <= 135) ||
@@ -80,7 +84,8 @@ public static class ConflictProbe
                     var conflictSegments2 = LateralConflictCalculator.CalculateAreaOfConflict(fdr2, fdr, data.LatSep);
 
                     conflictSegments1.Sort((s, t) => s.StartTime.CompareTo(t.StartTime)); //sort by first conflict time
-                    conflictSegments2.Sort((s, t) => s.StartTime.CompareTo(t.StartTime)); //sort by first conflict time                   
+                    conflictSegments2.Sort((s, t) =>
+                        s.StartTime.CompareTo(t.StartTime)); //sort by first conflict time                   
 
                     data.FirstConflictTime = conflictSegments1.FirstOrDefault();
                     data.FirstConflictTime2 = conflictSegments2.FirstOrDefault();
@@ -90,7 +95,8 @@ public static class ConflictProbe
 
                     //Longitudinal Test
                     data.LongTimesep = MinimaCalculator.Instance.GetLongitudinalTimeMinima(fdr, fdr2);
-                    data.LongTimeact = (data.FirstConflictTime2.StartTime - data.FirstConflictTime.StartTime).Duration();
+                    data.LongTimeact =
+                        (data.FirstConflictTime2.StartTime - data.FirstConflictTime.StartTime).Duration();
                     data.LongDistsep = MinimaCalculator.Instance.GetLongitudinalDistanceMinima(fdr, fdr2);
                     data.LongDistact = Conversions.CalculateDistance(data.FirstConflictTime.StartLatlong,
                         data.FirstConflictTime2.StartLatlong);
@@ -172,27 +178,27 @@ public static class ConflictProbe
                     if (data.ConflictStatus != ConflictStatus.None)
                     {
                         var newConflict = new ConflictData(
-                                data.FirstConflictTime,
-                                data.FirstConflictTime2,
-                                data.ConflictStatus,
-                                data.ConflictType,
-                                data.EarliestLos,
-                                data.LatestLos,
-                                data.ConflictEnd,
-                                data.Intruder,
-                                data.Active,
-                                data.LatSep,
-                                data.LongDistact,
-                                data.LongDistsep,
-                                data.LongTimeact,
-                                data.LongTimesep,
-                                data.LongType,
-                                data.TimeLongcross,
-                                data.TimeLongsame,
-                                data.Top,
-                                data.TrkAngle,
-                                data.VerticalSep,
-                                data.VerticalAct);
+                            data.FirstConflictTime,
+                            data.FirstConflictTime2,
+                            data.ConflictStatus,
+                            data.ConflictType,
+                            data.EarliestLos,
+                            data.LatestLos,
+                            data.ConflictEnd,
+                            data.Intruder,
+                            data.Active,
+                            data.LatSep,
+                            data.LongDistact,
+                            data.LongDistsep,
+                            data.LongTimeact,
+                            data.LongTimesep,
+                            data.LongType,
+                            data.TimeLongcross,
+                            data.TimeLongsame,
+                            data.Top,
+                            data.TrkAngle,
+                            data.VerticalSep,
+                            data.VerticalAct);
 
                         if (!discoveredConflicts.Any(conflict => conflict.Equals(newConflict))) //check for duplicates
                         {
@@ -202,21 +208,18 @@ public static class ConflictProbe
                         }
                     }
                 }
-            }            
-        }
-        return GroupConflicts(discoveredConflicts.ToList());
-    } 
-    public static bool PassesTemporalTest(DateTime fdr1StartTime, DateTime fdr1EndTime, DateTime fdr2StartTime, DateTime fdr2EndTime)
-    {
-        if ((fdr1StartTime - fdr2EndTime) > TimeSpan.Zero)
-        {
-            return false;
+            }
         }
 
-        if ((fdr2StartTime - fdr1EndTime) > TimeSpan.Zero)
-        {
-            return false;
-        }
+        return GroupConflicts(discoveredConflicts.ToList());
+    }
+
+    public static bool PassesTemporalTest(DateTime fdr1StartTime, DateTime fdr1EndTime, DateTime fdr2StartTime,
+        DateTime fdr2EndTime)
+    {
+        if (fdr1StartTime - fdr2EndTime > TimeSpan.Zero) return false;
+
+        if (fdr2StartTime - fdr1EndTime > TimeSpan.Zero) return false;
 
         return true;
     }
@@ -246,6 +249,4 @@ public static class ConflictProbe
         List<ConflictData> ActualConflicts,
         List<ConflictData> ImminentConflicts,
         List<ConflictData> AdvisoryConflicts);
-
-
 }

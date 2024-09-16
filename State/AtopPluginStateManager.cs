@@ -16,7 +16,7 @@ public static class AtopPluginStateManager
     private static readonly ConcurrentDictionary<string, ConflictProbe.Conflicts> Conflicts = new();
     private static bool _probeEnabled = Config.ConflictProbeEnabled;
     private static bool _activated = false;
-    private static readonly object _lock = new object();
+    private static readonly object _lock = new();
 
     private static bool ProbeEnabled
     {
@@ -94,6 +94,7 @@ public static class AtopPluginStateManager
                 AircraftStates.TryRemove(callsign, out _);
                 DisplayStates.TryRemove(callsign, out _);
             }
+
             return;
         }
 
