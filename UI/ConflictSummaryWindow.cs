@@ -1,43 +1,26 @@
-﻿using System.Windows.Forms;
-using System;
+﻿using System;
 using System.Collections.Generic;
-using AtopPlugin.Conflict;
-using vatsys;
-using System.Drawing;
-using System.Threading.Tasks;
-using static vatsys.FDP2;
-using AtopPlugin.State;
 using System.Linq;
-using static vatsys.CPDLC;
-using AtopPlugin.Models;
-using static System.Windows.Forms.VisualStyles.VisualStyleElement;
-using static vatsys.FDP2.FDR.ExtractedRoute;
-using System.Threading;
+using System.Threading.Tasks;
+using System.Windows.Forms;
+using AtopPlugin.Conflict;
+using AtopPlugin.State;
+using vatsys;
 using static AtopPlugin.Conflict.ConflictProbe;
 
 namespace AtopPlugin.UI;
 
 public partial class ConflictSummaryWindow : BaseForm
 {
-    private SynchronizationContext uiContext;
-
-    private ConflictSummaryWindow(SynchronizationContext context)
-    {
-        uiContext = context ?? throw new ArgumentNullException(nameof(context));
-        InitializeComponent();
-        ConflictsUpdated += UpdateConflicts;
-        conflictListView.MouseClick += ConflictListView_MouseClick; // Subscribe to the event only once
-    }
-
     public ConflictSummaryWindow()
     {
+        InitializeComponent();
+        ConflictsUpdated += ConflictSummaryWindow_Load;
+        conflictListView.MouseClick += ConflictListView_MouseClick; // Subscribe to the event only once\
+        conflictListView.View = View.Details;
+        conflictListView.HeaderStyle = ColumnHeaderStyle.None;
     }
-
-    private void UpdateConflicts(object sender, EventArgs e)
-    {
-        _ = DisplayConflictsAsync();
-    }
-
+    
     private async void ConflictSummaryWindow_Load(object sender, EventArgs e)
     {
         await DisplayConflictsAsync();
@@ -45,9 +28,6 @@ public partial class ConflictSummaryWindow : BaseForm
 
     private async Task DisplayConflictsAsync()
     {
-        conflictListView.View = View.Details;
-        conflictListView.HeaderStyle = ColumnHeaderStyle.None;
-
         // Only clear and add columns if necessary
         if (conflictListView.Columns.Count == 0)
         {
@@ -60,8 +40,6 @@ public partial class ConflictSummaryWindow : BaseForm
             conflictListView.Columns.Add("Earliest LOS", 80, HorizontalAlignment.Left);
             conflictListView.Columns.Add("Conflict End", 80, HorizontalAlignment.Left);
         }
-
-        conflictListView.Items.Clear();
 
         // Fetch and process conflicts in the background
         var conflictDatas = await Task.Run(() => ConflictDatas.OrderBy(t => t.EarliestLos).ToList());
@@ -92,14 +70,22 @@ public partial class ConflictSummaryWindow : BaseForm
             }
         }
 
-        // Add all items at once to avoid repetitive updates
-        conflictListView.Items.AddRange(listViewItems.ToArray());
+        conflictListView.Invoke(new MethodInvoker(() =>
+        {
+            conflictListView.Items.Clear();
 
-        // Perform UI updates only after all data is processed
-        conflictListView.Refresh();
+            // Add all items at once to avoid repetitive updates
+            conflictListView.Items.AddRange(listViewItems.ToArray());
 
-        // Avoid multiple distinct checks inside the loop
-        Visible = conflictDatas.Any();
+            // Perform UI updates only after all data is processed
+            conflictListView.Refresh();
+        }));
+
+        Invoke(new MethodInvoker(() =>
+        {
+            // Avoid multiple distinct checks inside the loop
+            Visible = conflictDatas.Any();
+        }));
     }
 
     private void ConflictListView_MouseClick(object sender, MouseEventArgs e)

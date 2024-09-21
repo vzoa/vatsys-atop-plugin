@@ -129,9 +129,7 @@
             // 
             // conflictListView
             // 
-            this.conflictListView.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
-            | System.Windows.Forms.AnchorStyles.Left) 
-            | System.Windows.Forms.AnchorStyles.Right)));
+            this.conflictListView.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) | System.Windows.Forms.AnchorStyles.Left) | System.Windows.Forms.AnchorStyles.Right)));
             this.conflictListView.BackColor = System.Drawing.Color.Red;
             this.conflictListView.ForeColor = System.Drawing.SystemColors.Window;
             this.conflictListView.FullRowSelect = true;
@@ -140,7 +138,7 @@
             this.conflictListView.Location = new System.Drawing.Point(11, 35);
             this.conflictListView.MultiSelect = false;
             this.conflictListView.Name = "conflictListView";
-            this.conflictListView.Size = new System.Drawing.Size(444, 82);
+            this.conflictListView.Size = new System.Drawing.Size(444, 131);
             this.conflictListView.TabIndex = 19;
             this.conflictListView.UseCompatibleStateImageBehavior = false;
             // 
@@ -151,7 +149,7 @@
             this.AutoScroll = true;
             this.AutoSize = true;
             this.BackColor = System.Drawing.SystemColors.Control;
-            this.ClientSize = new System.Drawing.Size(468, 130);
+            this.ClientSize = new System.Drawing.Size(468, 179);
             this.Controls.Add(this.EndTimeText);
             this.Controls.Add(this.TypeText);
             this.Controls.Add(this.StartTimeText);
@@ -173,7 +171,6 @@
             this.Load += new System.EventHandler(this.ConflictSummaryWindow_Load);
             this.ResumeLayout(false);
             this.PerformLayout();
-
         }
 
         #endregion
