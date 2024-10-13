@@ -138,7 +138,7 @@
             this.conflictListView.Location = new System.Drawing.Point(11, 35);
             this.conflictListView.MultiSelect = false;
             this.conflictListView.Name = "conflictListView";
-            this.conflictListView.Size = new System.Drawing.Size(444, 131);
+            this.conflictListView.Size = new System.Drawing.Size(444, 167);
             this.conflictListView.TabIndex = 19;
             this.conflictListView.UseCompatibleStateImageBehavior = false;
             // 
@@ -149,7 +149,7 @@
             this.AutoScroll = true;
             this.AutoSize = true;
             this.BackColor = System.Drawing.SystemColors.Control;
-            this.ClientSize = new System.Drawing.Size(468, 179);
+            this.ClientSize = new System.Drawing.Size(468, 215);
             this.Controls.Add(this.EndTimeText);
             this.Controls.Add(this.TypeText);
             this.Controls.Add(this.StartTimeText);
@@ -159,8 +159,7 @@
             this.Controls.Add(this.Att1Text);
             this.Controls.Add(this.IntruderText);
             this.Controls.Add(this.conflictListView);
-            this.HasCloseButton = false;
-            this.HasMinimizeButton = false;
+            this.HideOnClose = true;
             this.MaximumSize = new System.Drawing.Size(472, 1280);
             this.MinimumSize = new System.Drawing.Size(472, 158);
             this.Name = "ConflictSummaryWindow";

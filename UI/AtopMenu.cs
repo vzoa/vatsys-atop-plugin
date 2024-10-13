@@ -30,7 +30,7 @@ public static class AtopMenu
     private static void InitializeConflictSummaryWindow()
     {
         var conflictWindowItem = new CustomToolStripMenuItem(CustomToolStripMenuItemWindowType.Main,
-            CustomToolStripMenuItemCategory.Custom, new ToolStripMenuItem("Conflict Summary"))
+            CustomToolStripMenuItemCategory.Custom, new ToolStripMenuItem("Conflict Summary") { Enabled = false })
         {
             CustomCategoryName = CategoryName
         };
