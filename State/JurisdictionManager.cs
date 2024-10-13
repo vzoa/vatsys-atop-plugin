@@ -14,6 +14,7 @@ public static class JurisdictionManager
         // Delay the processing so that vatSys can sync EST state
         await Task.Delay(FdrUpdateDelay);
 
+        //TODO: Logic to exclude initial coordination if ATC Facility is staffed?
         if (!fdr.ESTed && MMI.IsMySectorConcerned(fdr)) MMI.EstFDR(fdr);
 
         var isInControlledSector = await IsInControlledSector(fdr.GetLocation(), fdr.PRL);
@@ -24,11 +25,18 @@ public static class JurisdictionManager
             atopState is { WasHandedOff: false })
             MMI.AcceptJurisdiction(fdr);
 
-        // if they're outside sector, currently tracked, and not going to re-enter, drop them
+        // Normal state of an aircraft progressing towards the next FIR, implicit transfer of control 1 min prior to boundary
+        if (AtopPluginStateManager.Activated && isInControlledSector && fdr.IsTracked &&
+            atopState is { WasHandedOff: false } &&
+            DateTime.UtcNow == atopState.BoundaryTime.Subtract(TimeSpan.FromMinutes(1)))
+            MMI.HandoffJurisdiction(fdr, atopState.NextSector);
+
+
+        // if they're outside sector, currently tracked, and not going to re-enter, hand FP off to next sector
         // also drop them if we are not activated
         if ((!isInControlledSector && fdr.IsTrackedByMe && !await WillEnter(fdr)) ||
             (fdr.IsTrackedByMe && !AtopPluginStateManager.Activated))
-            MMI.HandoffToNone(fdr);
+            MMI.HandoffJurisdiction(fdr, atopState.NextSector);
     }
 
     public static async Task HandleRadarTrackUpdate(RDP.RadarTrack rt)

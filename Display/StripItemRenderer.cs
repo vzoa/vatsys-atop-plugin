@@ -1,6 +1,9 @@
 ﻿using AtopPlugin.Models;
+using System.Collections.Generic;
 using vatsys;
 using vatsys.Plugin;
+using static System.Net.Mime.MediaTypeNames;
+using static vatsys.FDP2.FDR.ExtractedRoute;
 
 namespace AtopPlugin.Display;
 
@@ -58,6 +61,8 @@ public static class StripItemRenderer
 
             StripConstants.StripItemRequestedLevel => new CustomStripItem { Text = displayState.RequestedLevel },
 
+            StripConstants.StripItemPoint => RenderPointStripItem(fdr),
+
             StripConstants.StripItemRoute => new CustomStripItem { Text = Symbols.StripRouteItem },
 
             StripConstants.StripItemRadarInd => new CustomStripItem { Text = Symbols.StripRadarIndicator },
@@ -80,6 +85,28 @@ public static class StripItemRenderer
 
             _ => null
         };
+    }
+
+    private static CustomStripItem RenderPointStripItem(FDP2.FDR fdr)
+    {
+        var stripItem = new StripItem();
+
+        var segment = (Segment)null;
+        segment = fdr.ParsedRoute[stripItem.PointIndex + 1];
+        var text = segment.Intersection.Name;
+        var customItem = new CustomStripItem { Text = text };
+        if (stripItem.PointIndexSpecified && fdr.ParsedRoute.Count > stripItem.PointIndex)
+        {
+            if (Airspace2.GetIntersection(text, segment.Intersection.LatLong) == null)
+                text = Conversions.ConvertToReadableLatLongDDDMM(segment.Intersection.LatLong).ToString();
+            else if (segment.Intersection.Type == Airspace2.Intersection.Types.Unknown &&
+                     segment.Intersection.FullName != "") text = segment.Intersection.FullName;
+
+            customItem = new CustomStripItem { Text = text };
+        }
+
+
+        return customItem;
     }
 
     private static CustomStripItem RenderCallsignStripItem(FDP2.FDR fdr)

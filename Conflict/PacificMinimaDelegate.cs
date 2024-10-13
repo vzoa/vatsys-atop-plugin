@@ -1,6 +1,7 @@
 using System;
 using AtopPlugin.Models;
 using vatsys;
+using System.Linq;
 
 namespace AtopPlugin.Conflict;
 
@@ -13,7 +14,7 @@ public class PacificMinimaDelegate : IMinimaDelegate
     private const int StandardVertical = 1000;
     private const int NonRvsmVertical = 2000;
     private const int SupersonicVertical = 4000;
-    private const int Above600Vertical = 5000;
+    public const int Above600Vertical = 5000;
 
     private const int TimeLongitudinal = 15;
     private const int JetLongitudinal = 10;
@@ -30,6 +31,12 @@ public class PacificMinimaDelegate : IMinimaDelegate
         if (CanApplyRnp4(fdr1) && CanApplyRnp4(fdr2)) return Rnp4Lateral;
 
         if (CanApplyRnp10(fdr1) && CanApplyRnp10(fdr2)) return Rnp10Lateral;
+
+        if ((CanApplyRnp4(fdr1) && CanApplyRnp10(fdr2)) || (CanApplyRnp10(fdr1) && CanApplyRnp4(fdr2)))
+            return Rnp10Lateral;
+
+        if ((!CanApplyRnp4(fdr1) && !CanApplyRnp10(fdr1) && CanApplyRnp10(fdr2)) || CanApplyRnp4(fdr2))
+            return (Rnp10Lateral + StandardLateral) / 2;
 
         return StandardLateral;
     }
