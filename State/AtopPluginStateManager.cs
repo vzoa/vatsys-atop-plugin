@@ -15,40 +15,27 @@ public static class AtopPluginStateManager
     private static readonly ConcurrentDictionary<string, AtopAircraftDisplayState> DisplayStates = new();
     private static readonly ConcurrentDictionary<string, ConflictProbe.Conflicts> Conflicts = new();
     private static bool _probeEnabled = Config.ConflictProbeEnabled;
-    private static bool _activated = false;
-    private static readonly object _lock = new();
+    private static bool _activated;
+    private static readonly object StatesLock = new();
+    private static readonly object ConflictProbeLock = new();
+    private static readonly object ActivationLock = new();
 
     private static bool ProbeEnabled
     {
-        get
-        {
-            lock (_lock)
-            {
-                return _probeEnabled;
-            }
-        }
+        get => _probeEnabled;
         set
         {
-            lock (_lock)
-            {
-                _probeEnabled = value;
-                Config.ConflictProbeEnabled = value;
-            }
+            _probeEnabled = value;
+            Config.ConflictProbeEnabled = value;
         }
     }
 
     public static bool Activated
     {
-        get
+        get => _activated;
+        private set
         {
-            lock (_lock)
-            {
-                return _activated;
-            }
-        }
-        set
-        {
-            lock (_lock)
+            lock (ActivationLock)
             {
                 _activated = value;
                 AtopMenu.SetActivationState(value);
@@ -58,29 +45,20 @@ public static class AtopPluginStateManager
 
     public static AtopAircraftState? GetAircraftState(string callsign)
     {
-        lock (_lock)
-        {
-            var found = AircraftStates.TryGetValue(callsign, out var state);
-            return found ? state : null;
-        }
+        var found = AircraftStates.TryGetValue(callsign, out var state);
+        return found ? state : null;
     }
 
     public static AtopAircraftDisplayState? GetDisplayState(string callsign)
     {
-        lock (_lock)
-        {
-            var found = DisplayStates.TryGetValue(callsign, out var state);
-            return found ? state : null;
-        }
+        var found = DisplayStates.TryGetValue(callsign, out var state);
+        return found ? state : null;
     }
 
     public static ConflictProbe.Conflicts? GetConflicts(string callsign)
     {
-        lock (_lock)
-        {
-            var found = Conflicts.TryGetValue(callsign, out var state);
-            return found ? state : null;
-        }
+        var found = Conflicts.TryGetValue(callsign, out var state);
+        return found ? state : null;
     }
 
     public static async Task ProcessFdrUpdate(FDP2.FDR updated)
@@ -89,7 +67,7 @@ public static class AtopPluginStateManager
 
         if (FDP2.GetFDRIndex(callsign) == MissingFromFdpState)
         {
-            lock (_lock)
+            lock (StatesLock)
             {
                 AircraftStates.TryRemove(callsign, out _);
                 DisplayStates.TryRemove(callsign, out _);
@@ -102,7 +80,7 @@ public static class AtopPluginStateManager
         if (aircraftState == null)
         {
             aircraftState = await Task.Run(() => new AtopAircraftState(updated));
-            lock (_lock)
+            lock (StatesLock)
             {
                 AircraftStates.TryAdd(callsign, aircraftState);
             }
@@ -123,7 +101,7 @@ public static class AtopPluginStateManager
         if (displayState == null)
         {
             displayState = await Task.Run(() => new AtopAircraftDisplayState(atopState));
-            lock (_lock)
+            lock (StatesLock)
             {
                 DisplayStates.TryAdd(callsign, displayState);
             }
@@ -139,8 +117,10 @@ public static class AtopPluginStateManager
         if (ProbeEnabled)
         {
             var newConflicts = await Task.Run(() => ConflictProbe.Probe(fdr));
-            lock (_lock)
+            lock (ConflictProbeLock)
             {
+                // Re-check whether probe is still enabled after locking
+                if (!ProbeEnabled) return;
                 Conflicts.AddOrUpdate(fdr.Callsign, newConflicts, (_, _) => newConflicts);
             }
         }
@@ -148,15 +128,12 @@ public static class AtopPluginStateManager
 
     public static bool IsConflictProbeEnabled()
     {
-        lock (_lock)
-        {
-            return ProbeEnabled;
-        }
+        return ProbeEnabled;
     }
 
     public static void SetConflictProbe(bool conflictProbeEnabled)
     {
-        lock (_lock)
+        lock (ConflictProbeLock)
         {
             ProbeEnabled = conflictProbeEnabled;
             if (!ProbeEnabled) Conflicts.Clear();
@@ -165,7 +142,7 @@ public static class AtopPluginStateManager
 
     public static void ToggleActivated()
     {
-        lock (_lock)
+        lock (ActivationLock)
         {
             var newActivationState = !Activated;
 
@@ -188,12 +165,9 @@ public static class AtopPluginStateManager
 
     public static void Reset()
     {
-        lock (_lock)
-        {
-            AircraftStates.Clear();
-            DisplayStates.Clear();
-            Conflicts.Clear();
-            Activated = false;
-        }
+        AircraftStates.Clear();
+        DisplayStates.Clear();
+        Conflicts.Clear();
+        Activated = false;
     }
 }
