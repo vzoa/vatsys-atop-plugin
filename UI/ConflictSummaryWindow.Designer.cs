@@ -1,6 +1,6 @@
 ﻿namespace AtopPlugin.UI
 {
-    partial class ConflictSummaryTable
+    partial class ConflictSummaryWindow
     {
         /// <summary>
         /// Required designer variable.
@@ -28,166 +28,159 @@
         /// </summary>
         private void InitializeComponent()
         {
-            System.Windows.Forms.ListViewItem listViewItem2 = new System.Windows.Forms.ListViewItem(new string[] {
-            ""}, -1, System.Drawing.Color.White, System.Drawing.Color.Red, null);
-            this.textBox1 = new System.Windows.Forms.TextBox();
-            this.textBox2 = new System.Windows.Forms.TextBox();
-            this.textBox3 = new System.Windows.Forms.TextBox();
-            this.textBox4 = new System.Windows.Forms.TextBox();
-            this.textBox5 = new System.Windows.Forms.TextBox();
-            this.textBox6 = new System.Windows.Forms.TextBox();
-            this.textBox7 = new System.Windows.Forms.TextBox();
-            this.textBox8 = new System.Windows.Forms.TextBox();
-            this.listView1 = new System.Windows.Forms.ListView();
+            this.IntruderText = new System.Windows.Forms.TextBox();
+            this.Att1Text = new System.Windows.Forms.TextBox();
+            this.Att2Text = new System.Windows.Forms.TextBox();
+            this.ActiveText = new System.Windows.Forms.TextBox();
+            this.OvrdText = new System.Windows.Forms.TextBox();
+            this.TypeText = new System.Windows.Forms.TextBox();
+            this.StartTimeText = new System.Windows.Forms.TextBox();
+            this.EndTimeText = new System.Windows.Forms.TextBox();
+            this.conflictListView = new System.Windows.Forms.ListView();
             this.SuspendLayout();
             // 
-            // textBox1
+            // IntruderText
             // 
-            this.textBox1.BackColor = System.Drawing.SystemColors.Control;
-            this.textBox1.BorderStyle = System.Windows.Forms.BorderStyle.None;
-            this.textBox1.Cursor = System.Windows.Forms.Cursors.Default;
-            this.textBox1.Font = new System.Drawing.Font("Terminus (TTF)", 7.999999F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.textBox1.Location = new System.Drawing.Point(26, 12);
-            this.textBox1.Name = "textBox1";
-            this.textBox1.Size = new System.Drawing.Size(100, 18);
-            this.textBox1.TabIndex = 0;
-            this.textBox1.Text = "Intruder";
+            this.IntruderText.BackColor = System.Drawing.SystemColors.Control;
+            this.IntruderText.BorderStyle = System.Windows.Forms.BorderStyle.None;
+            this.IntruderText.Font = new System.Drawing.Font("Terminus (TTF)", 9.749999F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.IntruderText.Location = new System.Drawing.Point(12, 12);
+            this.IntruderText.Name = "IntruderText";
+            this.IntruderText.Size = new System.Drawing.Size(71, 15);
+            this.IntruderText.TabIndex = 11;
+            this.IntruderText.Text = "Intruder";
             // 
-            // textBox2
+            // Att1Text
             // 
-            this.textBox2.BackColor = System.Drawing.SystemColors.Control;
-            this.textBox2.BorderStyle = System.Windows.Forms.BorderStyle.None;
-            this.textBox2.Cursor = System.Windows.Forms.Cursors.Default;
-            this.textBox2.Font = new System.Drawing.Font("Terminus (TTF)", 7.999999F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.textBox2.Location = new System.Drawing.Point(141, 12);
-            this.textBox2.Name = "textBox2";
-            this.textBox2.Size = new System.Drawing.Size(39, 18);
-            this.textBox2.TabIndex = 1;
-            this.textBox2.Text = "Att";
+            this.Att1Text.BackColor = System.Drawing.SystemColors.Control;
+            this.Att1Text.BorderStyle = System.Windows.Forms.BorderStyle.None;
+            this.Att1Text.Font = new System.Drawing.Font("Terminus (TTF)", 9.749999F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.Att1Text.Location = new System.Drawing.Point(89, 12);
+            this.Att1Text.Name = "Att1Text";
+            this.Att1Text.Size = new System.Drawing.Size(31, 15);
+            this.Att1Text.TabIndex = 12;
+            this.Att1Text.Text = "Att";
             // 
-            // textBox3
+            // Att2Text
             // 
-            this.textBox3.BackColor = System.Drawing.SystemColors.Control;
-            this.textBox3.BorderStyle = System.Windows.Forms.BorderStyle.None;
-            this.textBox3.Cursor = System.Windows.Forms.Cursors.Default;
-            this.textBox3.Font = new System.Drawing.Font("Terminus (TTF)", 7.999999F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.textBox3.Location = new System.Drawing.Point(279, 12);
-            this.textBox3.Name = "textBox3";
-            this.textBox3.Size = new System.Drawing.Size(39, 18);
-            this.textBox3.TabIndex = 2;
-            this.textBox3.Text = "Att";
+            this.Att2Text.BackColor = System.Drawing.SystemColors.Control;
+            this.Att2Text.BorderStyle = System.Windows.Forms.BorderStyle.None;
+            this.Att2Text.Font = new System.Drawing.Font("Terminus (TTF)", 9.749999F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.Att2Text.Location = new System.Drawing.Point(185, 12);
+            this.Att2Text.Name = "Att2Text";
+            this.Att2Text.Size = new System.Drawing.Size(31, 15);
+            this.Att2Text.TabIndex = 13;
+            this.Att2Text.Text = "Att";
             // 
-            // textBox4
+            // ActiveText
             // 
-            this.textBox4.BackColor = System.Drawing.SystemColors.Control;
-            this.textBox4.BorderStyle = System.Windows.Forms.BorderStyle.None;
-            this.textBox4.Cursor = System.Windows.Forms.Cursors.Default;
-            this.textBox4.Font = new System.Drawing.Font("Terminus (TTF)", 7.999999F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.textBox4.Location = new System.Drawing.Point(197, 12);
-            this.textBox4.Name = "textBox4";
-            this.textBox4.Size = new System.Drawing.Size(76, 18);
-            this.textBox4.TabIndex = 3;
-            this.textBox4.Text = "Active";
+            this.ActiveText.BackColor = System.Drawing.SystemColors.Control;
+            this.ActiveText.BorderStyle = System.Windows.Forms.BorderStyle.None;
+            this.ActiveText.Font = new System.Drawing.Font("Terminus (TTF)", 9.749999F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.ActiveText.Location = new System.Drawing.Point(126, 12);
+            this.ActiveText.Name = "ActiveText";
+            this.ActiveText.Size = new System.Drawing.Size(53, 15);
+            this.ActiveText.TabIndex = 14;
+            this.ActiveText.Text = "Active";
             // 
-            // textBox5
+            // OvrdText
             // 
-            this.textBox5.BackColor = System.Drawing.SystemColors.Control;
-            this.textBox5.BorderStyle = System.Windows.Forms.BorderStyle.None;
-            this.textBox5.Cursor = System.Windows.Forms.Cursors.Default;
-            this.textBox5.Font = new System.Drawing.Font("Terminus (TTF)", 7.999999F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.textBox5.Location = new System.Drawing.Point(324, 12);
-            this.textBox5.Name = "textBox5";
-            this.textBox5.Size = new System.Drawing.Size(54, 18);
-            this.textBox5.TabIndex = 4;
-            this.textBox5.Text = "Ovrd";
+            this.OvrdText.BackColor = System.Drawing.SystemColors.Control;
+            this.OvrdText.BorderStyle = System.Windows.Forms.BorderStyle.None;
+            this.OvrdText.Font = new System.Drawing.Font("Terminus (TTF)", 9.749999F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.OvrdText.Location = new System.Drawing.Point(222, 12);
+            this.OvrdText.Name = "OvrdText";
+            this.OvrdText.Size = new System.Drawing.Size(41, 15);
+            this.OvrdText.TabIndex = 15;
+            this.OvrdText.Text = "Ovrd";
             // 
-            // textBox6
+            // TypeText
             // 
-            this.textBox6.BackColor = System.Drawing.SystemColors.Control;
-            this.textBox6.BorderStyle = System.Windows.Forms.BorderStyle.None;
-            this.textBox6.Cursor = System.Windows.Forms.Cursors.Default;
-            this.textBox6.Font = new System.Drawing.Font("Terminus (TTF)", 7.999999F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.textBox6.Location = new System.Drawing.Point(401, 12);
-            this.textBox6.Name = "textBox6";
-            this.textBox6.Size = new System.Drawing.Size(54, 18);
-            this.textBox6.TabIndex = 5;
-            this.textBox6.Text = "Type";
+            this.TypeText.BackColor = System.Drawing.SystemColors.Control;
+            this.TypeText.BorderStyle = System.Windows.Forms.BorderStyle.None;
+            this.TypeText.Font = new System.Drawing.Font("Terminus (TTF)", 9.749999F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.TypeText.Location = new System.Drawing.Point(269, 12);
+            this.TypeText.Name = "TypeText";
+            this.TypeText.Size = new System.Drawing.Size(41, 15);
+            this.TypeText.TabIndex = 16;
+            this.TypeText.Text = "Type";
             // 
-            // textBox7
+            // StartTimeText
             // 
-            this.textBox7.BackColor = System.Drawing.SystemColors.Control;
-            this.textBox7.BorderStyle = System.Windows.Forms.BorderStyle.None;
-            this.textBox7.Cursor = System.Windows.Forms.Cursors.Default;
-            this.textBox7.Font = new System.Drawing.Font("Terminus (TTF)", 7.999999F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.textBox7.Location = new System.Drawing.Point(475, 12);
-            this.textBox7.Name = "textBox7";
-            this.textBox7.Size = new System.Drawing.Size(108, 18);
-            this.textBox7.TabIndex = 6;
-            this.textBox7.Text = "StartTime";
+            this.StartTimeText.BackColor = System.Drawing.SystemColors.Control;
+            this.StartTimeText.BorderStyle = System.Windows.Forms.BorderStyle.None;
+            this.StartTimeText.Font = new System.Drawing.Font("Terminus (TTF)", 9.749999F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.StartTimeText.Location = new System.Drawing.Point(316, 12);
+            this.StartTimeText.Name = "StartTimeText";
+            this.StartTimeText.Size = new System.Drawing.Size(77, 15);
+            this.StartTimeText.TabIndex = 17;
+            this.StartTimeText.Text = "StartTime";
             // 
-            // textBox8
+            // EndTimeText
             // 
-            this.textBox8.BackColor = System.Drawing.SystemColors.Control;
-            this.textBox8.BorderStyle = System.Windows.Forms.BorderStyle.None;
-            this.textBox8.Cursor = System.Windows.Forms.Cursors.Default;
-            this.textBox8.Font = new System.Drawing.Font("Terminus (TTF)", 7.999999F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.textBox8.Location = new System.Drawing.Point(604, 12);
-            this.textBox8.Name = "textBox8";
-            this.textBox8.Size = new System.Drawing.Size(84, 18);
-            this.textBox8.TabIndex = 7;
-            this.textBox8.Text = "EndTime";
+            this.EndTimeText.BackColor = System.Drawing.SystemColors.Control;
+            this.EndTimeText.BorderStyle = System.Windows.Forms.BorderStyle.None;
+            this.EndTimeText.Font = new System.Drawing.Font("Terminus (TTF)", 9.749999F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.EndTimeText.Location = new System.Drawing.Point(399, 12);
+            this.EndTimeText.Name = "EndTimeText";
+            this.EndTimeText.Size = new System.Drawing.Size(67, 15);
+            this.EndTimeText.TabIndex = 18;
+            this.EndTimeText.Text = "EndTime";
             // 
-            // listView1
+            // conflictListView
             // 
-            this.listView1.BackColor = System.Drawing.Color.Red;
-            this.listView1.ForeColor = System.Drawing.Color.White;
-            this.listView1.HideSelection = false;
-            this.listView1.Items.AddRange(new System.Windows.Forms.ListViewItem[] {
-            listViewItem2});
-            this.listView1.Location = new System.Drawing.Point(26, 43);
-            this.listView1.Name = "listView1";
-            this.listView1.Size = new System.Drawing.Size(662, 220);
-            this.listView1.TabIndex = 8;
-            this.listView1.UseCompatibleStateImageBehavior = false;
+            this.conflictListView.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) | System.Windows.Forms.AnchorStyles.Left) | System.Windows.Forms.AnchorStyles.Right)));
+            this.conflictListView.BackColor = System.Drawing.Color.Red;
+            this.conflictListView.ForeColor = System.Drawing.SystemColors.Window;
+            this.conflictListView.FullRowSelect = true;
+            this.conflictListView.HideSelection = false;
+            this.conflictListView.LabelWrap = false;
+            this.conflictListView.Location = new System.Drawing.Point(11, 35);
+            this.conflictListView.MultiSelect = false;
+            this.conflictListView.Name = "conflictListView";
+            this.conflictListView.Size = new System.Drawing.Size(444, 167);
+            this.conflictListView.TabIndex = 19;
+            this.conflictListView.UseCompatibleStateImageBehavior = false;
             // 
-            // ConflictSummaryTable
+            // ConflictSummaryWindow
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 17F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
+            this.AutoScroll = true;
+            this.AutoSize = true;
             this.BackColor = System.Drawing.SystemColors.Control;
-            this.ClientSize = new System.Drawing.Size(711, 290);
-            this.Controls.Add(this.listView1);
-            this.Controls.Add(this.textBox8);
-            this.Controls.Add(this.textBox7);
-            this.Controls.Add(this.textBox6);
-            this.Controls.Add(this.textBox5);
-            this.Controls.Add(this.textBox4);
-            this.Controls.Add(this.textBox3);
-            this.Controls.Add(this.textBox2);
-            this.Controls.Add(this.textBox1);
-            this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.None;
-            this.HasCloseButton = false;
-            this.HasMinimizeButton = false;
-            this.Name = "ConflictSummaryTable";
+            this.ClientSize = new System.Drawing.Size(468, 215);
+            this.Controls.Add(this.EndTimeText);
+            this.Controls.Add(this.TypeText);
+            this.Controls.Add(this.StartTimeText);
+            this.Controls.Add(this.OvrdText);
+            this.Controls.Add(this.ActiveText);
+            this.Controls.Add(this.Att2Text);
+            this.Controls.Add(this.Att1Text);
+            this.Controls.Add(this.IntruderText);
+            this.Controls.Add(this.conflictListView);
+            this.HideOnClose = true;
+            this.MaximumSize = new System.Drawing.Size(472, 1280);
+            this.MinimumSize = new System.Drawing.Size(472, 158);
+            this.Name = "ConflictSummaryWindow";
             this.RightToLeft = System.Windows.Forms.RightToLeft.No;
             this.Text = "CONFLICT SUMMARY";
+            this.TitleTextColor = System.Drawing.SystemColors.ActiveCaptionText;
             this.TopMost = true;
-            this.Load += new System.EventHandler(this.ConflictSummaryTable_Load);
+            this.Load += new System.EventHandler(this.ConflictSummaryWindow_Load);
             this.ResumeLayout(false);
             this.PerformLayout();
-
         }
 
         #endregion
-
-        private System.Windows.Forms.TextBox textBox1;
-        private System.Windows.Forms.TextBox textBox2;
-        private System.Windows.Forms.TextBox textBox3;
-        private System.Windows.Forms.TextBox textBox4;
-        private System.Windows.Forms.TextBox textBox5;
-        private System.Windows.Forms.TextBox textBox6;
-        private System.Windows.Forms.TextBox textBox7;
-        private System.Windows.Forms.TextBox textBox8;
-        private System.Windows.Forms.ListView listView1;
+        private System.Windows.Forms.TextBox IntruderText;
+        private System.Windows.Forms.TextBox Att1Text;
+        private System.Windows.Forms.TextBox Att2Text;
+        private System.Windows.Forms.TextBox ActiveText;
+        private System.Windows.Forms.TextBox OvrdText;
+        private System.Windows.Forms.TextBox TypeText;
+        private System.Windows.Forms.TextBox StartTimeText;
+        private System.Windows.Forms.TextBox EndTimeText;
+        private System.Windows.Forms.ListView conflictListView;
     }
 }

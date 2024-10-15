@@ -15,7 +15,10 @@ public static class AtopPluginStateManager
     private static readonly ConcurrentDictionary<string, AtopAircraftDisplayState> DisplayStates = new();
     private static readonly ConcurrentDictionary<string, ConflictProbe.Conflicts> Conflicts = new();
     private static bool _probeEnabled = Config.ConflictProbeEnabled;
-    private static bool _activated = false;
+    private static bool _activated;
+    private static readonly object StatesLock = new();
+    private static readonly object ConflictProbeLock = new();
+    private static readonly object ActivationLock = new();
 
     private static bool ProbeEnabled
     {
@@ -30,10 +33,13 @@ public static class AtopPluginStateManager
     public static bool Activated
     {
         get => _activated;
-        set
+        private set
         {
-            _activated = value;
-            AtopMenu.SetActivationState(value);
+            lock (ActivationLock)
+            {
+                _activated = value;
+                AtopMenu.SetActivationState(value);
+            }
         }
     }
 
@@ -61,8 +67,12 @@ public static class AtopPluginStateManager
 
         if (FDP2.GetFDRIndex(callsign) == MissingFromFdpState)
         {
-            AircraftStates.TryRemove(callsign, out _);
-            DisplayStates.TryRemove(callsign, out _);
+            lock (StatesLock)
+            {
+                AircraftStates.TryRemove(callsign, out _);
+                DisplayStates.TryRemove(callsign, out _);
+            }
+
             return;
         }
 
@@ -70,7 +80,10 @@ public static class AtopPluginStateManager
         if (aircraftState == null)
         {
             aircraftState = await Task.Run(() => new AtopAircraftState(updated));
-            AircraftStates.TryAdd(callsign, aircraftState);
+            lock (StatesLock)
+            {
+                AircraftStates.TryAdd(callsign, aircraftState);
+            }
         }
         else
         {
@@ -88,7 +101,10 @@ public static class AtopPluginStateManager
         if (displayState == null)
         {
             displayState = await Task.Run(() => new AtopAircraftDisplayState(atopState));
-            DisplayStates.TryAdd(callsign, displayState);
+            lock (StatesLock)
+            {
+                DisplayStates.TryAdd(callsign, displayState);
+            }
         }
         else
         {
@@ -101,7 +117,12 @@ public static class AtopPluginStateManager
         if (ProbeEnabled)
         {
             var newConflicts = await Task.Run(() => ConflictProbe.Probe(fdr));
-            Conflicts.AddOrUpdate(fdr.Callsign, newConflicts, (_, _) => newConflicts);
+            lock (ConflictProbeLock)
+            {
+                // Re-check whether probe is still enabled after locking
+                if (!ProbeEnabled) return;
+                Conflicts.AddOrUpdate(fdr.Callsign, newConflicts, (_, _) => newConflicts);
+            }
         }
     }
 
@@ -112,28 +133,34 @@ public static class AtopPluginStateManager
 
     public static void SetConflictProbe(bool conflictProbeEnabled)
     {
-        ProbeEnabled = conflictProbeEnabled;
-        if (!ProbeEnabled) Conflicts.Clear();
+        lock (ConflictProbeLock)
+        {
+            ProbeEnabled = conflictProbeEnabled;
+            if (!ProbeEnabled) Conflicts.Clear();
+        }
     }
 
     public static void ToggleActivated()
     {
-        var newActivationState = !Activated;
-
-        switch (newActivationState)
+        lock (ActivationLock)
         {
-            case true when !Network.IsConnected:
-                MessageBox.Show(@"Please connect to the network before activating");
-                return;
-            case true:
-                MessageBox.Show(@"Session activated");
-                break;
-            case false:
-                MessageBox.Show(@"Session deactivated");
-                break;
-        }
+            var newActivationState = !Activated;
 
-        Activated = newActivationState;
+            switch (newActivationState)
+            {
+                case true when !Network.IsConnected:
+                    MessageBox.Show(@"Please connect to the network before activating");
+                    return;
+                case true:
+                    MessageBox.Show(@"Session activated");
+                    break;
+                case false:
+                    MessageBox.Show(@"Session deactivated");
+                    break;
+            }
+
+            Activated = newActivationState;
+        }
     }
 
     public static void Reset()

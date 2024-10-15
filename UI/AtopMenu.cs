@@ -1,3 +1,4 @@
+using System.Threading;
 using System.Windows.Forms;
 using AtopPlugin.State;
 using vatsys;
@@ -11,30 +12,32 @@ public static class AtopMenu
 
     private static readonly SettingsWindow SettingsWindow = new();
     private static readonly ToolStripMenuItem ActivationToggle = new("Activate");
-    private static readonly ConflictSummaryTable ConflictWindow = new();
+    private static readonly ConflictSummaryWindow ConflictSummaryWindow = new();
 
     static AtopMenu()
     {
         InitializeActivationToggle();
         InitializeSettingsMenu();
         InitializeVersionItem();
-        InitializeConflictWindow();
+        InitializeConflictSummaryWindow();
     }
 
     // empty method to force static class initialization to happen
     public static void Initialize()
     {
     }
-    private static void InitializeConflictWindow()
+
+    private static void InitializeConflictSummaryWindow()
     {
         var conflictWindowItem = new CustomToolStripMenuItem(CustomToolStripMenuItemWindowType.Main,
-            CustomToolStripMenuItemCategory.Custom, new ToolStripMenuItem("Conflict Summary"))
+            CustomToolStripMenuItemCategory.Custom, new ToolStripMenuItem("Conflict Summary") { Enabled = false })
         {
             CustomCategoryName = CategoryName
         };
-        conflictWindowItem.Item.Click += (_, _) => MMI.InvokeOnGUI(ConflictWindow.Show);
+        conflictWindowItem.Item.Click += (_, _) => MMI.InvokeOnGUI(ConflictSummaryWindow.Show);
         MMI.AddCustomMenuItem(conflictWindowItem);
     }
+
     private static void InitializeSettingsMenu()
     {
         var settingsMenuItem = new CustomToolStripMenuItem(CustomToolStripMenuItemWindowType.Main,

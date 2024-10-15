@@ -1,19 +1,23 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Drawing;
 using System.Linq;
 using vatsys;
+using static vatsys.FDP2;
 
 namespace AtopPlugin.Conflict;
 
-public static class ConflictAreaCalculator
+public class LateralConflictCalculator
 {
-    public static List<ConflictSegment> CalculateAreaOfConflict(FDP2.FDR fdr1, FDP2.FDR fdr2, int value)
+    public List<ConflictSegment> ConflictSegments = new();
+
+    public static List<ConflictSegment> CalculateAreaOfConflict(FDR fdr1, FDR fdr2, int value)
     {
         var fdr2SegmentsConflictingWithFdr1 = new List<ConflictSegment>();
         var route1Waypoints = fdr1.ParsedRoute.ToList()
-            .Where(s => s.Type == FDP2.FDR.ExtractedRoute.Segment.SegmentTypes.WAYPOINT).ToList();
+            .Where(s => s.Type == FDR.ExtractedRoute.Segment.SegmentTypes.WAYPOINT).ToList();
         var route2Waypoints = fdr2.ParsedRoute.ToList()
-            .Where(s => s.Type == FDP2.FDR.ExtractedRoute.Segment.SegmentTypes.WAYPOINT).ToList();
+            .Where(s => s.Type == FDR.ExtractedRoute.Segment.SegmentTypes.WAYPOINT).ToList();
         for (var wp1Index = 1; wp1Index < route1Waypoints.Count; ++wp1Index)
         {
             var route1ProtectedAirspace = CreatePolygon(route1Waypoints[wp1Index - 1].Intersection.LatLong,
@@ -124,10 +128,10 @@ public static class ConflictAreaCalculator
             if (!fdr2SegmentsConflictingWithFdr1.Exists(s =>
                     Conversions.CalculateDistance(segment.StartLatlong, s.EndLatlong) < 0.01))
                 segment.StartTime =
-                    FDP2.GetSystemEstimateAtPosition(fdr2, segment.StartLatlong, segment.RouteSegment);
+                    GetSystemEstimateAtPosition(fdr2, segment.StartLatlong, segment.RouteSegment);
             if (!fdr2SegmentsConflictingWithFdr1.Exists(s =>
                     Conversions.CalculateDistance(segment.EndLatlong, s.StartLatlong) < 0.01))
-                segment.EndTime = FDP2.GetSystemEstimateAtPosition(fdr2, segment.EndLatlong, segment.RouteSegment);
+                segment.EndTime = GetSystemEstimateAtPosition(fdr2, segment.EndLatlong, segment.RouteSegment);
         }
 
         return fdr2SegmentsConflictingWithFdr1;
@@ -156,6 +160,52 @@ public static class ConflictAreaCalculator
 
         polygon.Add(polygon[0]);
         return polygon;
+    }
+
+    public static List<Coordinate> CreateRectangle(FDR fdr)
+    {
+        var bottomLeft = new Coordinate();
+        var topRight = new Coordinate();
+        var routeWaypoints = fdr.ParsedRoute.ToList()
+            .Where(s => s.Type == FDR.ExtractedRoute.Segment.SegmentTypes.WAYPOINT).ToList();
+        for (var wp1Index = 0; wp1Index < routeWaypoints.Count; ++wp1Index)
+        {
+            var wp1 = routeWaypoints[wp1Index];
+            bottomLeft.Latitude = Math.Min(bottomLeft.Latitude, wp1.Intersection.LatLong.Latitude);
+            bottomLeft.Longitude = Math.Min(bottomLeft.Longitude, wp1.Intersection.LatLong.Longitude);
+            topRight.Latitude = Math.Max(topRight.Latitude, wp1.Intersection.LatLong.Latitude);
+            topRight.Longitude = Math.Max(topRight.Longitude, wp1.Intersection.LatLong.Longitude);
+
+            var wrappedLongitude = wp1.Intersection.LatLong.Longitude <= 0
+                ? wp1.Intersection.LatLong.Longitude + 360
+                : wp1.Intersection.LatLong.Longitude;
+            if (wrappedLongitude < bottomLeft.Longitude) bottomLeft.Longitude = wrappedLongitude;
+            if (wrappedLongitude > topRight.Longitude) topRight.Longitude = wrappedLongitude;
+        }
+
+        var topLeft = new Coordinate
+        {
+            Latitude = topRight.Latitude,
+            Longitude = bottomLeft.Longitude <= 180 ? bottomLeft.Longitude : bottomLeft.Longitude - 360
+        };
+        var bottomRight = new Coordinate
+        {
+            Latitude = bottomLeft.Latitude,
+            Longitude = topRight.Longitude <= 180 ? topRight.Longitude : topRight.Longitude - 360
+        };
+        return new List<Coordinate> { bottomLeft, topLeft, topRight, bottomRight, bottomLeft };
+    }
+
+    public static bool CalculateRectangleOverlap(FDR fdr1, FDR fdr2)
+    {
+        var rectangle1 = CreateRectangle(fdr1).ToList();
+        var rectangle2 = CreateRectangle(fdr2).ToList();
+        var overlap = rectangle1[0].Longitude < rectangle2[3].Longitude &&
+                      rectangle1[3].Longitude > rectangle2[0].Longitude &&
+                      rectangle1[1].Latitude > rectangle2[0].Latitude &&
+                      rectangle1[0].Latitude < rectangle2[2].Latitude;
+
+        return overlap;
     }
 
     private static List<Coordinate> CalculatePolygonIntersections(
@@ -188,7 +238,7 @@ public class ConflictSegment
     public string Callsign;
     public Coordinate EndLatlong;
     public DateTime EndTime = DateTime.MaxValue;
-    public FDP2.FDR.ExtractedRoute.Segment RouteSegment;
+    public FDR.ExtractedRoute.Segment RouteSegment;
     public Coordinate StartLatlong;
     public DateTime StartTime = DateTime.MaxValue;
 }

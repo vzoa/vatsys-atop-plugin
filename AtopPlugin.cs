@@ -10,8 +10,6 @@ namespace AtopPlugin;
 [Export(typeof(IPlugin))]
 public class AtopPlugin : ILabelPlugin, IStripPlugin
 {
-    public string Name => "ATOP Plugin";
-
     public AtopPlugin()
     {
         RegisterEventHandlers();
@@ -19,31 +17,12 @@ public class AtopPlugin : ILabelPlugin, IStripPlugin
         TempActivationMessagePopup.PopUpActivationMessageIfFirstTime();
     }
 
-    private static void RegisterEventHandlers()
+    public string Name => "ATOP Plugin";
+
+    public CustomLabelItem? GetCustomLabelItem(string itemType, Track track, FDP2.FDR flightDataRecord,
+        RDP.RadarTrack radarTrack)
     {
-        Network.PrivateMessagesChanged += PrivateMessagesChangedHandler.Handle;
-        Network.Disconnected += DisconnectHandler.Handle;
-
-        // changes to cleared flight level do not register an FDR update
-        // we need to create custom handlers to be able to update the label/strip
-        FdrPropertyChangesListener.RegisterAllHandlers();
-    }
-
-    public void OnFDRUpdate(FDP2.FDR updated)
-    {
-        AtopPluginStateManager.ProcessFdrUpdate(updated);
-        AtopPluginStateManager.ProcessDisplayUpdate(updated);
-        AtopPluginStateManager.RunConflictProbe(updated);
-        FdrPropertyChangesListener.RegisterHandler(updated);
-
-        // don't manage jurisdiction if not connected as ATC
-        if (Network.Me.IsRealATC) JurisdictionManager.HandleFdrUpdate(updated);
-    }
-
-    public void OnRadarTrackUpdate(RDP.RadarTrack updated)
-    {
-        // don't manage jurisdiction if not connected as ATC
-        if (Network.Me.IsRealATC) JurisdictionManager.HandleRadarTrackUpdate(updated);
+        return LabelItemRenderer.RenderLabelItem(itemType, track, flightDataRecord, radarTrack);
     }
 
     public CustomStripItem? GetCustomStripItem(string itemType, Track track, FDP2.FDR flightDataRecord,
@@ -52,10 +31,21 @@ public class AtopPlugin : ILabelPlugin, IStripPlugin
         return StripItemRenderer.RenderStripItem(itemType, track, flightDataRecord, radarTrack);
     }
 
-    public CustomLabelItem? GetCustomLabelItem(string itemType, Track track, FDP2.FDR flightDataRecord,
-        RDP.RadarTrack radarTrack)
+    public void OnFDRUpdate(FDP2.FDR updated)
     {
-        return LabelItemRenderer.RenderLabelItem(itemType, track, flightDataRecord, radarTrack);
+        _ = AtopPluginStateManager.ProcessFdrUpdate(updated);
+        _ = AtopPluginStateManager.ProcessDisplayUpdate(updated);
+        _ = AtopPluginStateManager.RunConflictProbe(updated);
+        FdrPropertyChangesListener.RegisterHandler(updated);
+
+        // don't manage jurisdiction if not connected as ATC
+        if (Network.Me.IsRealATC) _ = JurisdictionManager.HandleFdrUpdate(updated);
+    }
+
+    public void OnRadarTrackUpdate(RDP.RadarTrack updated)
+    {
+        // don't manage jurisdiction if not connected as ATC
+        if (Network.Me.IsRealATC) _ = JurisdictionManager.HandleRadarTrackUpdate(updated);
     }
 
     public CustomColour? SelectASDTrackColour(Track track)
@@ -66,5 +56,15 @@ public class AtopPlugin : ILabelPlugin, IStripPlugin
     public CustomColour? SelectGroundTrackColour(Track track)
     {
         return null;
+    }
+
+    private static void RegisterEventHandlers()
+    {
+        Network.PrivateMessagesChanged += PrivateMessagesChangedHandler.Handle;
+        Network.Disconnected += DisconnectHandler.Handle;
+
+        // changes to cleared flight level do not register an FDR update
+        // we need to create custom handlers to be able to update the label/strip
+        FdrPropertyChangesListener.RegisterAllHandlers();
     }
 }

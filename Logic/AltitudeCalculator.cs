@@ -31,6 +31,20 @@ public static class AltitudeCalculator
         };
     }
 
+    public static ConflictFlag? CalculateConflictAttitudeFlag(FDP2.FDR fdr, bool pendingAltitudeChange)
+    {
+        var altitudeBlock = AltitudeBlock.ExtractAltitudeBlock(fdr);
+        var (altitudeLower, altitudeUpper) = altitudeBlock;
+        var isOutsideThresholdAndNotBlank = !IsWithinThreshold(fdr.PRL, altitudeBlock) && !IsBlank(fdr.PRL);
+
+        return isOutsideThresholdAndNotBlank switch
+        {
+            true when pendingAltitudeChange && fdr.PRL < altitudeLower => ConflictFlag.ClimbingProfile,
+            true when pendingAltitudeChange && fdr.PRL > altitudeUpper => ConflictFlag.DescendingProfile,
+            _ => ConflictFlag.LevelProfile
+        };
+    }
+
     public static bool IsWithinThreshold(int pilotReportedAltitude, AltitudeBlock altitudeBlock)
     {
         var lowerWithThreshold = altitudeBlock.LowerAltitude - LevelFlightThreshold;

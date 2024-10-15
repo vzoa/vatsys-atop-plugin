@@ -1,5 +1,6 @@
 ﻿using AtopPlugin.Logic;
 using AtopPlugin.Models;
+using System;
 using vatsys;
 
 namespace AtopPlugin.State;
@@ -20,6 +21,7 @@ public class AtopAircraftState
     public DirectionOfFlight DirectionOfFlight { get; private set; }
     public SccFlag? HighestSccFlag { get; private set; }
     public SectorsVolumes.Sector? NextSector { get; private set; }
+    public DateTime BoundaryTime { get; private set; }
     public bool DownlinkIndicator { get; set; }
     public bool RadarToggleIndicator { get; set; }
     public bool WasHandedOff { get; private set; }
@@ -41,6 +43,8 @@ public class AtopAircraftState
             AltitudeCalculator.CalculateAltitudeChangePending(updatedFdr, PreviousAltitudeBlock, PendingAltitudeChange);
 
         NextSector = NextSectorCalculator.GetNextSector(updatedFdr);
+
+        BoundaryTime = NextSectorCalculator.GetBoundaryTime(updatedFdr);
 
         // update this last since so we have the previous value for the next update
         PreviousAltitudeBlock = AltitudeBlock.ExtractAltitudeBlock(updatedFdr);
