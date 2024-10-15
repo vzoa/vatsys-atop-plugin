@@ -63,8 +63,8 @@ public static class ConflictAreaCalculator
                 for (var ipIndex = 1; ipIndex < intersectionPoints.Count; ipIndex += 2)
                 {
                     var seg = new ConflictSegment();
-                    seg.StartLatlong = intersectionPoints[ipIndex - 1];
-                    seg.EndLatlong = intersectionPoints[ipIndex];
+                    seg.StartLatlong = intersectionPoints[ipIndex];
+                    seg.EndLatlong = intersectionPoints[ipIndex - 1];
                     var conflictSegments = fdr2SegmentsConflictingWithFdr1
                         .Where(s => s.RouteSegment == route2Waypoints[wp2Index]).Where(s =>
                             (Conversions.CalculateDistance(s.StartLatlong,
