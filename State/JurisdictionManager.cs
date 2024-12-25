@@ -2,6 +2,7 @@
 using System.Linq;
 using System.Threading.Tasks;
 using vatsys;
+using static vatsys.FDP2;
 
 namespace AtopPlugin.State;
 
@@ -15,7 +16,7 @@ public static class JurisdictionManager
         await Task.Delay(FdrUpdateDelay);
 
         //TODO: Logic to exclude initial coordination if ATC Facility is staffed?
-        if (!fdr.ESTed && MMI.IsMySectorConcerned(fdr)) MMI.EstFDR(fdr);
+        if (!fdr.ESTed && fdr.State is not FDR.FDRStates.STATE_FINISHED && MMI.IsMySectorConcerned(fdr)) MMI.EstFDR(fdr);
 
         var isInControlledSector = await IsInControlledSector(fdr.GetLocation(), fdr.PRL);
         var atopState = fdr.GetAtopState();

@@ -23,7 +23,7 @@ public partial class ConflictSummaryWindow : BaseForm
 
     private async void ConflictSummaryWindow_Load(object sender, EventArgs e)
     {
-        // await DisplayConflictsAsync();
+         await DisplayConflictsAsync();
     }
 
     private async Task DisplayConflictsAsync()
@@ -82,11 +82,11 @@ public partial class ConflictSummaryWindow : BaseForm
         }));
 
         // msalikhov(2024-10-13): disabling automatically showing the window until we fix the rendering
-        // Invoke(new MethodInvoker(() =>
-        // {
-        //     // Avoid multiple distinct checks inside the loop
-        //     Visible = conflictDatas.Any();
-        // }));
+         Invoke(new MethodInvoker(() =>
+         {
+             // Avoid multiple distinct checks inside the loop
+             Visible = conflictDatas.Any();
+         }));
     }
 
     private void ConflictListView_MouseClick(object sender, MouseEventArgs e)

@@ -1,4 +1,5 @@
-﻿using System.Collections.Concurrent;
+﻿using System;
+using System.Collections.Concurrent;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using AtopPlugin.Conflict;
@@ -14,6 +15,7 @@ public static class AtopPluginStateManager
     private static readonly ConcurrentDictionary<string, AtopAircraftState> AircraftStates = new();
     private static readonly ConcurrentDictionary<string, AtopAircraftDisplayState> DisplayStates = new();
     private static readonly ConcurrentDictionary<string, ConflictProbe.Conflicts> Conflicts = new();
+    private static readonly ConcurrentDictionary<string, DateTime> lastProbeTimeDict = new();
     private static bool _probeEnabled = Config.ConflictProbeEnabled;
     private static bool _activated;
     private static readonly object StatesLock = new();
@@ -112,16 +114,41 @@ public static class AtopPluginStateManager
         }
     }
 
+
+    //public static async Task RunConflictProbe(FDP2.FDR fdr)
+    //{
+    //    if (ProbeEnabled)
+    //    {
+    //        var newConflicts = await Task.Run(() => ConflictProbe.Probe(fdr));
+    //        lock (ConflictProbeLock)
+    //        {
+    //            // Re-check whether probe is still enabled after locking
+    //            if (!ProbeEnabled) return;
+    //            Conflicts.AddOrUpdate(fdr.Callsign, newConflicts, (_, _) => newConflicts);
+    //        }
+    //    }
+    //}
     public static async Task RunConflictProbe(FDP2.FDR fdr)
     {
-        if (ProbeEnabled)
+        // Try to get the last probe time for the given callsign
+        if (!lastProbeTimeDict.TryGetValue(fdr.Callsign, out DateTime lastProbeTime))
+        {
+            lastProbeTime = DateTime.MinValue; // Default if not found
+        }
+    
+        // Check if probing is enabled and if enough time has passed since the last probe
+        if (ProbeEnabled && DateTime.Now - lastProbeTime > new TimeSpan(0, 5, 0))
         {
             var newConflicts = await Task.Run(() => ConflictProbe.Probe(fdr));
+    
             lock (ConflictProbeLock)
             {
                 // Re-check whether probe is still enabled after locking
                 if (!ProbeEnabled) return;
+    
+                // Update conflicts and last probe time
                 Conflicts.AddOrUpdate(fdr.Callsign, newConflicts, (_, _) => newConflicts);
+                lastProbeTimeDict[fdr.Callsign] = DateTime.Now; // Update the last probe time
             }
         }
     }
