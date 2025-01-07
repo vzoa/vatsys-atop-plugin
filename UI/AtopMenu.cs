@@ -3,6 +3,7 @@ using System.Windows.Forms;
 using AtopPlugin.State;
 using vatsys;
 using vatsys.Plugin;
+using vatsys_atop_plugin.UI;
 
 namespace AtopPlugin.UI;
 
@@ -13,13 +14,15 @@ public static class AtopMenu
     private static readonly SettingsWindow SettingsWindow = new();
     private static readonly ToolStripMenuItem ActivationToggle = new("Activate");
     private static readonly ConflictSummaryWindow ConflictSummaryWindow = new();
+    private static readonly AltitudeWindow AltitudeWindow = new();
 
     static AtopMenu()
     {
         InitializeActivationToggle();
         InitializeSettingsMenu();
         InitializeVersionItem();
-        InitializeConflictSummaryWindow();
+        //InitializeConflictSummaryWindow();
+        InitializeAltitudeWindow();
     }
 
     // empty method to force static class initialization to happen
@@ -27,6 +30,16 @@ public static class AtopMenu
     {
     }
 
+    private static void InitializeAltitudeWindow()
+    {
+        var altitudeWindowItem = new CustomToolStripMenuItem(CustomToolStripMenuItemWindowType.Main,
+            CustomToolStripMenuItemCategory.Custom, new ToolStripMenuItem("Altitude Menu"))
+        {
+            CustomCategoryName = CategoryName
+        };
+        altitudeWindowItem.Item.Click += (_, _) => MMI.InvokeOnGUI(AltitudeWindow.Show);
+        MMI.AddCustomMenuItem(altitudeWindowItem);
+    }
     private static void InitializeConflictSummaryWindow()
     {
         var conflictWindowItem = new CustomToolStripMenuItem(CustomToolStripMenuItemWindowType.Main,
