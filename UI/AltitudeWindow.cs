@@ -21,42 +21,43 @@ namespace vatsys_atop_plugin.UI
         private ConflictData Selected;
         public AltitudeWindow()
         {
-            InitializeComponent();
-            PopulateAltitudeListView();
+            InitializeComponent();            
             //UpdateSearchButtonState();
             ControlButtonState();
+            PopulateAltitudeListView();
         }
 
         public static void Handle(CustomLabelItemMouseClickEventArgs eventArgs)
         {
-            //var atopState = eventArgs.Track.GetFDR();
-            //if (atopState != null) ;
 
             AltitudeWindow window = new AltitudeWindow();
-            window.Show(Form.ActiveForm);
+
+            MMI.InvokeOnGUI(window.Show);
 
             eventArgs.Handled = true;
         }
 
+
         private void PopulateAltitudeListView()
         {
-        
             // Add a column if not already added
-           // if (lvw_altitudes.Columns.Count == 0)
-           // {
-           //     lvw_altitudes.Columns.Add("Altitude", 100, HorizontalAlignment.Center);
-           // }
-        
+            if (lvw_altitudes.Columns.Count == 0)
+            {
+                lvw_altitudes.Columns.Add("Altitude", 100, HorizontalAlignment.Center);
+            }
+            
+            var listViewItems = new List<ListViewItem>();
             // Loop through the altitude range
             for (int altitude = 0; altitude <= 600; altitude += 10)
             {
                 // Format altitude
-                var altitudeText = (altitude == 600) ? "600" : altitude.ToString("D3");
+                var altitudeText = new ListViewItem((altitude == 600) ? "600" : altitude.ToString("D3"));
 
                 // Add to ListView
-                lvw_altitudes.Items.Add(new ListViewItem(altitudeText));
+                listViewItems.Add(altitudeText);
+                
             }
-
+            //lvw_altitudes.Items.AddRange(listViewItems.ToArray());
         }
 
         private void MessageScroll_MouseWheel(object sender, MouseEventArgs e)
@@ -91,7 +92,7 @@ namespace vatsys_atop_plugin.UI
 
         private void ControlButtonState()
         {
-            //if(!sourcefdr.IsTrackedByMe)
+            if(!sourcefdr.IsTrackedByMe)
             {
                 btn_probe.Text = "Override";
                 btn_response.Text = "CONTROL";
@@ -105,7 +106,7 @@ namespace vatsys_atop_plugin.UI
         private void btn_probe_Click(object sender, EventArgs e)
         {
             ConflictProbe.Probe(sourcefdr);
-            //MMI.ShowGraphicRoute(track);
+            MMI.ShowGraphicRoute(dataBlock);
 
             if (Selected.ConflictStatus is ConflictStatus.Imminent or ConflictStatus.Actual)
             {
@@ -143,7 +144,7 @@ namespace vatsys_atop_plugin.UI
                 if (int.TryParse(selectedItem.Text, out int selectedAltitude))
                 {
                     // Set the CFL for the sourcefdr using the selected altitude
-                    FDP2.SetCFL(sourcefdr, selectedAltitude.ToString());
+                    FDP2.SetCFL(sourcefdr, selectedAltitude.ToString());                    
                 }
             }
         }

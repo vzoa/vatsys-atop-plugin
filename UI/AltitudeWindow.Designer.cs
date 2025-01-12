@@ -47,7 +47,6 @@ namespace vatsys_atop_plugin.UI
             this.textField1 = new vatsys.TextField();
             this.lbl_call = new vatsys.TextLabel();
             this.lvw_altitudes = new vatsys.ListViewEx();
-            this.altitude = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.SuspendLayout();
             // 
             // checkBox1
@@ -62,7 +61,7 @@ namespace vatsys_atop_plugin.UI
             // 
             // byTime
             // 
-            this.byTime.BackColor = Colours.GetColour(Colours.Identities.WindowBackground);
+            this.byTime.BackColor = System.Drawing.SystemColors.ControlDark;
             this.byTime.BorderStyle = System.Windows.Forms.BorderStyle.None;
             this.byTime.Font = new System.Drawing.Font("Terminus (TTF)", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.byTime.Location = new System.Drawing.Point(23, 213);
@@ -76,7 +75,7 @@ namespace vatsys_atop_plugin.UI
             // 
             this.scrollBar1.ActualHeight = 8;
             this.scrollBar1.Change = 1;
-            this.scrollBar1.ForeColor = Colours.GetColour(Colours.Identities.WindowBackground);
+            this.scrollBar1.ForeColor = System.Drawing.SystemColors.ControlDark;
             this.scrollBar1.Location = new System.Drawing.Point(85, 25);
             this.scrollBar1.MinimumSize = new System.Drawing.Size(0, -4);
             this.scrollBar1.Name = "scrollBar1";
@@ -215,15 +214,15 @@ namespace vatsys_atop_plugin.UI
             | System.Windows.Forms.AnchorStyles.Right)));
             this.fld_level.AutoCompleteMode = System.Windows.Forms.AutoCompleteMode.Append;
             this.fld_level.AutoCompleteSource = System.Windows.Forms.AutoCompleteSource.CustomSource;
-            this.fld_level.BackColor = Colours.GetColour(Colours.Identities.WindowBackground);
+            this.fld_level.BackColor = System.Drawing.SystemColors.ControlDark;
             this.fld_level.Font = new System.Drawing.Font("Terminus (TTF)", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.fld_level.ForeColor = Colours.GetColour(Colours.Identities.WindowBackground);
+            this.fld_level.ForeColor = System.Drawing.SystemColors.ControlDark;
             this.fld_level.Location = new System.Drawing.Point(5, 177);
             this.fld_level.MaxLength = 7;
             this.fld_level.Name = "fld_level";
             this.fld_level.NumericCharOnly = false;
             this.fld_level.OctalOnly = false;
-            this.fld_level.Size = new System.Drawing.Size(108, 34);
+            this.fld_level.Size = new System.Drawing.Size(103, 34);
             this.fld_level.TabIndex = 57;
             // 
             // textField1
@@ -233,9 +232,9 @@ namespace vatsys_atop_plugin.UI
             | System.Windows.Forms.AnchorStyles.Right)));
             this.textField1.AutoCompleteMode = System.Windows.Forms.AutoCompleteMode.Append;
             this.textField1.AutoCompleteSource = System.Windows.Forms.AutoCompleteSource.CustomSource;
-            this.textField1.BackColor = Colours.GetColour(Colours.Identities.WindowBackground);
+            this.textField1.BackColor = System.Drawing.SystemColors.ControlDark;
             this.textField1.Font = new System.Drawing.Font("Terminus (TTF)", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.textField1.ForeColor = Colours.GetColour(Colours.Identities.WindowBackground);
+            this.textField1.ForeColor = System.Drawing.SystemColors.ControlDark;
             this.textField1.Location = new System.Drawing.Point(114, 206);
             this.textField1.MaxLength = 4;
             this.textField1.Name = "textField1";
@@ -248,7 +247,7 @@ namespace vatsys_atop_plugin.UI
             // 
             this.lbl_call.BackColor = System.Drawing.SystemColors.ActiveCaption;
             this.lbl_call.Font = new System.Drawing.Font("Terminus (TTF)", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.lbl_call.ForeColor = Colours.GetColour(Colours.Identities.WindowBackground);
+            this.lbl_call.ForeColor = System.Drawing.SystemColors.ControlDark;
             this.lbl_call.HasBorder = false;
             this.lbl_call.InteractiveText = true;
             this.lbl_call.Location = new System.Drawing.Point(2, -2);
@@ -263,9 +262,7 @@ namespace vatsys_atop_plugin.UI
             this.lvw_altitudes.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
             | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
-            this.lvw_altitudes.BackColor = Colours.GetColour(Colours.Identities.WindowBackground);
-            this.lvw_altitudes.Columns.AddRange(new System.Windows.Forms.ColumnHeader[] {
-            this.altitude});
+            this.lvw_altitudes.BackColor = System.Drawing.SystemColors.ControlDark;
             this.lvw_altitudes.Font = new System.Drawing.Font("Terminus (TTF)", 18F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Pixel);
             this.lvw_altitudes.FullRowSelect = true;
             this.lvw_altitudes.HeaderStyle = System.Windows.Forms.ColumnHeaderStyle.None;
@@ -274,14 +271,15 @@ namespace vatsys_atop_plugin.UI
             this.lvw_altitudes.Name = "lvw_altitudes";
             this.lvw_altitudes.OwnerDraw = true;
             this.lvw_altitudes.ShowGroups = false;
-            this.lvw_altitudes.Size = new System.Drawing.Size(74, 144);
+            this.lvw_altitudes.Size = new System.Drawing.Size(79, 144);
             this.lvw_altitudes.TabIndex = 3;
             this.lvw_altitudes.UseCompatibleStateImageBehavior = false;
-            this.lvw_altitudes.View = View.Details;
+            this.lvw_altitudes.View = System.Windows.Forms.View.List;
+            this.lvw_altitudes.MouseWheel += new System.Windows.Forms.MouseEventHandler(this.MessageScroll_MouseWheel);
             // 
             // AltitudeWindow
             // 
-            this.BackColor = Colours.GetColour(Colours.Identities.WindowBackground);
+            this.BackColor = System.Drawing.SystemColors.ControlDark;
             this.ClientSize = new System.Drawing.Size(194, 238);
             this.Controls.Add(this.lvw_altitudes);
             this.Controls.Add(this.lbl_call);
@@ -309,7 +307,7 @@ namespace vatsys_atop_plugin.UI
 
         }        
         private FDP2.FDR sourcefdr;
-        private int InitLevel = -1;
+        private Track dataBlock;
         private System.Windows.Forms.CheckBox checkBox1;
         private System.Windows.Forms.TextBox byTime;
         private VATSYSControls.ScrollBar scrollBar1;
@@ -324,6 +322,5 @@ namespace vatsys_atop_plugin.UI
         private GenericButton btn_search;
         private TextLabel lbl_call;
         private ListViewEx lvw_altitudes;
-        private ColumnHeader altitude;
     }
 }
