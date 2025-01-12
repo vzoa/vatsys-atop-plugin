@@ -38,6 +38,12 @@ public static class JurisdictionManager
         if ((!isInControlledSector && fdr.IsTrackedByMe && !await WillEnter(fdr)) ||
             (fdr.IsTrackedByMe && !AtopPluginStateManager.Activated))
             MMI.HandoffJurisdiction(fdr, atopState.NextSector);
+
+        // Normal state of an aircraft progressing towards next FIR, transfer of comms 5 mins prior to boundary
+        if (isInControlledSector && fdr.IsTrackedByMe && fdr.State is not FDR.FDRStates.STATE_INHIBITED &&
+            DateTime.UtcNow == atopState.BoundaryTime.Subtract(TimeSpan.FromMinutes(1)))
+            Network.SendRadioMessage("MONITOR");
+        
     }
 
     public static async Task HandleRadarTrackUpdate(RDP.RadarTrack rt)
