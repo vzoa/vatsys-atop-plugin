@@ -1,6 +1,7 @@
 using AtopPlugin.State;
 using vatsys;
 using vatsys.Plugin;
+using vatsys_atop_plugin.UI;
 
 namespace AtopPlugin.Display.Label;
 
@@ -22,7 +23,8 @@ public class AltitudeLabelItem : ILabelItem
             Text = text,
             Border = displayState.AltitudeBorderFlags,
             BorderColourIdentity = Colours.Identities.Custom,
-            CustomBorderColour = CustomColors.NotCda
+            CustomBorderColour = CustomColors.NotCda,
+            OnMouseClick = AltitudeWindow.Handle
         };
 
         if (displayState.AltitudeColor == null) return labelItem;
