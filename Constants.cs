@@ -9,7 +9,7 @@ public static class CustomColors
     public static readonly CustomColour EastboundColour = new(240, 255, 255);
     public static readonly CustomColour WestboundColour = new(240, 231, 140);
     public static readonly CustomColour NonRvsm = new(242, 133, 0);
-    public static readonly CustomColour Probe = new(0, 255, 0);
+    public static readonly CustomColour Probe = new(70, 247, 57);
     public static readonly CustomColour NotCda = new(211, 28, 111);
     public static readonly CustomColour Advisory = new(255, 165, 0);
     public static readonly CustomColour Imminent = new(255, 0, 0);
