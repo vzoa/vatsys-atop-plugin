@@ -1,4 +1,6 @@
-﻿namespace AtopPlugin.UI
+﻿using vatsys;
+
+namespace AtopPlugin.UI
 {
     partial class ConflictReportWindow
     {
@@ -42,8 +44,8 @@
             this.ACTconfstart = new System.Windows.Forms.Label();
             this.INTconfend = new System.Windows.Forms.Label();
             this.INTconfstart = new System.Windows.Forms.Label();
-            this.DrawButton = new System.Windows.Forms.Button();
-            this.CloseButton = new System.Windows.Forms.Button();
+            this.DrawButton = new vatsys.GenericButton();
+            this.CloseButton = new vatsys.GenericButton();
             this.ConflictType = new System.Windows.Forms.Label();
             this.Degrees = new System.Windows.Forms.Label();
             this.LOSlabel = new System.Windows.Forms.Label();
@@ -271,21 +273,26 @@
             // DrawButton
             // 
             this.DrawButton.FlatStyle = System.Windows.Forms.FlatStyle.Popup;
-            this.DrawButton.ForeColor = System.Drawing.SystemColors.ActiveCaptionText;
+            this.DrawButton.Font = new System.Drawing.Font("Terminus (TTF)", 18F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Pixel);
             this.DrawButton.Location = new System.Drawing.Point(7, 255);
             this.DrawButton.Name = "DrawButton";
             this.DrawButton.Size = new System.Drawing.Size(75, 44);
+            this.DrawButton.SubFont = new System.Drawing.Font("Microsoft Sans Serif", 8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.DrawButton.SubText = "";
             this.DrawButton.TabIndex = 15;
             this.DrawButton.Text = "Draw";
             this.DrawButton.UseVisualStyleBackColor = true;
+            //this.DrawButton.Click += new System.EventHandler(this.DrawButton_Click);
             // 
             // CloseButton
             // 
             this.CloseButton.FlatStyle = System.Windows.Forms.FlatStyle.Popup;
-            this.CloseButton.ForeColor = System.Drawing.SystemColors.ControlText;
+            this.CloseButton.Font = new System.Drawing.Font("Terminus (TTF)", 18F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Pixel);
             this.CloseButton.Location = new System.Drawing.Point(529, 261);
             this.CloseButton.Name = "CloseButton";
             this.CloseButton.Size = new System.Drawing.Size(79, 38);
+            this.CloseButton.SubFont = new System.Drawing.Font("Microsoft Sans Serif", 8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.CloseButton.SubText = "";
             this.CloseButton.TabIndex = 16;
             this.CloseButton.Text = "Close";
             this.CloseButton.UseVisualStyleBackColor = true;
@@ -443,8 +450,8 @@
         private System.Windows.Forms.ListView ConflictDataList;
         private System.Windows.Forms.TableLayoutPanel tableLayoutPanel1;
         private System.Windows.Forms.TableLayoutPanel tableLayoutPanel2;
-        private System.Windows.Forms.Button DrawButton;
-        private System.Windows.Forms.Button CloseButton;
+        private GenericButton DrawButton;
+        private GenericButton CloseButton;
         private System.Windows.Forms.Label ConflictType;
         private System.Windows.Forms.Label Degrees;
         private System.Windows.Forms.Label LOSlabel;
