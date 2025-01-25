@@ -9,7 +9,7 @@ namespace AtopPlugin.Conflict;
 
 public class LateralConflictCalculator
 {
-    public List<ConflictSegment> ConflictSegments = new();
+    public List<ConflictSegment> ConflictSegments = new List<ConflictSegment>();
 
     public static List<ConflictSegment> CalculateAreaOfConflict(FDR fdr1, FDR fdr2, int value)
     {
@@ -231,14 +231,14 @@ public class LateralConflictCalculator
 
         return polygonIntersections;
     }
+    public class ConflictSegment
+    {
+        public string Callsign;
+        public Coordinate EndLatlong;
+        public DateTime EndTime = DateTime.MaxValue;
+        public FDR.ExtractedRoute.Segment RouteSegment;
+        public Coordinate StartLatlong;
+        public DateTime StartTime = DateTime.MaxValue;
+    }
 }
 
-public class ConflictSegment
-{
-    public string Callsign;
-    public Coordinate EndLatlong;
-    public DateTime EndTime = DateTime.MaxValue;
-    public FDR.ExtractedRoute.Segment RouteSegment;
-    public Coordinate StartLatlong;
-    public DateTime StartTime = DateTime.MaxValue;
-}

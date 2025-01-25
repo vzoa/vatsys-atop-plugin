@@ -14,7 +14,7 @@ public class ConflictData
     {
     }
 
-    public ConflictData(ConflictSegment buffer1, ConflictSegment buffer2, ConflictStatus status, ConflictType? type,
+    public ConflictData(LateralConflictCalculator.ConflictSegment buffer1, LateralConflictCalculator.ConflictSegment buffer2, ConflictStatus status, ConflictType? type,
         DateTime earlystart, DateTime latestart, DateTime end, FDP2.FDR intruder, FDP2.FDR active, int latsep,
         double longdistact,
         int? longdistsep, TimeSpan longtimeact, TimeSpan longtimesep, bool longtype, bool timelongcross,
@@ -43,8 +43,8 @@ public class ConflictData
         VerticalAct = vertact;
     }
 
-    public ConflictSegment FirstConflictTime { get; set; }
-    public ConflictSegment FirstConflictTime2 { get; set; }
+    public LateralConflictCalculator.ConflictSegment FirstConflictTime { get; set; }
+    public LateralConflictCalculator.ConflictSegment FirstConflictTime2 { get; set; }
     public ConflictStatus ConflictStatus { get; set; }
 
     public ConflictType? ConflictType { get; set; }

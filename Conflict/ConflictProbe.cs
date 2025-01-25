@@ -5,6 +5,7 @@ using AtopPlugin.Models;
 using vatsys;
 using static System.Windows.Forms.VisualStyles.VisualStyleElement;
 using static vatsys.FDP2;
+using AtopPlugin.Display;
 
 namespace AtopPlugin.Conflict;
 
@@ -16,7 +17,6 @@ public static class ConflictProbe
 
     public static Conflicts Probe(FDR fdr)
     {
-        ConflictDatas.Clear(); // Clear the list
         if (!MMI.IsMySectorConcerned(fdr)
             && fdr.State is FDR.FDRStates.STATE_INACTIVE or FDR.FDRStates.STATE_PREACTIVE
                 or FDR.FDRStates.STATE_FINISHED) return EmptyConflicts();
@@ -222,6 +222,15 @@ public static class ConflictProbe
         if (fdr2StartTime - fdr1EndTime > TimeSpan.Zero) return false;
 
         return true;
+    }
+
+    public static Conflicts ManualProbe(FDR fdr2)
+    {
+        FDP2.TryCreateFDR("*" + fdr2.Callsign, fdr2.FlightRules, fdr2.DepAirport, fdr2.DesAirport, fdr2.Route,
+            fdr2.Remarks, fdr2.AircraftCount.ToString(), fdr2.AircraftType, fdr2.AircraftWake, fdr2.AircraftEquip,
+            fdr2.AircraftSurvEquip, fdr2.TAS.ToString(), fdr2.CFLString, fdr2.ETD.ToString(), fdr2.EET.ToString(), fdr2.ATD.ToString(), fdr2.AltAirport);
+
+        return Probe(fdr2);
     }
 
     private static Conflicts EmptyConflicts()
