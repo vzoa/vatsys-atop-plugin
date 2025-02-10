@@ -30,6 +30,8 @@ namespace vatsys_atop_plugin.UI
         private object datablock;
 
         private static AltitudeWindow instance;
+
+        AtopAircraftDisplayState display;
         private AltitudeWindow(FDP2.FDR sourcefdr, Track dataBlock)
         {
             InitializeComponent();
@@ -159,6 +161,7 @@ namespace vatsys_atop_plugin.UI
                         item.Focused = true;
                         lvw_altitudes.EnsureVisible(item.Index);
                         lvw_altitudes.FocusedItem = item;
+                        fld_time.Enabled = false;
                     }
                 }
                 else if (((FDP2.FDR)this.source).CFLUpper == -1 && item.Text == (((FDP2.FDR)this.source).RFL / 100).ToString())
@@ -216,6 +219,12 @@ namespace vatsys_atop_plugin.UI
                     }
                     try
                     {
+                        if (lvw_altitudes.SelectedItems.Count >= 1 && selectedItem.Text == ((FDP2.FDR)this.source).CFLString)
+                        {
+                            fld_time.Enabled = false;
+                            climbByCheck.Enabled = false;
+                        }
+
                         if (lvw_altitudes.SelectedItems.Count > 1) FDP2.SetCFL(((FDP2.FDR)this.source), lowest, highest, false, true);
 
                         else if (lvw_altitudes.SelectedItems.Count == 1 && int.TryParse(selectedItem.Text, out int selectedAltitude))
@@ -285,8 +294,10 @@ namespace vatsys_atop_plugin.UI
             var prl = ((FDP2.FDR)this.source).PRL;
             var uppercfl = ((FDP2.FDR)this.source).CFLUpper;
             var lowercfl = ((FDP2.FDR)this.source).CFLLower;
-            var listAlt = lvw_altitudes.SelectedItems.ToString();
-            var timeInputValid = DateTimeOffset.Parse(byTime.Text).UtcDateTime >= DateTime.UtcNow;
+            var listAlt = lvw_altitudes.SelectedItems[0].Text;
+            var byTime = TimeSpan.Parse(fld_time.Text);
+            var byTimeDate = DateTime.Today.Add(byTime);
+            var timeInputValid = byTimeDate >= DateTime.UtcNow;
 
             MouseEventArgs me = (MouseEventArgs)e;
             if (me.Button == MouseButtons.Right)
@@ -304,25 +315,25 @@ namespace vatsys_atop_plugin.UI
             try
             {
                 if (climbByCheck.Checked && timeInputValid && prl > uppercfl)
-                    Network.SendRadioMessage(cs + "DESCEND TO REACH" + listAlt + "BY"
-                     + byTime.Text + "REPORT LEVEL" + listAlt);
+                    Network.SendRadioMessage(cs + " DESCEND TO REACH " + "F" + listAlt + " BY "
+                     + fld_time.Text + " REPORT LEVEL " + "F" + listAlt);
                 else if (climbByCheck.Checked && timeInputValid && prl < uppercfl)
-                    Network.SendRadioMessage(cs + "CLIMB TO REACH" + listAlt + "BY"
-                     + byTime.Text + "REPORT LEVEL" + listAlt);
-                else if (uppercfl >= prl && prl >= lowercfl && lowercfl != uppercfl)
-                    Network.SendRadioMessage(cs + "MAINTAIN BLOCK " + listAlt);
-                else if (prl < lowercfl && lowercfl != uppercfl)
-                    Network.SendRadioMessage(cs + "CLIMB TO AND MAINTAIN BLOCK " + listAlt);
-                else if (prl > uppercfl && lowercfl != uppercfl)
-                    Network.SendRadioMessage(cs + "DESCEND TO AND MAINTAIN BLOCK " + listAlt);
+                    Network.SendRadioMessage(cs + " CLIMB TO REACH " + "F" + listAlt + " BY "
+                     + fld_time.Text + " REPORT LEVEL " + "F" + listAlt);
+                else if (lowercfl != -1 && uppercfl >= prl && prl >= lowercfl && lowercfl != uppercfl)
+                    Network.SendRadioMessage(cs + " MAINTAIN BLOCK " + "F" + listAlt);
+                else if (lowercfl != -1 && prl < lowercfl && lowercfl != uppercfl)
+                    Network.SendRadioMessage(cs + " CLIMB TO AND MAINTAIN BLOCK " + listAlt);
+                else if (lowercfl != -1 && prl > uppercfl && lowercfl != uppercfl)
+                    Network.SendRadioMessage(cs + " DESCEND TO AND MAINTAIN BLOCK "  + listAlt);
                 else if (prl > uppercfl)
-                    Network.SendRadioMessage(cs + "DESCEND TO AND MAINTAIN " + listAlt
-                        + "REPORT LEVEL" + listAlt);
+                    Network.SendRadioMessage(cs + " DESCEND TO AND MAINTAIN " + "F" + listAlt
+                        + " REPORT LEVEL " + "F" + listAlt);
                 else if (prl < uppercfl)
-                    Network.SendRadioMessage(cs + "CLIMB TO AND MAINTAIN " + listAlt
-                        + "REPORT LEVEL" + listAlt);
+                    Network.SendRadioMessage(cs + " CLIMB TO AND MAINTAIN " + "F" + listAlt
+                        + " REPORT LEVEL" + "F" + listAlt);
                 else
-                    Network.SendRadioMessage(cs + "MAINTAIN " + listAlt);
+                    Network.SendRadioMessage(cs + " MAINTAIN " + "F" + listAlt);
             }
             catch
             {
@@ -372,6 +383,7 @@ namespace vatsys_atop_plugin.UI
                 }             
             }
             Close();
+            Dispose();
         }
 
         private void btn_cancel_Click(object sender, EventArgs e)

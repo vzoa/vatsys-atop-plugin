@@ -20,9 +20,9 @@ namespace vatsys_atop_plugin.UI
             InitializeComponent();
             this.source = (object)sourcefdr;
             this.Text = ((FDP2.FDR)this.source).Callsign.ToUpper() + " - " + ((FDP2.FDR)this.source).AircraftType;
-            this.StartPosition = FormStartPosition.Manual;
-            Point cursorPosition = Cursor.Position;
-            this.Location = cursorPosition;
+            StartPosition = FormStartPosition.Manual;
+            Size screenSize = Screen.PrimaryScreen.WorkingArea.Size;
+            this.Location = new Point(screenSize.Width / 2 - Width / 2, screenSize.Height / 2 - Height / 2);
             TextFieldState();
         }
         public static void Handle(CustomLabelItemMouseClickEventArgs eventArgs)
