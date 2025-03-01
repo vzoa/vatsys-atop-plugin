@@ -1,8 +1,12 @@
 ﻿using AtopPlugin.Models;
+using AtopPlugin.State;
 using System.Collections.Generic;
+using System.Drawing;
+using System.Linq;
 using vatsys;
 using vatsys.Plugin;
 using static System.Net.Mime.MediaTypeNames;
+using static vatsys.FDP2;
 using static vatsys.FDP2.FDR.ExtractedRoute;
 
 namespace AtopPlugin.Display;
@@ -51,6 +55,8 @@ public static class StripItemRenderer
                 }
                 : null,
 
+            StripConstants.StripItemLevel => new CustomStripItem { Text = displayState.CurrentLevel },
+
             StripConstants.StripItemVmi => new CustomStripItem { Text = displayState.AltitudeFlag?.Value ?? "" },
 
             StripConstants.StripItemComplex => displayState.IsRestrictionsIndicatorToggled
@@ -61,7 +67,20 @@ public static class StripItemRenderer
 
             StripConstants.StripItemRequestedLevel => new CustomStripItem { Text = displayState.RequestedLevel },
 
-            StripConstants.StripItemPoint => RenderPointStripItem(fdr),
+            StripConstants.StripItemPoint0 => RenderPointStripItem(fdr,0),
+            StripConstants.StripItemPoint1 => RenderPointStripItem(fdr,1),
+            StripConstants.StripItemPoint2 => RenderPointStripItem(fdr,2),
+            StripConstants.StripItemPoint3 => RenderPointStripItem(fdr,3),
+            StripConstants.StripItemPoint4 => RenderPointStripItem(fdr,4),
+            StripConstants.StripItemPoint5 => RenderPointStripItem(fdr,5),
+            StripConstants.StripItemPoint6 => RenderPointStripItem(fdr,6),
+            StripConstants.StripItemPoint7 => RenderPointStripItem(fdr,7),
+            StripConstants.StripItemPoint8 => RenderPointStripItem(fdr,8),
+            StripConstants.StripItemPoint9 => RenderPointStripItem(fdr,9),
+            StripConstants.StripItemPoint10=> RenderPointStripItem(fdr,10),
+            StripConstants.StripItemPoint11=> RenderPointStripItem(fdr,11),
+            StripConstants.StripItemPoint12=> RenderPointStripItem(fdr,12),
+            StripConstants.StripItemPoint13 => RenderPointStripItem(fdr, 13),
 
             StripConstants.StripItemRoute => new CustomStripItem { Text = Symbols.StripRouteItem },
 
@@ -86,27 +105,48 @@ public static class StripItemRenderer
             _ => null
         };
     }
-
-    private static CustomStripItem RenderPointStripItem(FDP2.FDR fdr)
+    private static CustomStripItem RenderPointStripItem(FDP2.FDR fdr, int index = -1)
     {
-        var stripItem = new StripItem();
+        IList<FDP2.FDR.ExtractedRoute.Segment> rte = fdr.ParsedRoute;
+        FDP2.FDR.ExtractedRoute.Segment segment = null;
 
-        var segment = (Segment)null;
-        segment = fdr.ParsedRoute[stripItem.PointIndex + 1];
-        var text = segment.Intersection.Name;
-        var customItem = new CustomStripItem { Text = text };
-        if (stripItem.PointIndexSpecified && fdr.ParsedRoute.Count > stripItem.PointIndex)
+        if (index >= 0 && index < rte.Count)
         {
-            if (Airspace2.GetIntersection(text, segment.Intersection.LatLong) == null)
-                text = Conversions.ConvertToReadableLatLongDDDMM(segment.Intersection.LatLong).ToString();
-            else if (segment.Intersection.Type == Airspace2.Intersection.Types.Unknown &&
-                     segment.Intersection.FullName != "") text = segment.Intersection.FullName;
-
-            customItem = new CustomStripItem { Text = text };
+            segment = rte[index];
+        }
+        else if (index == -1 && rte.Count > 0)
+        {
+            segment = rte.FirstOrDefault();
         }
 
+        if (segment == null)
+        {
+            return new CustomStripItem { Text = string.Empty };
+        }
 
-        return customItem;
+        var text = segment.Intersection.Name ?? string.Empty;
+
+       //// Check if the point is within the controlled sector
+       //if (!JurisdictionManager.IsInControlledSector(segment.Intersection.LatLong, fdr.CFLUpper).Result)
+       //{
+       //    return new CustomStripItem { Text = string.Empty };
+       //}
+
+        // Handle Z-points by rendering their latitude and longitude
+        if (segment.Type == Segment.SegmentTypes.ZPOINT)
+        {
+            text = Conversions.ConvertToReadableLatLongDDDMM(segment.Intersection.LatLong).ToString();
+        }
+        else if (Airspace2.GetIntersection(text, segment.Intersection.LatLong) == null)
+        {
+            text = Conversions.ConvertToReadableLatLongDDDMM(segment.Intersection.LatLong).ToString();
+        }
+        else if (segment.Intersection.Type == Airspace2.Intersection.Types.Unknown && segment.Intersection.FullName != "")
+        {
+            text = segment.Intersection.FullName;
+        }
+
+        return new CustomStripItem { Text = text };
     }
 
     private static CustomStripItem RenderCallsignStripItem(FDP2.FDR fdr)
