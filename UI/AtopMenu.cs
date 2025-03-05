@@ -1,3 +1,4 @@
+using System;
 using System.Threading;
 using System.Windows.Forms;
 using AtopPlugin.State;
@@ -90,6 +91,6 @@ public static class AtopMenu
 
     public static void SetActivationState(bool state)
     {
-        ActivationToggle.Checked = state;
+        MMI.InvokeOnGUI(() => ActivationToggle.Checked = state);
     }
 }
