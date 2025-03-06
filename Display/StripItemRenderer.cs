@@ -1,12 +1,8 @@
 ﻿using AtopPlugin.Models;
-using AtopPlugin.State;
 using System.Collections.Generic;
-using System.Drawing;
-using System.Linq;
 using vatsys;
 using vatsys.Plugin;
 using static System.Net.Mime.MediaTypeNames;
-using static vatsys.FDP2;
 using static vatsys.FDP2.FDR.ExtractedRoute;
 
 namespace AtopPlugin.Display;
@@ -42,7 +38,8 @@ public static class StripItemRenderer
             StripConstants.StripItemDistFlag => !string.IsNullOrEmpty(displayState.AdsFlag)
                 ? new CustomStripItem
                 {
-                    Text = displayState.AdsFlag, BackColourIdentity = Colours.Identities.Custom,
+                    Text = displayState.AdsFlag,
+                    BackColourIdentity = Colours.Identities.Custom,
                     CustomBackColour = CustomColors.SepFlags
                 }
                 : null,
@@ -50,12 +47,11 @@ public static class StripItemRenderer
             StripConstants.StripItemRvsmFlag => fdr.RVSM
                 ? new CustomStripItem
                 {
-                    Text = Symbols.Rvsm, BackColourIdentity = Colours.Identities.Custom,
+                    Text = Symbols.Rvsm,
+                    BackColourIdentity = Colours.Identities.Custom,
                     CustomBackColour = CustomColors.SepFlags
                 }
                 : null,
-
-            StripConstants.StripItemLevel => new CustomStripItem { Text = displayState.CurrentLevel },
 
             StripConstants.StripItemVmi => new CustomStripItem { Text = displayState.AltitudeFlag?.Value ?? "" },
 
@@ -67,20 +63,7 @@ public static class StripItemRenderer
 
             StripConstants.StripItemRequestedLevel => new CustomStripItem { Text = displayState.RequestedLevel },
 
-            StripConstants.StripItemPoint0 => RenderPointStripItem(fdr,0),
-            StripConstants.StripItemPoint1 => RenderPointStripItem(fdr,1),
-            StripConstants.StripItemPoint2 => RenderPointStripItem(fdr,2),
-            StripConstants.StripItemPoint3 => RenderPointStripItem(fdr,3),
-            StripConstants.StripItemPoint4 => RenderPointStripItem(fdr,4),
-            StripConstants.StripItemPoint5 => RenderPointStripItem(fdr,5),
-            StripConstants.StripItemPoint6 => RenderPointStripItem(fdr,6),
-            StripConstants.StripItemPoint7 => RenderPointStripItem(fdr,7),
-            StripConstants.StripItemPoint8 => RenderPointStripItem(fdr,8),
-            StripConstants.StripItemPoint9 => RenderPointStripItem(fdr,9),
-            StripConstants.StripItemPoint10=> RenderPointStripItem(fdr,10),
-            StripConstants.StripItemPoint11=> RenderPointStripItem(fdr,11),
-            StripConstants.StripItemPoint12=> RenderPointStripItem(fdr,12),
-            StripConstants.StripItemPoint13 => RenderPointStripItem(fdr, 13),
+            StripConstants.StripItemPoint => RenderPointStripItem(fdr),
 
             StripConstants.StripItemRoute => new CustomStripItem { Text = Symbols.StripRouteItem },
 
@@ -93,7 +76,8 @@ public static class StripItemRenderer
             StripConstants.StripItemLateralFlag => !string.IsNullOrEmpty(displayState.LateralFlag)
                 ? new CustomStripItem
                 {
-                    Text = displayState.LateralFlag, BackColourIdentity = Colours.Identities.Custom,
+                    Text = displayState.LateralFlag,
+                    BackColourIdentity = Colours.Identities.Custom,
                     CustomBackColour = CustomColors.SepFlags
                 }
                 : null,
@@ -105,48 +89,27 @@ public static class StripItemRenderer
             _ => null
         };
     }
-    private static CustomStripItem RenderPointStripItem(FDP2.FDR fdr, int index = -1)
+
+    private static CustomStripItem RenderPointStripItem(FDP2.FDR fdr)
     {
-        IList<FDP2.FDR.ExtractedRoute.Segment> rte = fdr.ParsedRoute;
-        FDP2.FDR.ExtractedRoute.Segment segment = null;
+        var stripItem = new StripItem();
 
-        if (index >= 0 && index < rte.Count)
+        var segment = (Segment)null;
+        segment = fdr.ParsedRoute[stripItem.PointIndex + 1];
+        var text = segment.Intersection.Name;
+        var customItem = new CustomStripItem { Text = text };
+        if (stripItem.PointIndexSpecified && fdr.ParsedRoute.Count > stripItem.PointIndex)
         {
-            segment = rte[index];
-        }
-        else if (index == -1 && rte.Count > 0)
-        {
-            segment = rte.FirstOrDefault();
-        }
+            if (Airspace2.GetIntersection(text, segment.Intersection.LatLong) == null)
+                text = Conversions.ConvertToReadableLatLongDDDMM(segment.Intersection.LatLong).ToString();
+            else if (segment.Intersection.Type == Airspace2.Intersection.Types.Unknown &&
+                     segment.Intersection.FullName != "") text = segment.Intersection.FullName;
 
-        if (segment == null)
-        {
-            return new CustomStripItem { Text = string.Empty };
-        }
-
-        var text = segment.Intersection.Name ?? string.Empty;
-
-       //// Check if the point is within the controlled sector
-       //if (!JurisdictionManager.IsInControlledSector(segment.Intersection.LatLong, fdr.CFLUpper).Result)
-       //{
-       //    return new CustomStripItem { Text = string.Empty };
-       //}
-
-        // Handle Z-points by rendering their latitude and longitude
-        if (segment.Type == Segment.SegmentTypes.ZPOINT)
-        {
-            text = Conversions.ConvertToReadableLatLongDDDMM(segment.Intersection.LatLong).ToString();
-        }
-        else if (Airspace2.GetIntersection(text, segment.Intersection.LatLong) == null)
-        {
-            text = Conversions.ConvertToReadableLatLongDDDMM(segment.Intersection.LatLong).ToString();
-        }
-        else if (segment.Intersection.Type == Airspace2.Intersection.Types.Unknown && segment.Intersection.FullName != "")
-        {
-            text = segment.Intersection.FullName;
+            customItem = new CustomStripItem { Text = text };
         }
 
-        return new CustomStripItem { Text = text };
+
+        return customItem;
     }
 
     private static CustomStripItem RenderCallsignStripItem(FDP2.FDR fdr)

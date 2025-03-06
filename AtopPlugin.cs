@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel.Composition;
+using System.Threading.Tasks;
 using AtopPlugin.Display;
 using AtopPlugin.State;
 using AtopPlugin.UI;
@@ -35,11 +36,17 @@ public class AtopPlugin : ILabelPlugin, IStripPlugin
     {
         _ = AtopPluginStateManager.ProcessFdrUpdate(updated);
         _ = AtopPluginStateManager.ProcessDisplayUpdate(updated);
-        _ = AtopPluginStateManager.RunConflictProbe(updated);
+
+        // Run conflict probe asynchronously without blocking UI
+        Task.Run(async () => await AtopPluginStateManager.RunConflictProbe(updated));
+
         FdrPropertyChangesListener.RegisterHandler(updated);
 
-        // don't manage jurisdiction if not connected as ATC
-        if (Network.Me.IsRealATC) _ = JurisdictionManager.HandleFdrUpdate(updated);
+        // Don't manage jurisdiction if not connected as ATC
+        if (Network.Me.IsRealATC)
+        {
+            _ = JurisdictionManager.HandleFdrUpdate(updated);
+        }
     }
 
     public void OnRadarTrackUpdate(RDP.RadarTrack updated)
