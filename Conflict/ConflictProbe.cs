@@ -106,6 +106,7 @@ public static class ConflictProbe
         });
 
         // Return only currently active conflicts
+        ConflictsUpdated?.Invoke(null, new EventArgs());
         return GroupConflicts(ActiveConflicts.Values.ToList());
     }
 
