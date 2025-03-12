@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using vatsys;
@@ -37,7 +38,24 @@ public static class JurisdictionManager
         // also drop them if we are not activated
         if ((!isInControlledSector && fdr.IsTrackedByMe && !await WillEnter(fdr)) ||
             (fdr.IsTrackedByMe && !AtopPluginStateManager.Activated))
+        {
+            // Ensure atopState is not null before accessing it
+            var localAtopState = fdr.GetAtopState();
+            if (localAtopState == null)
+            {
+                Debug.WriteLine($"[ERROR] atopState is null for {fdr.Callsign}");
+                return; // Prevent null reference error
+            }
+
+            if (localAtopState.NextSector == null)
+            {
+                Debug.WriteLine($"[ERROR] atopState.NextSector is null for {fdr.Callsign}");
+                return; // Prevent passing null to HandoffJurisdiction
+            }
+
+            // Proceed only if atopState and NextSector are valid
             MMI.HandoffJurisdiction(fdr, atopState.NextSector);
+        }
 
         // Normal state of an aircraft progressing towards next FIR, transfer of comms 5 mins prior to boundary
         if (isInControlledSector && fdr.IsTrackedByMe && fdr.State is not FDR.FDRStates.STATE_INHIBITED &&
