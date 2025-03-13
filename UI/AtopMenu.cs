@@ -22,7 +22,7 @@ public static class AtopMenu
         InitializeActivationToggle();
         InitializeSettingsMenu();
         InitializeVersionItem();
-        //InitializeConflictSummaryWindow();
+        InitializeConflictSummaryWindow();
         //InitializeAltitudeWindow();
     }
 
@@ -44,7 +44,7 @@ public static class AtopMenu
     private static void InitializeConflictSummaryWindow()
     {
         var conflictWindowItem = new CustomToolStripMenuItem(CustomToolStripMenuItemWindowType.Main,
-            CustomToolStripMenuItemCategory.Custom, new ToolStripMenuItem("Conflict Summary") { Enabled = false })
+            CustomToolStripMenuItemCategory.Custom, new ToolStripMenuItem("Conflict Summary"))
         {
             CustomCategoryName = CategoryName
         };
