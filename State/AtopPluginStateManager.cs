@@ -21,6 +21,7 @@ public static class AtopPluginStateManager
     private static readonly object StatesLock = new();
     private static readonly object ConflictProbeLock = new();
     private static readonly object ActivationLock = new();
+    private static readonly Random _random = new Random();
 
     private static bool ProbeEnabled
     {
@@ -114,41 +115,29 @@ public static class AtopPluginStateManager
         }
     }
 
-
-    //public static async Task RunConflictProbe(FDP2.FDR fdr)
-    //{
-    //    if (ProbeEnabled)
-    //    {
-    //        var newConflicts = await Task.Run(() => ConflictProbe.Probe(fdr));
-    //        lock (ConflictProbeLock)
-    //        {
-    //            // Re-check whether probe is still enabled after locking
-    //            if (!ProbeEnabled) return;
-    //            Conflicts.AddOrUpdate(fdr.Callsign, newConflicts, (_, _) => newConflicts);
-    //        }
-    //    }
-    //}
     public static async Task RunConflictProbe(FDP2.FDR fdr)
     {
         // Try to get the last probe time for the given callsign
         if (!lastProbeTimeDict.TryGetValue(fdr.Callsign, out DateTime lastProbeTime))
         {
-            lastProbeTime = DateTime.MinValue; // Default if not found
+            // Initialize with a random offset between 0 and 5 minutes
+            var randomOffset = TimeSpan.FromSeconds(_random.Next(0, 300));
+            lastProbeTime = DateTime.Now - new TimeSpan(0, 5, 0) + randomOffset;
         }
-    
+
         // Check if probing is enabled and if enough time has passed since the last probe
         if (ProbeEnabled && DateTime.Now - lastProbeTime > new TimeSpan(0, 5, 0))
         {
             var newConflicts = await Task.Run(() => ConflictProbe.Probe(fdr));
-    
+
             lock (ConflictProbeLock)
             {
                 // Re-check whether probe is still enabled after locking
                 if (!ProbeEnabled) return;
-    
+
                 // Update conflicts and last probe time
                 Conflicts.AddOrUpdate(fdr.Callsign, newConflicts, (_, _) => newConflicts);
-                lastProbeTimeDict[fdr.Callsign] = DateTime.Now; // Update the last probe time
+                lastProbeTimeDict[fdr.Callsign] = DateTime.Now;
             }
         }
     }

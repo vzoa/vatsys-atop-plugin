@@ -1,3 +1,4 @@
+using System;
 using System.Threading;
 using System.Windows.Forms;
 using AtopPlugin.State;
@@ -21,7 +22,7 @@ public static class AtopMenu
         InitializeActivationToggle();
         InitializeSettingsMenu();
         InitializeVersionItem();
-        //InitializeConflictSummaryWindow();
+        InitializeConflictSummaryWindow();
         //InitializeAltitudeWindow();
     }
 
@@ -43,7 +44,7 @@ public static class AtopMenu
     private static void InitializeConflictSummaryWindow()
     {
         var conflictWindowItem = new CustomToolStripMenuItem(CustomToolStripMenuItemWindowType.Main,
-            CustomToolStripMenuItemCategory.Custom, new ToolStripMenuItem("Conflict Summary") { Enabled = false })
+            CustomToolStripMenuItemCategory.Custom, new ToolStripMenuItem("Conflict Summary"))
         {
             CustomCategoryName = CategoryName
         };
@@ -90,6 +91,6 @@ public static class AtopMenu
 
     public static void SetActivationState(bool state)
     {
-        ActivationToggle.Checked = state;
+        MMI.InvokeOnGUI(() => ActivationToggle.Checked = state);
     }
 }

@@ -277,8 +277,8 @@ namespace vatsys_atop_plugin.UI
             // 
             // fld_level
             // 
-            this.fld_level.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
-            | System.Windows.Forms.AnchorStyles.Left) 
+            this.fld_level.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom)
+            | System.Windows.Forms.AnchorStyles.Left)
             | System.Windows.Forms.AnchorStyles.Right)));
             this.fld_level.AutoCompleteMode = System.Windows.Forms.AutoCompleteMode.Append;
             this.fld_level.AutoCompleteSource = System.Windows.Forms.AutoCompleteSource.CustomSource;
@@ -297,8 +297,8 @@ namespace vatsys_atop_plugin.UI
             // 
             // fld_time
             // 
-            this.fld_time.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
-            | System.Windows.Forms.AnchorStyles.Left) 
+            this.fld_time.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom)
+            | System.Windows.Forms.AnchorStyles.Left)
             | System.Windows.Forms.AnchorStyles.Right)));
             this.fld_time.AutoCompleteMode = System.Windows.Forms.AutoCompleteMode.Append;
             this.fld_time.AutoCompleteSource = System.Windows.Forms.AutoCompleteSource.CustomSource;
@@ -439,7 +439,7 @@ namespace vatsys_atop_plugin.UI
             this.ResumeLayout(false);
             this.PerformLayout();
 
-        }        
+        }
         private FDP2.FDR sourcefdr;
         private Track dataBlock;
         private System.Windows.Forms.CheckBox climbByCheck;

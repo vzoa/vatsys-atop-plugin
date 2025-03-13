@@ -23,7 +23,6 @@ namespace AtopPlugin.UI
 
         private ConflictData SelectedConflict;
         private LateralConflictCalculator[] conflictSegment;
-        private RenderParam asdRenderer;
         public ConflictReportWindow(ConflictData SelectedConflict)
         {
             InitializeComponent();
@@ -129,7 +128,6 @@ namespace AtopPlugin.UI
 
         
 
-        //private void DrawButton_Click(object sender, EventArgs e) => Display.ASDRenderer.PaintConflicts(asdRenderer, conflictSegment);
         private void CloseButton_Click(object sender, EventArgs e)
         {
             Close();

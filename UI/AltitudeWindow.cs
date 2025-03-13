@@ -37,7 +37,7 @@ namespace vatsys_atop_plugin.UI
             InitializeComponent();
             //this.conflict = (object)inConflict;
             this.datablock = (object)dataBlock;
-            this.source = (object)sourcefdr;           
+            this.source = (object)sourcefdr;
             //PopulateAltitudeListView();
             UpdateSearchButtonState();
             ControlButtonState();
@@ -64,15 +64,15 @@ namespace vatsys_atop_plugin.UI
             return instance;
         }
 
-            private void PopulateAltitudeListView()
+        private void PopulateAltitudeListView()
         {
             // Add a column if not already added
             if (lvw_altitudes.Columns.Count == 0)
             {
                 lvw_altitudes.Columns.Add("Altitude", 100, HorizontalAlignment.Center);
             }
-            
-            
+
+
             try
             {
                 // Loop through the altitude range
@@ -80,12 +80,12 @@ namespace vatsys_atop_plugin.UI
                 {
                     // Format altitude
                     var altitudeText = (altitude == 600) ? "600" : altitude.ToString("D3");
-        
+
                     // Add to ListView                   
                     lvw_altitudes.Items.Add(altitudeText);
                 }
             }
-        
+
             catch (Exception)
             {
                 //ignored - unknown error populating
@@ -96,7 +96,7 @@ namespace vatsys_atop_plugin.UI
         {
             AltitudeWindow window = GetInstance(eventArgs.Track.GetFDR(), eventArgs.Track);
 
-            if(eventArgs.Button == CustomLabelItemMouseButton.Right)
+            if (eventArgs.Button == CustomLabelItemMouseButton.Right)
             {
                 MMI.InvokeOnGUI(window.Show);
             }
@@ -125,11 +125,11 @@ namespace vatsys_atop_plugin.UI
 
         private void UpdateSearchButtonState()
         {
-            if(((FDP2.FDR)this.source).IsTrackedByMe && ((FDP2.FDR)this.source).ControllingSector.Name is "OA")
+            if (((FDP2.FDR)this.source).IsTrackedByMe && ((FDP2.FDR)this.source).ControllingSector.Name is "OA")
             {
                 btn_search.Enabled = true;
             }
-                                                  
+
         }
 
 
@@ -144,15 +144,15 @@ namespace vatsys_atop_plugin.UI
                     {
                         var parts = cflText.Split('B');
                         if (parts.Length == 2 && int.TryParse(parts[0], out int low) && int.TryParse(parts[1], out int high))
-                        {                            
-                           int altitude = int.Parse(item.Text);
-                           if (altitude >= low && altitude <= high)
+                        {
+                            int altitude = int.Parse(item.Text);
+                            if (altitude >= low && altitude <= high)
                             {
                                 item.Selected = true;
                                 item.Focused = true;
                                 lvw_altitudes.EnsureVisible(item.Index);
                                 lvw_altitudes.FocusedItem = item;
-                            }                         
+                            }
                         }
                     }
                     else if (item.Text == cflText)
@@ -170,12 +170,12 @@ namespace vatsys_atop_plugin.UI
                     item.Focused = true;
                     lvw_altitudes.EnsureVisible(item.Index);
                     lvw_altitudes.FocusedItem = item;
-                }               
+                }
             }
         }
         private void ControlButtonState()
         {
-            if(!((FDP2.FDR)this.source).IsTrackedByMe) 
+            if (!((FDP2.FDR)this.source).IsTrackedByMe)
             {
                 btn_probe.Text = "Override";
                 btn_response.Text = "CONTROL";
@@ -197,7 +197,7 @@ namespace vatsys_atop_plugin.UI
             fld_time.Enabled = false;
             fld_time.Text = DateTime.UtcNow.AddMinutes(20).ToString("HHmm");
         }
-       
+
         private void btn_probe_Click(object sender, EventArgs e)
         {
             if (lvw_altitudes.SelectedItems.Count > 0)
@@ -248,7 +248,7 @@ namespace vatsys_atop_plugin.UI
             var conflictType = ((FDP2.FDR)source)?.GetConflicts();
 
             if (conflictType.Equals(ConflictStatus.Imminent) || conflictType.Equals(ConflictStatus.Actual))
-                {
+            {
                 btn_probe.Text = "Override";
                 btn_response.BackColor = Color.Red;
                 btn_response.ForeColor = Color.Black;
@@ -325,7 +325,7 @@ namespace vatsys_atop_plugin.UI
                 else if (lowercfl != -1 && prl < lowercfl && lowercfl != uppercfl)
                     Network.SendRadioMessage(cs + " CLIMB TO AND MAINTAIN BLOCK " + listAlt);
                 else if (lowercfl != -1 && prl > uppercfl && lowercfl != uppercfl)
-                    Network.SendRadioMessage(cs + " DESCEND TO AND MAINTAIN BLOCK "  + listAlt);
+                    Network.SendRadioMessage(cs + " DESCEND TO AND MAINTAIN BLOCK " + listAlt);
                 else if (prl > uppercfl)
                     Network.SendRadioMessage(cs + " DESCEND TO AND MAINTAIN " + "F" + listAlt
                         + " REPORT LEVEL " + "F" + listAlt);
@@ -347,21 +347,21 @@ namespace vatsys_atop_plugin.UI
         {
             if (lvw_altitudes.SelectedItems.Count > 0)
             {
-                    ListViewItem selectedItem = lvw_altitudes.SelectedItems[0];
-                    int lowest = int.Parse(lvw_altitudes.SelectedItems[0].Text) * 100;
-                    int highest = int.Parse(lvw_altitudes.SelectedItems[0].Text) * 100;
+                ListViewItem selectedItem = lvw_altitudes.SelectedItems[0];
+                int lowest = int.Parse(lvw_altitudes.SelectedItems[0].Text) * 100;
+                int highest = int.Parse(lvw_altitudes.SelectedItems[0].Text) * 100;
 
-                    foreach (ListViewItem item in lvw_altitudes.SelectedItems)
+                foreach (ListViewItem item in lvw_altitudes.SelectedItems)
+                {
+                    int value = int.Parse(item.Text) * 100;
+                    if (value < lowest)
                     {
-                        int value = int.Parse(item.Text) * 100;
-                        if (value < lowest)
-                        {
-                            lowest = value;
-                        }
-                        else if (value > highest)
-                        {
-                            highest = value;
-                        }
+                        lowest = value;
+                    }
+                    else if (value > highest)
+                    {
+                        highest = value;
+                    }
                     try
                     {
                         if (lvw_altitudes.SelectedItems.Count > 1) FDP2.SetCFL(((FDP2.FDR)this.source), lowest, highest, false, true);
@@ -380,7 +380,7 @@ namespace vatsys_atop_plugin.UI
                         btn_response.ForeColor = Color.Yellow;
                     }
 
-                }             
+                }
             }
             Close();
             Dispose();
@@ -448,7 +448,7 @@ namespace vatsys_atop_plugin.UI
                 if (parts.Length == 2 && int.TryParse(parts[0], out int low) && int.TryParse(parts[1], out int high))
                 {
                     foreach (ListViewItem item in lvw_altitudes.Items)
-                    {                        
+                    {
                         int altitude = int.Parse(item.Text);
                         if (altitude >= low && altitude <= high)
                         {
@@ -460,7 +460,7 @@ namespace vatsys_atop_plugin.UI
             else
             {
                 foreach (ListViewItem item in lvw_altitudes.Items)
-                {                   
+                {
                     if (item.Text == text)
                     {
                         item.Selected = true;
@@ -485,7 +485,7 @@ namespace vatsys_atop_plugin.UI
                 fld_time.Enabled = true;
                 climbByCheck.ForeColor = Color.Red;
             }
-            else fld_time.Enabled = false; 
+            else fld_time.Enabled = false;
 
         }
 
