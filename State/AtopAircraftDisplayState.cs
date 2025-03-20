@@ -47,7 +47,7 @@ public class AtopAircraftDisplayState
         RequestedLevel = GetRequestedLevel(atopAircraftState);
         AltitudeBorderFlags = GetAltitudeBorderFlags(atopAircraftState);
         AltitudeColor = atopAircraftState.Fdr.RVSM ? null : CustomColors.NonRvsm;
-        FiledSpeed = GetFiledSpeed(atopAircraftState);
+        //FiledSpeed = GetFiledSpeed(atopAircraftState);
         GroundSpeed = GetGroundSpeed(atopAircraftState);
 
         AltitudeFlag =

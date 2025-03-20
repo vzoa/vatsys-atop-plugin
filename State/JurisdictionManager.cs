@@ -43,13 +43,13 @@ public static class JurisdictionManager
             var localAtopState = fdr.GetAtopState();
             if (localAtopState == null)
             {
-                Debug.WriteLine($"[ERROR] atopState is null for {fdr.Callsign}");
+                Errors.Add(new Exception($"[ERROR] atopState is null for {fdr.Callsign}"));
                 return; // Prevent null reference error
             }
 
             if (localAtopState.NextSector == null)
             {
-                Debug.WriteLine($"[ERROR] atopState.NextSector is null for {fdr.Callsign}");
+                Errors.Add(new Exception($"[ERROR] atopState.NextSector is null for {fdr.Callsign}"));
                 return; // Prevent passing null to HandoffJurisdiction
             }
 

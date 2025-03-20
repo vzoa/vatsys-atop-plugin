@@ -223,15 +223,23 @@ namespace vatsys_atop_plugin.UI
                         {
                             fld_time.Enabled = false;
                             climbByCheck.Enabled = false;
+                            ManualProbe((FDP2.FDR)this.source);
                         }
 
-                        if (lvw_altitudes.SelectedItems.Count > 1) FDP2.SetCFL(((FDP2.FDR)this.source), lowest, highest, false, true);
+                        if (lvw_altitudes.SelectedItems.Count > 1)
+                        {
+                            ManualProbe((FDP2.FDR)this.source);
+                            FDP2.SetPRL(GetFDRs.FirstOrDefault(s => s.Callsign == "*" + ((FDP2.FDR)this.source).Callsign), ((FDP2.FDR)this.source).PRL);
+                            FDP2.SetCFL(GetFDRs.FirstOrDefault(s => s.Callsign == "*" + ((FDP2.FDR)this.source).Callsign), lowest, highest, false, true);
+                        }
 
                         else if (lvw_altitudes.SelectedItems.Count == 1 && int.TryParse(selectedItem.Text, out int selectedAltitude))
                         {
-                            FDP2.SetCFL(((FDP2.FDR)this.source), selectedAltitude.ToString());
+                            ManualProbe((FDP2.FDR)this.source);
+                            FDP2.SetPRL(GetFDRs.FirstOrDefault(s => s.Callsign == "*" + ((FDP2.FDR)this.source).Callsign), ((FDP2.FDR)this.source).PRL);
+                            FDP2.SetCFL(GetFDRs.FirstOrDefault(s => s.Callsign == "*" + ((FDP2.FDR)this.source).Callsign), selectedAltitude.ToString());
                         }
-                        ManualProbe((FDP2.FDR)this.source);
+                        
                     }
 
                     catch
@@ -392,7 +400,7 @@ namespace vatsys_atop_plugin.UI
             btn_probe.Enabled = true;
             btn_response.Text = "-";
 
-            foreach (FDR item in GetFDRs.Where((FDR c) => "*" + c.Callsign == ((FDP2.FDR)source).Callsign))
+            foreach (FDR item in GetFDRs.Where((FDR c) => c.Callsign == "*" + ((FDP2.FDR)source).Callsign))
             {
                 FDP2.DeleteFDR(item);
             }

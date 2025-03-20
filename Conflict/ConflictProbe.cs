@@ -138,11 +138,21 @@ public static class ConflictProbe
 
     public static Conflicts ManualProbe(FDR fdr2)
     {
+        // Create a new FDR based on the provided fdr2
         FDP2.TryCreateFDR("*" + fdr2.Callsign, fdr2.FlightRules, fdr2.DepAirport, fdr2.DesAirport, fdr2.Route,
             fdr2.Remarks, fdr2.AircraftCount.ToString(), fdr2.AircraftType, fdr2.AircraftWake, fdr2.AircraftEquip,
-            fdr2.AircraftSurvEquip, fdr2.TAS.ToString(), fdr2.CFLString, fdr2.ETD.ToString(), fdr2.EET.ToString(), fdr2.ATD.ToString(), fdr2.AltAirport);
+            fdr2.AircraftSurvEquip, fdr2.TAS.ToString(), fdr2.CFLString, fdr2.ETD.ToString("HHmm"), fdr2.EET.ToString("hhmm"), fdr2.ATD.ToString("HHmm"), fdr2.AltAirport);
 
-        return Probe(fdr2);
+        var fdr3 = GetFDRs.FirstOrDefault(s => s.Callsign == "*" + fdr2.Callsign);
+
+        if (fdr3 != null)
+        {
+            FDP2.DepartFDR(fdr3, fdr2.ATD);
+            //FDP2.SetCFL(fdr3, fdr2.CFLString);
+            return Probe(fdr3);
+        }
+
+        return EmptyConflicts();
     }
 
     private static Conflicts EmptyConflicts()
