@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Diagnostics;
 using System.Linq;
+using System.Reflection;
 using System.Threading.Tasks;
 using vatsys;
 using static vatsys.FDP2;
@@ -27,12 +28,15 @@ public static class JurisdictionManager
             atopState is { WasHandedOff: false })
             MMI.AcceptJurisdiction(fdr);
 
+        // Sets the RFL as the CFL if CFL is empty
+        if (fdr.CFLUpper == -1 && fdr.ESTed && fdr.State > FDR.FDRStates.STATE_PREACTIVE)
+            FDP2.SetCFL(fdr, fdr.RFL.ToString(), false);
+
         // Normal state of an aircraft progressing towards the next FIR, implicit transfer of control 1 min prior to boundary
         if (AtopPluginStateManager.Activated && isInControlledSector && fdr.IsTracked &&
             atopState is { WasHandedOff: false } &&
             DateTime.UtcNow == atopState.BoundaryTime.Subtract(TimeSpan.FromMinutes(1)))
             MMI.HandoffJurisdiction(fdr, atopState.NextSector);
-
 
         // if they're outside sector, currently tracked, and not going to re-enter, hand FP off to next sector
         // also drop them if we are not activated
@@ -57,11 +61,41 @@ public static class JurisdictionManager
             MMI.HandoffJurisdiction(fdr, atopState.NextSector);
         }
 
-        // Normal state of an aircraft progressing towards next FIR, transfer of comms 5 mins prior to boundary
-        if (isInControlledSector && fdr.IsTrackedByMe && fdr.State is not FDR.FDRStates.STATE_INHIBITED &&
-            DateTime.UtcNow == atopState.BoundaryTime.Subtract(TimeSpan.FromMinutes(1)))
-            Network.SendRadioMessage("MONITOR");
-        
+        // Invoke the internal method SendTextMessage from Network
+        Type networkType = typeof(Network);
+        if (networkType != null)
+        {
+            // Get the method info for the internal method
+            MethodInfo sendTextMessageMethod = networkType.GetMethod("SendTextMessage", BindingFlags.NonPublic | BindingFlags.Static);
+            object networkInstance = networkType.GetField("Instance", BindingFlags.NonPublic | BindingFlags.Static).GetValue(null);
+            if (sendTextMessageMethod != null)
+            {
+                if (isInControlledSector && fdr.IsTrackedByMe && fdr.State is not FDR.FDRStates.STATE_INHIBITED &&
+                DateTime.UtcNow == atopState.BoundaryTime.Subtract(TimeSpan.FromSeconds(2820)))
+                {
+                    // Invoke the internal method
+                    // Normal state of an aircraft progressing towards next FIR, send Next Data Authority ~47 mins prior to boundary
+                    sendTextMessageMethod.Invoke(networkInstance, new object[] { fdr.Callsign, "NEXT DATA AUTHORITY" + atopState.NextSector?.FullName });
+                }
+
+                // Normal state of an aircraft progressing towards next FIR, transfer of comms 5 mins prior to boundary
+                if (isInControlledSector && fdr.IsTrackedByMe && fdr.State is not FDR.FDRStates.STATE_INHIBITED &&
+                    DateTime.UtcNow == atopState.BoundaryTime.Subtract(TimeSpan.FromSeconds(300)))
+                {
+                    // Invoke the internal method
+                    sendTextMessageMethod.Invoke(networkInstance, new object[] { fdr.Callsign, "CONTACT" + atopState.NextSector?.FullName + atopState.NextSector?.Frequency });
+                }
+
+                // Normal state of an aircraft progressing towards next FIR, CPDLC EOS 3 mins prior to boundary
+                if (isInControlledSector && fdr.IsTrackedByMe && fdr.State is not FDR.FDRStates.STATE_INHIBITED &&
+                    DateTime.UtcNow == atopState.BoundaryTime.Subtract(TimeSpan.FromSeconds(180)))
+                {
+                    sendTextMessageMethod.Invoke(networkInstance, new object[] { fdr.Callsign, "END SERVICE" });
+                }
+            }
+
+
+        }
     }
 
     public static async Task HandleRadarTrackUpdate(RDP.RadarTrack rt)

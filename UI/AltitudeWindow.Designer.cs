@@ -240,6 +240,7 @@ namespace vatsys_atop_plugin.UI
             this.btn_send.Text = "Send";
             this.btn_send.UseVisualStyleBackColor = false;
             this.btn_send.Click += new System.EventHandler(this.btn_send_Click);
+            this.btn_send.MouseDown += new System.Windows.Forms.MouseEventHandler(this.btn_send_MouseDown);
             // 
             // btn_probe
             // 

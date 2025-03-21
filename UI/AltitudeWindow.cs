@@ -1,5 +1,6 @@
 ﻿using AtopPlugin;
 using AtopPlugin.Conflict;
+using AtopPlugin.Logic;
 using AtopPlugin.Models;
 using AtopPlugin.State;
 using System;
@@ -8,6 +9,8 @@ using System.ComponentModel;
 using System.Data;
 using System.Drawing;
 using System.Linq;
+using System.Net.NetworkInformation;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
@@ -296,60 +299,140 @@ namespace vatsys_atop_plugin.UI
 
         }
 
+        private void btn_send_MouseDown(object sender, MouseEventArgs e)
+        {
+            if (e.Button == MouseButtons.Right)
+            {
+                if (btn_send.Text == "Send")
+                {
+                    btn_send.Text = "HF";
+                }
+                else
+                {
+                    btn_send.Text = "Send";
+                }
+            }
+        }
+
         private void btn_send_Click(object sender, EventArgs e)
         {
-            var cs = ((FDP2.FDR)source).Callsign;
-            var prl = ((FDP2.FDR)this.source).PRL;
-            var uppercfl = ((FDP2.FDR)this.source).CFLUpper;
-            var lowercfl = ((FDP2.FDR)this.source).CFLLower;
-            var listAlt = lvw_altitudes.SelectedItems[0].Text;
-            var byTime = TimeSpan.Parse(fld_time.Text);
-            var byTimeDate = DateTime.Today.Add(byTime);
-            var timeInputValid = byTimeDate >= DateTime.UtcNow;
-
-            MouseEventArgs me = (MouseEventArgs)e;
-            if (me.Button == MouseButtons.Right)
-                btn_send.Text = "HF";
-
             btn_vhf_Click(sender, e);
-            if (!Network.PrimaryFrequencySet)
-            {
-                Errors.Add(new Exception("No primary frequency set for CPDLC")
-                {
-                    Source = "CPDLC"
-                });
-                return;
-            }
+
             try
             {
-                if (climbByCheck.Checked && timeInputValid && prl > uppercfl)
-                    Network.SendRadioMessage(cs + " DESCEND TO REACH " + "F" + listAlt + " BY "
-                     + fld_time.Text + " REPORT LEVEL " + "F" + listAlt);
-                else if (climbByCheck.Checked && timeInputValid && prl < uppercfl)
-                    Network.SendRadioMessage(cs + " CLIMB TO REACH " + "F" + listAlt + " BY "
-                     + fld_time.Text + " REPORT LEVEL " + "F" + listAlt);
-                else if (lowercfl != -1 && uppercfl >= prl && prl >= lowercfl && lowercfl != uppercfl)
-                    Network.SendRadioMessage(cs + " MAINTAIN BLOCK " + "F" + listAlt);
-                else if (lowercfl != -1 && prl < lowercfl && lowercfl != uppercfl)
-                    Network.SendRadioMessage(cs + " CLIMB TO AND MAINTAIN BLOCK " + listAlt);
-                else if (lowercfl != -1 && prl > uppercfl && lowercfl != uppercfl)
-                    Network.SendRadioMessage(cs + " DESCEND TO AND MAINTAIN BLOCK " + listAlt);
-                else if (prl > uppercfl)
-                    Network.SendRadioMessage(cs + " DESCEND TO AND MAINTAIN " + "F" + listAlt
-                        + " REPORT LEVEL " + "F" + listAlt);
-                else if (prl < uppercfl)
-                    Network.SendRadioMessage(cs + " CLIMB TO AND MAINTAIN " + "F" + listAlt
-                        + " REPORT LEVEL" + "F" + listAlt);
-                else
-                    Network.SendRadioMessage(cs + " MAINTAIN " + "F" + listAlt);
-            }
+                var cs = ((FDP2.FDR)source).Callsign;
+                var prl = ((FDP2.FDR)this.source).PRL;
+                var uppercfl = ((FDP2.FDR)this.source).CFLUpper;
+                var lowercfl = ((FDP2.FDR)this.source).CFLLower;
+                var listAlt = lvw_altitudes.SelectedItems[0].Text;
+                var timeInputValid = false;
+                if (!string.IsNullOrEmpty(fld_time.Text))
+                {
+                    var byTime = TimeSpan.Parse(fld_time.Text);
+
+                    var byTimeDate = DateTime.Today.Add(byTime);
+
+                    timeInputValid = byTimeDate >= DateTime.UtcNow;
+                }
+
+
+
+                Type networkType = typeof(Network);
+
+                if (networkType != null)
+                {
+                    object networkInstance = networkType.GetField("Instance", BindingFlags.NonPublic | BindingFlags.Static).GetValue(null); //Activator.CreateInstance(networkType);
+
+                    MethodInfo sendTextMessageMethod = networkType.GetMethod("SendTextMessage", BindingFlags.NonPublic | BindingFlags.Instance);
+
+                    if (sendTextMessageMethod != null && FlightDataCalculator.GetCalculatedFlightData((FDP2.FDR)source).Cpdlc && btn_send.Text != "HF")
+                    {
+
+                        if (climbByCheck.Checked && timeInputValid && prl > uppercfl)
+                        {
+                            sendTextMessageMethod.Invoke(networkInstance, new object[] { ((FDP2.FDR)source).Callsign, " DESCEND TO REACH " + "F" + listAlt + " BY " + fld_time.Text + " REPORT LEVEL " + "F" + listAlt });
+                        }
+                        else if (climbByCheck.Checked && timeInputValid && prl < uppercfl)
+                        {
+                            sendTextMessageMethod.Invoke(networkInstance, new object[] { ((FDP2.FDR)source).Callsign, " CLIMB TO REACH " + "F" + listAlt + " BY " + fld_time.Text + " REPORT LEVEL " + "F" + listAlt });
+                        }
+                        else if (lowercfl != -1 && uppercfl >= prl && prl >= lowercfl && lowercfl != uppercfl)
+                        {
+                            sendTextMessageMethod.Invoke(networkInstance, new object[] { ((FDP2.FDR)source).Callsign, " MAINTAIN BLOCK " + "F" + listAlt });
+                        }
+                        else if (lowercfl != -1 && prl < lowercfl && lowercfl != uppercfl)
+                        {
+                            sendTextMessageMethod.Invoke(networkInstance, new object[] { ((FDP2.FDR)source).Callsign, " CLIMB TO AND MAINTAIN BLOCK " + listAlt });
+                        }
+                        else if (lowercfl != -1 && prl > uppercfl && lowercfl != uppercfl)
+                        {
+                            sendTextMessageMethod.Invoke(networkInstance, new object[] { ((FDP2.FDR)source).Callsign, " DESCEND TO AND MAINTAIN BLOCK " + listAlt });
+                        }
+                        else if (prl > uppercfl)
+                        {
+                            sendTextMessageMethod.Invoke(networkInstance, new object[] { ((FDP2.FDR)source).Callsign, " DESCEND TO AND MAINTAIN " + "F" + listAlt + " REPORT LEVEL " + "F" + listAlt });
+                        }
+                        else if (prl < uppercfl)
+                        {
+                            sendTextMessageMethod.Invoke(networkInstance, new object[] { ((FDP2.FDR)source).Callsign, " CLIMB TO AND MAINTAIN " + "F" + listAlt + " REPORT LEVEL " + "F" + listAlt });
+                        }
+                        else
+                        {
+                            sendTextMessageMethod.Invoke(networkInstance, new object[] { ((FDP2.FDR)source).Callsign, " MAINTAIN " + "F" + listAlt });
+                        }
+                    }
+                }
+                if (!Network.PrimaryFrequencySet)
+                {
+                    Errors.Add(new Exception("No primary frequency set for CPDLC")
+                    {
+                        Source = "CPDLC"
+                    });
+                    return;
+                }
+                else if (btn_send.Text == "HF" || !FlightDataCalculator.GetCalculatedFlightData((FDP2.FDR)source).Cpdlc)
+                {
+                    if (climbByCheck.Checked && timeInputValid && prl > uppercfl)
+                    {
+                        Network.SendRadioMessage(cs + " DESCEND TO REACH " + "F" + listAlt + " BY " + fld_time.Text + " REPORT LEVEL " + "F" + listAlt);
+                    }
+                    else if (climbByCheck.Checked && timeInputValid && prl < uppercfl)
+                    {
+                        Network.SendRadioMessage(cs + " CLIMB TO REACH " + "F" + listAlt + " BY " + fld_time.Text + " REPORT LEVEL " + "F" + listAlt);
+                    }
+                    else if (lowercfl != -1 && uppercfl >= prl && prl >= lowercfl && lowercfl != uppercfl)
+                    {
+                        Network.SendRadioMessage(cs + " MAINTAIN BLOCK " + "F" + listAlt);
+                    }
+                    else if (lowercfl != -1 && prl < lowercfl && lowercfl != uppercfl)
+                    {
+                        Network.SendRadioMessage(cs + " CLIMB TO AND MAINTAIN BLOCK " + listAlt);
+                    }
+                    else if (lowercfl != -1 && prl > uppercfl && lowercfl != uppercfl)
+                    {
+                        Network.SendRadioMessage(cs + " DESCEND TO AND MAINTAIN BLOCK " + listAlt);
+                    }
+                    else if (prl > uppercfl)
+                    {
+                        Network.SendRadioMessage(cs + " DESCEND TO AND MAINTAIN " + "F" + listAlt + " REPORT LEVEL " + "F" + listAlt);
+                    }
+                    else if (prl < uppercfl)
+                    {
+                        Network.SendRadioMessage(cs + " CLIMB TO AND MAINTAIN " + "F" + listAlt + " REPORT LEVEL " + "F" + listAlt);
+                    }
+                    else
+                    {
+                        Network.SendRadioMessage(cs + " MAINTAIN " + "F" + listAlt);
+                    }
+                }
+        }
             catch
             {
                 btn_response.Text = "ERROR";
                 btn_response.BackColor = Color.Red;
                 btn_response.ForeColor = Color.Yellow;
             }
-        }
+}
 
         private void btn_vhf_Click(object sender, EventArgs e)
         {
