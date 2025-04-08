@@ -50,12 +50,22 @@
     <Reference Include="System.Data" />
     <Reference Include="System.Net.Http" />
     <Reference Include="System.Xml" />
-    <Reference Include="vatSys">
-      <HintPath>$(SolutionDir)\vatSysExtracted\bin\vatSys.exe</HintPath>
+     <!-- Primary path for local development -->
+    <Reference Include="vatSys" Condition="Exists('E:\vatSys\bin\vatSys.exe')">
+      <HintPath>E:\vatSys\bin\vatSys.exe</HintPath>
       <Private>False</Private>
     </Reference>
-    <Reference Include="VATSYSControls">
-      <HintPath>$(SolutionDir)\vatSysExtracted\bin\VATSYSControls.dll</HintPath>
+    <Reference Include="VATSYSControls" Condition="Exists('E:\vatSys\bin\VATSYSControls.dll')">
+      <HintPath>E:\vatSys\bin\VATSYSControls.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <!-- Fallback path for CI -->
+    <Reference Include="vatSys" Condition="Exists('$(SolutionDir)vatSysExtracted\bin\vatSys.exe')">
+      <HintPath>$(SolutionDir)vatSysExtracted\bin\vatSys.exe</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="VATSYSControls" Condition="Exists('$(SolutionDir)vatSysExtracted\bin\VATSYSControls.dll')">
+      <HintPath>$(SolutionDir)vatSysExtracted\bin\VATSYSControls.dll</HintPath>
       <Private>False</Private>
     </Reference>
   </ItemGroup>
