@@ -1,0 +1,40 @@
+name: build plugin
+
+on:
+  push:
+  pull_request:
+    branches: [ main ]
+    paths:
+      - '**.cs'
+      - '**.csproj'
+
+env:
+  DOTNET_VERSION: '4.8'
+
+jobs:
+  build:
+    name: build-windows
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET Framework
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Download vatSys Installer
+        run: |
+          Invoke-WebRequest -Uri "https://vatsys.sawbe.com/downloads/vatSysSetup.zip" -OutFile "vatSysSetup.zip"
+          Expand-Archive -Path "vatSysSetup.zip" -DestinationPath "vatSysInstaller"
+
+      - name: Install vatSys
+        run: |
+          $msi = Get-ChildItem "vatSysInstaller" -Filter *.msi | Select-Object -First 1
+          Start-Process msiexec.exe -ArgumentList "/i `"$($msi.FullName)`" /qn" -Wait
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Build plugin
+        run: dotnet build --configuration Release --no-restore
