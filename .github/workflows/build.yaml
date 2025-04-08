@@ -33,6 +33,13 @@ jobs:
           $msi = Get-ChildItem "vatSysInstaller" -Filter *.msi | Select-Object -First 1
           Start-Process msiexec.exe -ArgumentList "/i `"$($msi.FullName)`" /qn" -Wait
 
+      - name: List vatSys installation files
+        run: Get-ChildItem -Recurse "C:\Program Files (x86)\vatSys"
+
+      - name: Show DLLs
+        run: |
+          dir "C:\Program Files (x86)\vatSys\*.dll"
+
       - name: Restore dependencies
         run: dotnet restore
 
