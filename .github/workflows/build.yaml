@@ -31,7 +31,21 @@ jobs:
       - name: Install vatSys
         run: |
           $msi = Get-ChildItem "vatSysInstaller" -Filter *.msi | Select-Object -First 1
-          Start-Process msiexec.exe -ArgumentList "/i `"$($msi.FullName)`" /qn" -Wait
+          Write-Host "Installing MSI: $($msi.FullName)"
+          $proc = Start-Process msiexec.exe -ArgumentList "/i `"$($msi.FullName)`" /qn" -Wait -PassThru
+          if ($proc.ExitCode -ne 0) {
+            Write-Error "MSI installation failed with exit code $($proc.ExitCode)"
+            exit 1
+          } else {
+            Write-Host "vatSys successfully installed."
+          }
+
+          if (Test-Path "C:\Program Files (x86)\vatSys\vatSys.exe") {
+            Write-Host "vatSys.exe found at expected path."
+          } else {
+            Write-Error "vatSys.exe not found at expected install path!"
+            exit 1
+          }
 
       - name: List vatSys installation files
         run: Get-ChildItem -Recurse "C:\Program Files (x86)\vatSys"
