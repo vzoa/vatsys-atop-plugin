@@ -51,11 +51,11 @@
     <Reference Include="System.Net.Http" />
     <Reference Include="System.Xml" />
     <Reference Include="vatSys">
-      <HintPath>$(ProgramFiles(x86))\vatSys\vatSys.exe</HintPath>
+      <HintPath>$(SolutionDir)\vatSysExtracted\bin\vatSys.exe</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="VATSYSControls">
-      <HintPath>$(ProgramFiles(x86))\vatSys\VATSYSControls.dll</HintPath>
+      <HintPath>$(SolutionDir)\vatSysExtracted\bin\VATSYSControls.dll</HintPath>
       <Private>False</Private>
     </Reference>
   </ItemGroup>

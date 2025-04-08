@@ -28,28 +28,13 @@ jobs:
           Invoke-WebRequest -Uri "https://vatsys.sawbe.com/downloads/vatSysSetup.zip" -OutFile "vatSysSetup.zip"
           Expand-Archive -Path "vatSysSetup.zip" -DestinationPath "vatSysInstaller"
 
-      - name: Install vatSys
+      - name: Extract vatSys MSI contents
         run: |
           $msi = Get-Item "$PWD/vatSysInstaller/vatSysSetup.msi"
-          $logPath = "$PWD\install.log"
-          Write-Host "Installing MSI: $($msi.FullName)"
-          $proc = Start-Process msiexec.exe -ArgumentList "/i `"$($msi.FullName)`" /qn /norestart /l*v `"$logPath`"" -Wait -PassThru
-          if ($proc.ExitCode -ne 0) {
-            Write-Host "❌ MSI installation failed with exit code $($proc.ExitCode)"
-            Write-Host "Dumping last lines of install.log for quick view:"
-            Get-Content $logPath | Select-String "Return value 3" -Context 5,5
-            exit 1
-          } else {
-            Write-Host "✅ vatSys installed successfully."
-          }
+          $target = "$PWD\vatSysExtracted"
+          New-Item -ItemType Directory -Path $target -Force | Out-Null
+          Start-Process msiexec.exe -ArgumentList "/a `"$($msi.FullName)`" /qn TARGETDIR=`"$target`"" -Wait -PassThru
         shell: pwsh
-
-      - name: List vatSys installation files
-        run: Get-ChildItem -Recurse "C:\Program Files (x86)\vatSys"
-
-      - name: Show DLLs
-        run: |
-          dir "C:\Program Files (x86)\vatSys\*.dll"
 
       - name: Restore dependencies
         run: dotnet restore
