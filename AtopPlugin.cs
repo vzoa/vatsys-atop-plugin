@@ -37,6 +37,8 @@ public class AtopPlugin : ILabelPlugin, IStripPlugin
         _ = AtopPluginStateManager.ProcessFdrUpdate(updated);
         _ = AtopPluginStateManager.ProcessDisplayUpdate(updated);
 
+        //DebugLogWindow.Log($"Processing FDR update for {updated.Callsign}");
+
         // Run conflict probe asynchronously without blocking UI
         Task.Run(async () => await AtopPluginStateManager.RunConflictProbe(updated));
 

@@ -9,104 +9,139 @@ using AtopPlugin.Display;
 using System.Collections.Concurrent;
 using System.Threading.Tasks;
 using System.Drawing.Text;
+using AtopPlugin.UI;
 
 namespace AtopPlugin.Conflict;
 
 public static class ConflictProbe
 {
-    public static List<ConflictData> ConflictDatas { get; set; } = new();
     private static readonly ConcurrentDictionary<string, List<double>> PrecomputedTracks = new();
 
     public static event EventHandler ConflictsUpdated;
 
     // Thread-safe storage for active conflicts
-    private static readonly ConcurrentDictionary<string, ConflictData> ActiveConflicts = new();
+    public static readonly ConcurrentDictionary<string, ConflictData> ActiveConflicts = new();
 
     public static Conflicts Probe(FDR fdr)
     {
         if (!MMI.IsMySectorConcerned(fdr) ||
             fdr.State is FDR.FDRStates.STATE_INACTIVE or FDR.FDRStates.STATE_PREACTIVE or FDR.FDRStates.STATE_FINISHED)
-            return EmptyConflicts();
-
-        // Additional filtering based on observable FDR attributes
-        if (fdr.ControllingSector == null || fdr.HandoffSector == null)
         {
-            Console.WriteLine($"Skipping conflict probe for {fdr.Callsign} due to missing sector information.");
+            DebugLogWindow.Log($"[PROBE SKIP] {fdr.Callsign} not active or not in concerned sector.");
             return EmptyConflicts();
         }
 
-        var discoveredConflicts = new ConcurrentDictionary<string, ConflictData>(); // Stores active conflicts
-
+        var discoveredConflicts = new ConcurrentDictionary<string, ConflictData>();
         var block1 = AltitudeBlock.ExtractAltitudeBlock(fdr);
 
         Parallel.ForEach(GetFDRs, fdr2 =>
         {
-            if (fdr.Callsign == fdr2.Callsign || !MMI.IsMySectorConcerned(fdr2)) return;
-
-            var block2 = AltitudeBlock.ExtractAltitudeBlock(fdr2);
-
-            var data = new ConflictData { Active = fdr2, Intruder = fdr };
-
-            // Temporal Test
-            if (!PassesTemporalTest(fdr.ATD, fdr.ParsedRoute.Last().ETO, fdr2.ATD, fdr2.ParsedRoute.Last().ETO)) return;
-
-            // Vertical Test
-            data.VerticalAct = AltitudeBlock.Difference(block1, block2);
-            data.VerticalSep = MinimaCalculator.Instance.GetVerticalMinima(fdr, fdr2);
-            if (data.VerticalAct >= data.VerticalSep) return;
-
-            // Lateral Test
-            if (!LateralConflictCalculator.CalculateRectangleOverlap(fdr, fdr2)) return;
-
-            // Compute lateral and longitudinal separation
-            data.LatSep = MinimaCalculator.Instance.GetLateralMinima(fdr, fdr2);
-            var conflictSegments1 = LateralConflictCalculator.CalculateAreaOfConflict(fdr, fdr2, data.LatSep);
-            conflictSegments1.Sort((s, t) => s.StartTime.CompareTo(t.StartTime));
-
-            if (conflictSegments1.Count == 0) return;
-
-            data.FirstConflictTime = conflictSegments1.First();
-            data.LongTimesep = MinimaCalculator.Instance.GetLongitudinalTimeMinima(fdr, fdr2);
-            data.LongTimeact = (data.FirstConflictTime.EndTime - data.FirstConflictTime.StartTime).Duration();
-            data.LongDistsep = MinimaCalculator.Instance.GetLongitudinalDistanceMinima(fdr, fdr2);
-            data.LongDistact = Conversions.CalculateDistance(data.FirstConflictTime.StartLatlong,
-                                                             data.FirstConflictTime.EndLatlong);
-
-            bool lossOfSep = data.LongTimeact < data.LongTimesep || data.LongDistact < data.LongDistsep;
-            if (!lossOfSep)
+            try
             {
-                // **Remove resolved conflict from ActiveConflicts**
-                ActiveConflicts.TryRemove($"{fdr.Callsign}-{fdr2.Callsign}", out _);
-                return;
-            }
+                if (fdr.Callsign == fdr2.Callsign || !MMI.IsMySectorConcerned(fdr2)) return;
 
-            // Determine Conflict Status Based on Time
-            var now = DateTime.UtcNow;
-            var timeUntilLOS = (data.FirstConflictTime.StartTime - now).Duration();
+                var block2 = AltitudeBlock.ExtractAltitudeBlock(fdr2);
+                var data = new ConflictData { Active = fdr2, Intruder = fdr };
 
-            if (timeUntilLOS < TimeSpan.FromMinutes(1)) // < 1 min
-            {
-                data.ConflictStatus = ConflictStatus.Actual;
-            }
-            else if (timeUntilLOS <= TimeSpan.FromMinutes(30)) // ≤ 30 min
-            {
-                data.ConflictStatus = ConflictStatus.Imminent;
-            }
-            else if (timeUntilLOS <= TimeSpan.FromHours(2)) // ≤ 2 hours
-            {
-                data.ConflictStatus = ConflictStatus.Advisory;
-            }
-            else
-            {
-                return; // No conflict if greater than 2 hours
-            }
+                DebugLogWindow.Log($"[CHECK] {fdr.Callsign} vs {fdr2.Callsign}");
 
-            // **Update or add active conflict**
-            ActiveConflicts.AddOrUpdate($"{fdr.Callsign}-{fdr2.Callsign}", data, (_, _) => data);
+                // 1. TEMPORAL FILTER
+                if (!PassesTemporalTest(fdr.ATD, fdr.ParsedRoute.Last().ETO, fdr2.ATD, fdr2.ParsedRoute.Last().ETO))
+                {
+                    DebugLogWindow.Log($"[TEMPORAL FAIL] No overlap between {fdr.Callsign} and {fdr2.Callsign}");
+                    return;
+                }
+
+                // 2. VERTICAL FILTER
+                data.VerticalAct = AltitudeBlock.Difference(block1, block2);
+                data.VerticalSep = MinimaCalculator.Instance.GetVerticalMinima(fdr, fdr2);
+                if (data.VerticalAct >= data.VerticalSep)
+                {
+                    DebugLogWindow.Log($"[VERTICAL PASS] No vertical conflict between {fdr.Callsign} and {fdr2.Callsign}.");
+                    return;
+                }
+
+                DebugLogWindow.Log($"[VERTICAL FAIL] Potential vertical conflict detected.");
+
+                // 3. LATERAL FILTER
+                if (!LateralConflictCalculator.CalculateRectangleOverlap(fdr, fdr2))
+                {
+                    DebugLogWindow.Log($"[LATERAL PASS] No lateral overlap between {fdr.Callsign} and {fdr2.Callsign}.");
+                    return;
+                }
+
+                DebugLogWindow.Log($"[LATERAL FAIL] Lateral overlap detected.");
+
+                // 4. LATERAL/SEGMENTAL CONFLICT DETECTION
+                data.LatSep = MinimaCalculator.Instance.GetLateralMinima(fdr, fdr2);
+                var segments = LateralConflictCalculator.CalculateAreaOfConflict(fdr, fdr2, data.LatSep);
+
+                if (segments.Count == 0)
+                {
+                    DebugLogWindow.Log($"[SEGMENT TEST FAIL] No conflicting segments found.");
+                    return;
+                }
+
+                segments.Sort((a, b) => a.StartTime.CompareTo(b.StartTime));
+                data.FirstConflictTime = segments.First();
+
+                // 5. LONGITUDINAL SEPARATION TEST
+                data.LongTimesep = MinimaCalculator.Instance.GetLongitudinalTimeMinima(fdr, fdr2);
+                data.LongTimeact = (data.FirstConflictTime.EndTime - data.FirstConflictTime.StartTime).Duration();
+
+                data.LongDistsep = MinimaCalculator.Instance.GetLongitudinalDistanceMinima(fdr, fdr2);
+                data.LongDistact = Conversions.CalculateDistance(
+                    data.FirstConflictTime.StartLatlong, data.FirstConflictTime.EndLatlong
+                );
+
+                bool lossOfSep = data.LongTimeact < data.LongTimesep || data.LongDistact < data.LongDistsep;
+                if (!lossOfSep)
+                {
+                    DebugLogWindow.Log($"[LONGITUDINAL PASS] Separation maintained.");
+                    ActiveConflicts.TryRemove($"{fdr.Callsign}-{fdr2.Callsign}", out _);
+                    return;
+                }
+
+                // 6. CONFLICT CLASSIFICATION
+                var now = DateTime.UtcNow;
+                var tLOS = (data.FirstConflictTime.StartTime - now).Duration();
+                if (tLOS < TimeSpan.FromMinutes(1))
+                {
+                    data.ConflictStatus = ConflictStatus.Actual;
+                }
+                else if (tLOS <= TimeSpan.FromMinutes(30))
+                {
+                    data.ConflictStatus = ConflictStatus.Imminent;
+                }
+                else if (tLOS <= TimeSpan.FromHours(2))
+                {
+                    data.ConflictStatus = ConflictStatus.Advisory;
+                }
+                else
+                {
+                    data.ConflictStatus = ConflictStatus.None;
+                }
+
+
+                if (data.ConflictStatus == ConflictStatus.None)
+                {
+                    DebugLogWindow.Log($"[TOO FAR] Conflict is more than 2 hours away.");
+                    return;
+                }
+
+                var key = $"{fdr.Callsign}-{fdr2.Callsign}";
+                ActiveConflicts.AddOrUpdate(key, data, (_, _) => data);
+
+                DebugLogWindow.Log($"[CONFLICT DETECTED] {data.ConflictStatus} between {fdr.Callsign} and {fdr2.Callsign}");
+
+            }
+            catch (Exception ex)
+            {
+                DebugLogWindow.Log($"[ERROR] Conflict probe between {fdr.Callsign} and {fdr2.Callsign} failed: {ex.Message}");
+            }
         });
 
-        // Return only currently active conflicts
-        ConflictsUpdated?.Invoke(null, new EventArgs());
+        ConflictsUpdated?.Invoke(null, EventArgs.Empty);
         return GroupConflicts(ActiveConflicts.Values.ToList());
     }
 
@@ -181,3 +216,4 @@ public static class ConflictProbe
         List<ConflictData> ImminentConflicts,
         List<ConflictData> AdvisoryConflicts);
 }
+

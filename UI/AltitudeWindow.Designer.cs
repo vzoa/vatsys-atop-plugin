@@ -112,7 +112,7 @@ namespace vatsys_atop_plugin.UI
             this.fld_time = new vatsys.TextField();
             this.lbl_call = new vatsys.TextLabel();
             this.lvw_altitudes = new System.Windows.Forms.ListView();
-            col_Alt = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
+            col_Alt = new System.Windows.Forms.ColumnHeader();
             this.SuspendLayout();
             // 
             // climbByCheck
@@ -121,7 +121,7 @@ namespace vatsys_atop_plugin.UI
             this.climbByCheck.FlatStyle = System.Windows.Forms.FlatStyle.Popup;
             this.climbByCheck.Location = new System.Drawing.Point(5, 215);
             this.climbByCheck.Name = "climbByCheck";
-            this.climbByCheck.Size = new System.Drawing.Size(18, 17);
+            this.climbByCheck.Size = new System.Drawing.Size(13, 12);
             this.climbByCheck.TabIndex = 7;
             this.climbByCheck.UseVisualStyleBackColor = true;
             this.climbByCheck.CheckStateChanged += new System.EventHandler(this.climbByCheck_CheckStateChanged);
@@ -134,7 +134,8 @@ namespace vatsys_atop_plugin.UI
             this.byTime.Location = new System.Drawing.Point(23, 213);
             this.byTime.Margin = new System.Windows.Forms.Padding(0);
             this.byTime.Name = "byTime";
-            this.byTime.Size = new System.Drawing.Size(90, 27);
+            this.byTime.ReadOnly = true;
+            this.byTime.Size = new System.Drawing.Size(90, 18);
             this.byTime.TabIndex = 8;
             this.byTime.Text = "BY TIME";
             // 
@@ -278,8 +279,8 @@ namespace vatsys_atop_plugin.UI
             // 
             // fld_level
             // 
-            this.fld_level.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom)
-            | System.Windows.Forms.AnchorStyles.Left)
+            this.fld_level.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
             this.fld_level.AutoCompleteMode = System.Windows.Forms.AutoCompleteMode.Append;
             this.fld_level.AutoCompleteSource = System.Windows.Forms.AutoCompleteSource.CustomSource;
@@ -291,15 +292,15 @@ namespace vatsys_atop_plugin.UI
             this.fld_level.Name = "fld_level";
             this.fld_level.NumericCharOnly = false;
             this.fld_level.OctalOnly = false;
-            this.fld_level.Size = new System.Drawing.Size(103, 34);
+            this.fld_level.Size = new System.Drawing.Size(103, 25);
             this.fld_level.TabIndex = 57;
             this.fld_level.TextChanged += new System.EventHandler(this.fld_level_TextChanged);
             this.fld_level.Enter += new System.EventHandler(this.fld_level_Enter);
             // 
             // fld_time
             // 
-            this.fld_time.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom)
-            | System.Windows.Forms.AnchorStyles.Left)
+            this.fld_time.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
             this.fld_time.AutoCompleteMode = System.Windows.Forms.AutoCompleteMode.Append;
             this.fld_time.AutoCompleteSource = System.Windows.Forms.AutoCompleteSource.CustomSource;
@@ -311,7 +312,7 @@ namespace vatsys_atop_plugin.UI
             this.fld_time.Name = "fld_time";
             this.fld_time.NumericCharOnly = true;
             this.fld_time.OctalOnly = false;
-            this.fld_time.Size = new System.Drawing.Size(51, 34);
+            this.fld_time.Size = new System.Drawing.Size(51, 25);
             this.fld_time.TabIndex = 59;
             // 
             // lbl_call

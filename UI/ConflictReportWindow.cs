@@ -115,7 +115,7 @@ namespace AtopPlugin.UI
                     + "\n" + SelectedConflict.FirstConflictTime2.EndTime.ToString("HHmm");
 
             }
-            if (!ConflictProbe.ConflictDatas.Any())
+            if (!ConflictProbe.ActiveConflicts.Any())
             {
                 this.Close();
                 this.Dispose();

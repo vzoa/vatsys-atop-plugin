@@ -15,6 +15,7 @@ public static class AtopMenu
     private static readonly SettingsWindow SettingsWindow = new();
     private static readonly ToolStripMenuItem ActivationToggle = new("Activate");
     private static readonly ConflictSummaryWindow ConflictSummaryWindow = new();
+    private static readonly DebugLogWindow DebugLogWindow = new();
     //private static readonly AltitudeWindow AltitudeWindow = new();
 
     static AtopMenu()
@@ -23,6 +24,7 @@ public static class AtopMenu
         InitializeSettingsMenu();
         InitializeVersionItem();
         InitializeConflictSummaryWindow();
+        InitializeDebugWindow();
         //InitializeAltitudeWindow();
     }
 
@@ -61,6 +63,16 @@ public static class AtopMenu
         };
         settingsMenuItem.Item.Click += (_, _) => MMI.InvokeOnGUI(SettingsWindow.Show);
         MMI.AddCustomMenuItem(settingsMenuItem);
+    }
+
+    private static void InitializeDebugWindow()
+    {
+        var debugWindowItem = new CustomToolStripMenuItem(CustomToolStripMenuItemWindowType.Main, CustomToolStripMenuItemCategory.Custom, new ToolStripMenuItem("Debug Log"))
+        {
+            CustomCategoryName = CategoryName
+        };
+        debugWindowItem.Item.Click += (_, _) => MMI.InvokeOnGUI(() => DebugLogWindow.Show());
+        MMI.AddCustomMenuItem(debugWindowItem);
     }
 
     private static void InitializeActivationToggle()

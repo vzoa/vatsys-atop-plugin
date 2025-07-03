@@ -1,10 +1,12 @@
 ﻿using System;
 using System.Collections.Concurrent;
+using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using AtopPlugin.Conflict;
 using AtopPlugin.UI;
 using vatsys;
+using static vatsys.FDP2;
 
 namespace AtopPlugin.State;
 
@@ -19,7 +21,6 @@ public static class AtopPluginStateManager
     private static bool _probeEnabled = Config.ConflictProbeEnabled;
     private static bool _activated;
     private static readonly object StatesLock = new();
-    private static readonly object ConflictProbeLock = new();
     private static readonly object ActivationLock = new();
     private static readonly Random _random = new Random();
 
@@ -117,6 +118,13 @@ public static class AtopPluginStateManager
 
     public static async Task RunConflictProbe(FDP2.FDR fdr)
     {
+        // Don't probe if you aren't in our sector
+        if (!MMI.IsMySectorConcerned(fdr))
+        {
+            // clear conflicts that this aircraft may have had
+            Conflicts.TryRemove(fdr.Callsign, out _);
+            return;
+        }
         // Try to get the last probe time for the given callsign
         if (!lastProbeTimeDict.TryGetValue(fdr.Callsign, out DateTime lastProbeTime))
         {
@@ -126,19 +134,75 @@ public static class AtopPluginStateManager
         }
 
         // Check if probing is enabled and if enough time has passed since the last probe
-        if (ProbeEnabled && DateTime.Now - lastProbeTime > new TimeSpan(0, 5, 0))
+        if (ProbeEnabled && DateTime.Now - lastProbeTime > new TimeSpan(0, 2, 30))
+        //if (ProbeEnabled)
         {
-            var newConflicts = await Task.Run(() => ConflictProbe.Probe(fdr));
 
-            lock (ConflictProbeLock)
+
+            //// Re-check whether probe is still enabled after locking
+            //if (!ProbeEnabled) return;
+            var newConflicts = ConflictProbe.Probe(fdr);
+
+            MMI.InvokeOnGUI(() => {
+                // Ensure window exists before adding conflicts
+                MMI.InvokeOnGUI(() => {
+                    // Ensure we have an instance of the window
+                    if (ConflictSummaryWindow.Instance == null)
+                    {
+                        ConflictSummaryWindow.Instance = new ConflictSummaryWindow();
+                    }
+
+                    if (!ConflictSummaryWindow.Instance.Visible)
+                    {
+                        ConflictSummaryWindow.Instance.Show();
+                    }
+
+                    if (newConflicts.ImminentConflicts.Count > 0 || newConflicts.AdvisoryConflicts.Count > 0)
+                    {
+                        Conflicts.AddOrUpdate(fdr.Callsign, newConflicts, (_, _) => newConflicts);
+                    }
+                });
+
+                // Only add conflicts after window is shown
+                if (newConflicts.ImminentConflicts.Count > 0 || newConflicts.AdvisoryConflicts.Count > 0)
+                {
+                    Conflicts.AddOrUpdate(fdr.Callsign, newConflicts, (_, _) => newConflicts);
+                }
+            });
+
+            // Debug print all intruder callsigns for each category
+            if (newConflicts.ActualConflicts.Count > 0)
             {
-                // Re-check whether probe is still enabled after locking
-                if (!ProbeEnabled) return;
-
-                // Update conflicts and last probe time
-                Conflicts.AddOrUpdate(fdr.Callsign, newConflicts, (_, _) => newConflicts);
-                lastProbeTimeDict[fdr.Callsign] = DateTime.Now;
+                DebugLogWindow.Log("Actual Conflicts:");
+                foreach (var conflict in newConflicts.ActualConflicts)
+                {
+                    DebugLogWindow.Log($"    {conflict.Active.Callsign}-{conflict.Intruder.Callsign}");
+                }
             }
+
+            if (newConflicts.ImminentConflicts.Count > 0)
+            {
+                DebugLogWindow.Log("Imminent Conflicts:");
+                foreach (var conflict in newConflicts.ImminentConflicts)
+                {
+                    DebugLogWindow.Log($"    {conflict.Active.Callsign}-{conflict.Intruder.Callsign}");
+                }
+            }
+
+            if (newConflicts.AdvisoryConflicts.Count > 0)
+            {
+                DebugLogWindow.Log("Advisory Conflicts:");
+                foreach (var conflict in newConflicts.AdvisoryConflicts)
+                {
+                    DebugLogWindow.Log($"    {conflict.Active.Callsign}-{conflict.Intruder.Callsign}");
+                }
+            }
+
+
+            // Update conflicts and last probe time
+            Conflicts.AddOrUpdate(fdr.Callsign, newConflicts, (_, _) => newConflicts);
+            lastProbeTimeDict[fdr.Callsign] = DateTime.Now;
+
         }
     }
 
@@ -149,11 +213,10 @@ public static class AtopPluginStateManager
 
     public static void SetConflictProbe(bool conflictProbeEnabled)
     {
-        lock (ConflictProbeLock)
-        {
-            ProbeEnabled = conflictProbeEnabled;
-            if (!ProbeEnabled) Conflicts.Clear();
-        }
+
+        ProbeEnabled = conflictProbeEnabled;
+        if (!ProbeEnabled) Conflicts.Clear();
+
     }
 
     public static void ToggleActivated()

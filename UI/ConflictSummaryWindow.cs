@@ -12,6 +12,7 @@ namespace AtopPlugin.UI;
 
 public partial class ConflictSummaryWindow : BaseForm
 {
+    public static ConflictSummaryWindow Instance { get; set; }
     public ConflictSummaryWindow()
     {
         InitializeComponent();
@@ -42,7 +43,7 @@ public partial class ConflictSummaryWindow : BaseForm
         }
 
         // Fetch and process conflicts in the background
-        var conflictDatas = await Task.Run(() => ConflictDatas.OrderBy(t => t.EarliestLos).ToList());
+        var conflictDatas = await Task.Run(() => ActiveConflicts.Values.OrderBy(t => t.EarliestLos).ToList());
 
         // Batch updates to minimize UI refreshes
         var listViewItems = new List<ListViewItem>();
