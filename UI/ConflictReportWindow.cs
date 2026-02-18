@@ -99,7 +99,7 @@ namespace AtopPlugin.UI
                     + " ( " + "N/A" + " ) " + SelectedConflict.VerticalAct + " " + "ft";
                 INTcs.Text = SelectedConflict.Intruder.AircraftType + "\n" + SelectedConflict.Intruder.Callsign + "\n" + SelectedConflict.Intruder.TAS;
                 IntAlt.Text = "F" + AltitudeBlock.ExtractAltitudeBlock(SelectedConflict.Intruder);
-                INTTOPdata.Text = SelectedConflict.ConflictType == Models.ConflictType.OppositeDirection
+                INTTOPdata.Text = SelectedConflict.ConflictType == Models.ConflictType.Reciprocal
                     ? ConvertToArinc424(SelectedConflict.Top.Position1.Latitude, SelectedConflict.Top.Position1.Longitude) + "\n" + SelectedConflict.Top.Time.ToString("HHmm") : null;
                 INTconfstart.Text = ConvertToArinc424(SelectedConflict.FirstConflictTime.StartLatlong.Latitude, SelectedConflict.FirstConflictTime.StartLatlong.Longitude)
                     + "\n" + SelectedConflict.FirstConflictTime.StartTime.ToString("HHmm");
@@ -107,7 +107,7 @@ namespace AtopPlugin.UI
                     + "\n" + SelectedConflict.FirstConflictTime.EndTime.ToString("HHmm");
                 ACTcs.Text = SelectedConflict.Active.AircraftType + "\n" + SelectedConflict.Active.Callsign + "\n" + SelectedConflict.Active.TAS;
                 ACTAlt.Text = "F" + AltitudeBlock.ExtractAltitudeBlock(SelectedConflict.Active);
-                ACTTOPdata.Text = SelectedConflict.ConflictType == Models.ConflictType.OppositeDirection
+                ACTTOPdata.Text = SelectedConflict.ConflictType == Models.ConflictType.Reciprocal
                     ? ConvertToArinc424(SelectedConflict.Top.Position1.Latitude, SelectedConflict.Top.Position2.Longitude) + "\n" + SelectedConflict.Top.Time.ToString("HHmm") : null;
                 ACTconfstart.Text = ConvertToArinc424(SelectedConflict.FirstConflictTime2.StartLatlong.Latitude, SelectedConflict.FirstConflictTime2.StartLatlong.Longitude)
                     + "\n" + SelectedConflict.FirstConflictTime2.StartTime.ToString("HHmm");

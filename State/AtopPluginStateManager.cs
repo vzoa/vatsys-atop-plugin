@@ -22,6 +22,7 @@ public static class AtopPluginStateManager
     private static readonly object ConflictProbeLock = new();
     private static readonly object ActivationLock = new();
     private static readonly Random _random = new Random();
+    private static bool _initialized = false;
 
     private static bool ProbeEnabled
     {
@@ -43,6 +44,28 @@ public static class AtopPluginStateManager
                 _activated = value;
                 AtopMenu.SetActivationState(value);
             }
+        }
+    }
+
+    /// <summary>
+    /// Initialize the state manager and subscribe to conflict updates from webapp
+    /// </summary>
+    public static void Initialize()
+    {
+        if (_initialized) return;
+        _initialized = true;
+        
+        // Subscribe to webapp conflict updates
+        ConflictProbe.CallsignConflictsUpdated += OnCallsignConflictsUpdated;
+    }
+
+    private static void OnCallsignConflictsUpdated(string callsign, ConflictProbe.Conflicts conflicts)
+    {
+        if (!ProbeEnabled) return;
+        
+        lock (ConflictProbeLock)
+        {
+            Conflicts.AddOrUpdate(callsign, conflicts, (_, _) => conflicts);
         }
     }
 
@@ -117,27 +140,21 @@ public static class AtopPluginStateManager
 
     public static async Task RunConflictProbe(FDP2.FDR fdr)
     {
-        // Try to get the last probe time for the given callsign
-        if (!lastProbeTimeDict.TryGetValue(fdr.Callsign, out DateTime lastProbeTime))
+        // With webapp-based conflict calculation, conflicts are pushed to us via WebSocket
+        // This method now just ensures the state manager is initialized and returns cached results
+        
+        if (!_initialized) Initialize();
+        
+        // The webapp sends conflict updates which are handled by OnCallsignConflictsUpdated
+        // We can still manually request a probe result from the cache if needed
+        if (ProbeEnabled)
         {
-            // Initialize with a random offset between 0 and 5 minutes
-            var randomOffset = TimeSpan.FromSeconds(_random.Next(0, 300));
-            lastProbeTime = DateTime.Now - new TimeSpan(0, 5, 0) + randomOffset;
-        }
-
-        // Check if probing is enabled and if enough time has passed since the last probe
-        if (ProbeEnabled && DateTime.Now - lastProbeTime > new TimeSpan(0, 5, 0))
-        {
-            var newConflicts = await Task.Run(() => ConflictProbe.Probe(fdr));
-
+            var cachedConflicts = await Task.Run(() => ConflictProbe.Probe(fdr));
+            
             lock (ConflictProbeLock)
             {
-                // Re-check whether probe is still enabled after locking
                 if (!ProbeEnabled) return;
-
-                // Update conflicts and last probe time
-                Conflicts.AddOrUpdate(fdr.Callsign, newConflicts, (_, _) => newConflicts);
-                lastProbeTimeDict[fdr.Callsign] = DateTime.Now;
+                Conflicts.AddOrUpdate(fdr.Callsign, cachedConflicts, (_, _) => cachedConflicts);
             }
         }
     }

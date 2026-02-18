@@ -60,14 +60,11 @@ public class AtopAircraftDisplayState
 
     public static string GetConflictSymbol(ConflictData data)
     {
-        var crossing = ConflictType.Crossing;
-        var opposite = ConflictType.OppositeDirection;
-
-
-        if (data.ConflictType == crossing)
+        // Use primary enum values per ATOP spec A.3.82 DIR_TYPE
+        if (data.ConflictType == ConflictType.Crossing)
             return Symbols.Crossing;
 
-        if (data.ConflictType == opposite)
+        if (data.ConflictType == ConflictType.Reciprocal)
             return Symbols.OppositeDirection;
 
         return Symbols.SameDirection;

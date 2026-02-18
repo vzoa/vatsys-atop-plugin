@@ -39,6 +39,9 @@
     <StartupObject />
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="Newtonsoft.Json, Version=13.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
+      <HintPath>packages\Newtonsoft.Json.13.0.4\lib\net45\Newtonsoft.Json.dll</HintPath>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.ComponentModel.Composition" />
     <Reference Include="System.Core" />
@@ -87,6 +90,7 @@
     <Compile Include="Display\StripItemRenderer.cs" />
     <Compile Include="Display\TrackColorRenderer.cs" />
     <Compile Include="Extensions.cs" />
+    <Compile Include="Helpers\WebSocketServer.cs" />
     <Compile Include="Logic\AltitudeCalculator.cs" />
     <Compile Include="Logic\FlightDataCalculator.cs" />
     <Compile Include="Logic\NextSectorCalculator.cs" />
@@ -158,6 +162,11 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="app.js" />
+    <Content Include="index.html" />
+    <Content Include="motif.css" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

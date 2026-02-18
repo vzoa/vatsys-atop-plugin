@@ -1,0 +1,230 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ATOP Conflict Display</title>
+    <link rel="stylesheet" href="motif.css">
+</head>
+<body>
+    <!-- Connection Status -->
+    <div class="motif-connection-status" id="connection-status">Disconnected</div>
+
+    <!-- Conflict Summary Window - ATOP Style -->
+    <div class="motif-window active" id="conflict-summary" style="left: 50px; top: 50px; width: 520px;">
+        <div class="motif-titlebar">
+            <span class="motif-title">CONFLICT SUMMARY</span>
+        </div>
+        
+        <!-- Menu Bar -->
+        <div class="conflict-menubar">
+            <span class="conflict-menu-item"><u>O</u>verride</span>
+            <span class="conflict-menu-item conflict-menu-right"><u>H</u>elp</span>
+        </div>
+        
+        <!-- Column Headers -->
+        <div class="conflict-header">
+            <span class="col-intruder">Intruder</span>
+            <span class="col-att">Att</span>
+            <span class="col-active">Active</span>
+            <span class="col-att">Att</span>
+            <span class="col-ovrd">Ovrd</span>
+            <span class="col-type">Type</span>
+            <span class="col-time">StartTime</span>
+            <span class="col-time">EndTime</span>
+        </div>
+        
+        <!-- Conflict List Area -->
+        <div class="conflict-list-area" id="conflict-list-area">
+            <div class="conflict-list-content" id="conflict-list">
+                <!-- Populated by WebSocket -->
+            </div>
+        </div>
+        
+        <!-- Status bar -->
+        <div class="motif-statusbar">
+            <span id="conflict-count">0 conflict(s)</span>
+            <span id="conflict-summary-status"></span>
+        </div>
+    </div>
+
+
+    <!-- Conflict Report Window -->
+    <div class="motif-window" id="conflict-report" style="left: 200px; top: 300px; width: 450px; display: none;">
+        <div class="motif-titlebar">
+            <span class="motif-title">Conflict Report</span>
+        </div>
+        <div class="motif-content">
+            <div class="motif-panel">
+                <div class="motif-panel-title">Conflict Details</div>
+                <div class="motif-grid">
+                    <div class="motif-form-group">
+                        <label class="motif-label">Type:</label>
+                        <span class="motif-value" id="report-type">-</span>
+                    </div>
+                    <div class="motif-form-group">
+                        <label class="motif-label">Track Angle:</label>
+                        <span class="motif-value" id="report-angle">-</span>
+                    </div>
+                    <div class="motif-form-group">
+                        <label class="motif-label">LOS Time:</label>
+                        <span class="motif-value motif-alert" id="report-los">-</span>
+                    </div>
+                    <div class="motif-form-group">
+                        <label class="motif-label">Required Sep:</label>
+                        <span class="motif-value" id="report-req-sep">-</span>
+                    </div>
+                    <div class="motif-form-group">
+                        <label class="motif-label">Actual Sep:</label>
+                        <span class="motif-value" id="report-act-sep">-</span>
+                    </div>
+                </div>
+            </div>
+            <div class="motif-panel-row">
+                <div class="motif-panel">
+                    <div class="motif-panel-title">Intruder</div>
+                    <div id="intruder-details"></div>
+                </div>
+                <div class="motif-panel">
+                    <div class="motif-panel-title">Active</div>
+                    <div id="active-details"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Flight Plan Window - Matching Reference Image -->
+    <div class="motif-window active" id="flightplan-window" style="left: 100px; top: 50px; width: 540px;">
+        <div class="motif-titlebar">
+            <span class="motif-title">FLIGHT PLAN ENTER/AMEND</span>
+        </div>
+        
+        <!-- Menu Bar -->
+        <div class="fp-menubar">
+            <span class="fp-menu-item"><u>F</u>light Plan</span>
+            <span class="fp-menu-item"><u>N</u>ew</span>
+            <span class="fp-menu-item fp-menu-right"><u>H</u>elp</span>
+        </div>
+        
+        <!-- Flight Plan List Area (scrollable) -->
+        <div class="fp-list-area" id="fp-list-area">
+            <div class="fp-list-content" id="fp-list-content">
+                <!-- Populated by search/list results -->
+            </div>
+        </div>
+        
+        <div class="fp-content">
+            <!-- Row 1: ACID, FLT RULE, FLT TYPE -->
+            <div class="fp-row">
+                <span class="fp-label">ACID</span>
+                <input type="text" id="fp-acid" class="fp-input fp-input-md fp-input-acid" value="">
+                <span class="fp-label">FLT RULE</span>
+                <input type="text" id="fp-fltrule" class="fp-input fp-input-xs" value="">
+                <span class="fp-label">FLT TYPE</span>
+                <input type="text" id="fp-flttype" class="fp-input fp-input-xs" value="">
+            </div>
+
+            <!-- Row 2: NUMBER, AC TYPE, WTC -->
+            <div class="fp-row">
+                <span class="fp-label">NUMBER</span>
+                <input type="text" id="fp-number" class="fp-input fp-input-xs" value="">
+                <span class="fp-label">AC TYPE</span>
+                <input type="text" id="fp-actype" class="fp-input fp-input-sm" value="">
+                <span class="fp-label">WTC</span>
+                <input type="text" id="fp-wtc" class="fp-input fp-input-xs" value="">
+            </div>
+
+            <!-- Row 3: RADIO, SSR EQUIP, ACTIVE -->
+            <div class="fp-row">
+                <span class="fp-label">RADIO</span>
+                <input type="text" id="fp-radio" class="fp-input fp-input-xl" value="">
+                <span class="fp-label">SSR EQUIP</span>
+                <input type="text" id="fp-survequip" class="fp-input fp-input-sm" value="">
+                <span class="fp-label">ACTIVE</span>
+                <input type="checkbox" id="fp-active" class="fp-checkbox">
+            </div>
+
+            <!-- Row 4: DEP, TIME -->
+            <div class="fp-row">
+                <span class="fp-label">DEP</span>
+                <input type="text" id="fp-dep" class="fp-input fp-input-sm" value="">
+                <span class="fp-label">TIME</span>
+                <input type="text" id="fp-time" class="fp-input fp-input-xl" value="">
+            </div>
+
+            <!-- Row 5: ARR, CX -->
+            <div class="fp-row">
+                <span class="fp-label">ARR</span>
+                <input type="text" id="fp-arr" class="fp-input fp-input-sm" value="">
+                <span class="fp-label">CX</span>
+                <input type="text" id="fp-cx" class="fp-input fp-input-sm" value="">
+            </div>
+
+            <!-- Row 6: SPEED, LEVEL -->
+            <div class="fp-row">
+                <span class="fp-label">SPEED</span>
+                <input type="text" id="fp-speed" class="fp-input fp-input-md" value="">
+                <span class="fp-label">LEVEL</span>
+                <input type="text" id="fp-level" class="fp-input fp-input-sm" value="">
+            </div>
+
+            <!-- Row 7: ROUTE (with scrollbar) -->
+            <div class="fp-row fp-row-scroll">
+                <span class="fp-label">ROUTE</span>
+                <div class="fp-scroll-container">
+                    <textarea id="fp-route" class="fp-textarea fp-textarea-scroll" rows="2"></textarea>
+                </div>
+            </div>
+
+            <!-- Row 8: DEST, TEET, SSR CODE, ADDR, TAIL -->
+            <div class="fp-row">
+                <span class="fp-label">DEST</span>
+                <input type="text" id="fp-dest" class="fp-input fp-input-sm" value="">
+                <span class="fp-label">TEET</span>
+                <input type="text" id="fp-teet" class="fp-input fp-input-sm" value="">
+                <span class="fp-label">SSR CODE</span>
+                <input type="text" id="fp-ssrcode" class="fp-input fp-input-sm" value="">
+                <span class="fp-label">ADDR</span>
+                <input type="text" id="fp-addr" class="fp-input fp-input-md" value="">
+                <span class="fp-label">TAIL</span>
+                <input type="text" id="fp-tail" class="fp-input fp-input-md" value="">
+            </div>
+
+            <!-- Row 9: SSR MODE, ALTN DEST, 2nd ALTN DEST -->
+            <div class="fp-row">
+                <span class="fp-label">SSR MODE</span>
+                <input type="text" id="fp-ssrmode" class="fp-input fp-input-xs" value="">
+                <span class="fp-label">ALTN DEST</span>
+                <input type="text" id="fp-altndest" class="fp-input fp-input-sm" value="">
+                <span class="fp-label">2nd ALTN DEST</span>
+                <input type="text" id="fp-altndest2" class="fp-input fp-input-sm" value="">
+            </div>
+
+            <!-- Row 10: OTHER (with scrollbar) -->
+            <div class="fp-row fp-row-scroll">
+                <span class="fp-label">OTHER</span>
+                <div class="fp-scroll-container">
+                    <textarea id="fp-other" class="fp-textarea fp-textarea-scroll" rows="2"></textarea>
+                </div>
+            </div>
+
+            <!-- Response/Message Area (scrollable) -->
+            <div class="fp-message-area" id="fp-response-area">
+                <div id="fp-response-content"></div>
+            </div>
+
+            <!-- Bottom Button Bar -->
+            <div class="fp-button-bar">
+                <button class="fp-btn" id="btn-modify">Modify</button>
+                <button class="fp-btn" id="btn-update">Update</button>
+                <button class="fp-btn" id="btn-delete">Delete</button>
+                <button class="fp-btn" id="btn-vfr">VFR</button>
+                <button class="fp-btn" id="btn-ifr">IFR</button>
+                <button class="fp-btn" id="btn-close">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

@@ -1,8 +1,9 @@
-﻿using System.ComponentModel.Composition;
-using System.Threading.Tasks;
-using AtopPlugin.Display;
+﻿using AtopPlugin.Display;
+using AtopPlugin.Helpers;
 using AtopPlugin.State;
 using AtopPlugin.UI;
+using System.ComponentModel.Composition;
+using System.Threading.Tasks;
 using vatsys;
 using vatsys.Plugin;
 
@@ -16,6 +17,8 @@ public class AtopPlugin : ILabelPlugin, IStripPlugin
         RegisterEventHandlers();
         AtopMenu.Initialize();
         TempActivationMessagePopup.PopUpActivationMessageIfFirstTime();
+        AtopPluginStateManager.Initialize(); // Initialize state manager to subscribe to webapp conflicts
+        AtopWebSocketServer.Instance.Start();
     }
 
     public string Name => "ATOP Plugin";
@@ -47,6 +50,9 @@ public class AtopPlugin : ILabelPlugin, IStripPlugin
         {
             _ = JurisdictionManager.HandleFdrUpdate(updated);
         }
+
+        // Broadcast to webapp
+        _ = AtopWebSocketServer.Instance.BroadcastFlightPlanDataAsync(updated);
     }
 
     public void OnRadarTrackUpdate(RDP.RadarTrack updated)

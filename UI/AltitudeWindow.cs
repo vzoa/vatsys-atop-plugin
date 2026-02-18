@@ -1,24 +1,16 @@
 ﻿using AtopPlugin;
-using AtopPlugin.Conflict;
 using AtopPlugin.Logic;
 using AtopPlugin.Models;
 using AtopPlugin.State;
 using System;
-using System.Collections.Generic;
-using System.ComponentModel;
 using System.Data;
 using System.Drawing;
 using System.Linq;
-using System.Net.NetworkInformation;
 using System.Reflection;
-using System.Runtime.CompilerServices;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 using vatsys;
 using vatsys.Plugin;
 using static AtopPlugin.Conflict.ConflictProbe;
-using static System.Net.Mime.MediaTypeNames;
 using static vatsys.FDP2;
 
 namespace vatsys_atop_plugin.UI
@@ -242,7 +234,7 @@ namespace vatsys_atop_plugin.UI
                             FDP2.SetPRL(GetFDRs.FirstOrDefault(s => s.Callsign == "*" + ((FDP2.FDR)this.source).Callsign), ((FDP2.FDR)this.source).PRL);
                             FDP2.SetCFL(GetFDRs.FirstOrDefault(s => s.Callsign == "*" + ((FDP2.FDR)this.source).Callsign), selectedAltitude.ToString());
                         }
-                        
+
                     }
 
                     catch
@@ -394,45 +386,45 @@ namespace vatsys_atop_plugin.UI
                 {
                     if (climbByCheck.Checked && timeInputValid && prl > uppercfl)
                     {
-                        Network.SendRadioMessage(cs + " DESCEND TO REACH " + "F" + listAlt + " BY " + fld_time.Text + " REPORT LEVEL " + "F" + listAlt);
+                        Network.SendRadioMessage(cs + " ATCC DESCEND TO REACH " + "F" + listAlt + " BY " + fld_time.Text + " REPORT LEVEL " + "F" + listAlt);
                     }
                     else if (climbByCheck.Checked && timeInputValid && prl < uppercfl)
                     {
-                        Network.SendRadioMessage(cs + " CLIMB TO REACH " + "F" + listAlt + " BY " + fld_time.Text + " REPORT LEVEL " + "F" + listAlt);
+                        Network.SendRadioMessage(cs + " ATCC CLIMB TO REACH " + "F" + listAlt + " BY " + fld_time.Text + " REPORT LEVEL " + "F" + listAlt);
                     }
                     else if (lowercfl != -1 && uppercfl >= prl && prl >= lowercfl && lowercfl != uppercfl)
                     {
-                        Network.SendRadioMessage(cs + " MAINTAIN BLOCK " + "F" + listAlt);
+                        Network.SendRadioMessage(cs + " ATCC MAINTAIN BLOCK " + "F" + listAlt);
                     }
                     else if (lowercfl != -1 && prl < lowercfl && lowercfl != uppercfl)
                     {
-                        Network.SendRadioMessage(cs + " CLIMB TO AND MAINTAIN BLOCK " + listAlt);
+                        Network.SendRadioMessage(cs + " ATCC CLIMB TO AND MAINTAIN BLOCK " + listAlt);
                     }
                     else if (lowercfl != -1 && prl > uppercfl && lowercfl != uppercfl)
                     {
-                        Network.SendRadioMessage(cs + " DESCEND TO AND MAINTAIN BLOCK " + listAlt);
+                        Network.SendRadioMessage(cs + " ATCC DESCEND TO AND MAINTAIN BLOCK " + listAlt);
                     }
                     else if (prl > uppercfl)
                     {
-                        Network.SendRadioMessage(cs + " DESCEND TO AND MAINTAIN " + "F" + listAlt + " REPORT LEVEL " + "F" + listAlt);
+                        Network.SendRadioMessage(cs + " ATCC DESCEND TO AND MAINTAIN " + "F" + listAlt + " REPORT LEVEL " + "F" + listAlt);
                     }
                     else if (prl < uppercfl)
                     {
-                        Network.SendRadioMessage(cs + " CLIMB TO AND MAINTAIN " + "F" + listAlt + " REPORT LEVEL " + "F" + listAlt);
+                        Network.SendRadioMessage(cs + " ATCC CLIMB TO AND MAINTAIN " + "F" + listAlt + " REPORT LEVEL " + "F" + listAlt);
                     }
                     else
                     {
-                        Network.SendRadioMessage(cs + " MAINTAIN " + "F" + listAlt);
+                        Network.SendRadioMessage(cs + " ATCC MAINTAIN " + "F" + listAlt);
                     }
                 }
-        }
+            }
             catch
             {
                 btn_response.Text = "ERROR";
                 btn_response.BackColor = Color.Red;
                 btn_response.ForeColor = Color.Yellow;
             }
-}
+        }
 
         private void btn_vhf_Click(object sender, EventArgs e)
         {
