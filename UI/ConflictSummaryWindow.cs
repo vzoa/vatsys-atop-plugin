@@ -70,8 +70,14 @@ public partial class ConflictSummaryWindow : BaseForm
             }
         }
 
+        // Check if the control is ready to be invoked
+        if (IsDisposed || !IsHandleCreated || conflictListView.IsDisposed || !conflictListView.IsHandleCreated)
+            return;
+
         conflictListView.Invoke(new MethodInvoker(() =>
         {
+            if (conflictListView.IsDisposed) return;
+
             conflictListView.Items.Clear();
 
             // Add all items at once to avoid repetitive updates
@@ -82,11 +88,15 @@ public partial class ConflictSummaryWindow : BaseForm
         }));
 
         // msalikhov(2024-10-13): disabling automatically showing the window until we fix the rendering
-         Invoke(new MethodInvoker(() =>
-         {
-             // Avoid multiple distinct checks inside the loop
-             Visible = conflictDatas.Any();
-         }));
+        if (IsDisposed || !IsHandleCreated)
+            return;
+
+        Invoke(new MethodInvoker(() =>
+        {
+            if (IsDisposed) return;
+            // Avoid multiple distinct checks inside the loop
+            Visible = conflictDatas.Any();
+        }));
     }
 
     private void ConflictListView_MouseClick(object sender, MouseEventArgs e)

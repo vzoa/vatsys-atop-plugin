@@ -10,6 +10,54 @@
     <!-- Connection Status -->
     <div class="motif-connection-status" id="connection-status">Disconnected</div>
 
+    <!-- Sector Queue Window - ATOP Style per reference -->
+    <div class="motif-window active" id="sector-queue-window" style="left: 600px; top: 50px; width: 615px; height: 298px;">
+        <div class="motif-titlebar">
+            <span class="motif-title">CWP1 - default - SIMUL</span>
+        </div>
+        
+        <!-- Menu Bar -->
+        <div class="sq-menubar">
+            <span class="sq-menu-item"><u>O</u>pen</span>
+            <span class="sq-menu-item"><u>S</u>tatus</span>
+            <span class="sq-menu-item"><u>W</u>eather</span>
+            <span class="sq-menu-item"><u>L</u>ists</span>
+            <span class="sq-menu-item">Sign</span>
+            <span class="sq-menu-spacer"></span>
+            <span class="sq-faa-logo">FAA</span>
+        </div>
+        
+        <!-- Status Area -->
+        <div class="sq-status-area">
+            <div class="sq-status-left">
+                <div class="sq-status-group">
+                    <span class="sq-status-label">SECTOR</span>
+                    <span class="sq-status-value sq-value-alert">19</span>
+                </div>
+                <div class="sq-status-group">
+                    <span class="sq-status-label">COORD</span>
+                    <span class="sq-status-value">0</span>
+                </div>
+                <div class="sq-status-group">
+                    <span class="sq-status-label">ERROR</span>
+                    <span class="sq-status-value sq-value-warning">16</span>
+                </div>
+            </div>
+            <div class="sq-status-right">
+                <div class="sq-oper-label">OPER (T)</div>
+                <div class="sq-time" id="sq-time">23:52:19</div>
+                <div class="sq-date" id="sq-date">16 Sep 03</div>
+            </div>
+        </div>
+        
+        <!-- Queue List Area (vertical stretch) -->
+        <div class="sq-queue-area" id="sq-queue-area">
+            <div class="sq-queue-content" id="sq-queue-list">
+                <!-- Queue items populated here -->
+            </div>
+        </div>
+    </div>
+
     <!-- Conflict Summary Window - ATOP Style -->
     <div class="motif-window active" id="conflict-summary" style="left: 50px; top: 50px; width: 520px;">
         <div class="motif-titlebar">

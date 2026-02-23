@@ -19,6 +19,8 @@ public class AtopPlugin : ILabelPlugin, IStripPlugin
         TempActivationMessagePopup.PopUpActivationMessageIfFirstTime();
         AtopPluginStateManager.Initialize(); // Initialize state manager to subscribe to webapp conflicts
         AtopWebSocketServer.Instance.Start();
+        LocalWebServer.Start(); // Serve webapp and auto-open browser
+        ConflictSegmentRenderer.Initialize(); // Initialize conflict segment rendering
     }
 
     public string Name => "ATOP Plugin";
@@ -40,9 +42,6 @@ public class AtopPlugin : ILabelPlugin, IStripPlugin
         _ = AtopPluginStateManager.ProcessFdrUpdate(updated);
         _ = AtopPluginStateManager.ProcessDisplayUpdate(updated);
 
-        // Run conflict probe asynchronously without blocking UI
-        Task.Run(async () => await AtopPluginStateManager.RunConflictProbe(updated));
-
         FdrPropertyChangesListener.RegisterHandler(updated);
 
         // Don't manage jurisdiction if not connected as ATC
@@ -51,8 +50,12 @@ public class AtopPlugin : ILabelPlugin, IStripPlugin
             _ = JurisdictionManager.HandleFdrUpdate(updated);
         }
 
-        // Broadcast to webapp
-        _ = AtopWebSocketServer.Instance.BroadcastFlightPlanDataAsync(updated);
+        // Broadcast updated FDR and request conflict probe (event-driven per ATOP spec 12.1.1)
+        Task.Run(async () =>
+        {
+            await AtopWebSocketServer.Instance.BroadcastFlightPlanDataAsync(updated);
+            await AtopWebSocketServer.Instance.RequestProbeAsync(updated.Callsign);
+        });
     }
 
     public void OnRadarTrackUpdate(RDP.RadarTrack updated)

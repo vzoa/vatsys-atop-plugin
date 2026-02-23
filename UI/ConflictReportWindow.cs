@@ -88,7 +88,7 @@ namespace AtopPlugin.UI
             {
                 //AtopAircraftDisplayState intAtt = new AtopAircraftDisplayState(SelectedConflict.Intruder.GetAtopState());
                 //AtopAircraftDisplayState actAtt = new AtopAircraftDisplayState(SelectedConflict.Active.GetAtopState());
-                ConflictType.Text = SelectedConflict.ConflictType.Value.ToString().ToLower();
+                ConflictType.Text = SelectedConflict.ConflictType?.ToString().ToLower() ?? "unknown";
                 Degrees.Text = SelectedConflict.TrkAngle.ToString("000.0") + " degrees";
                 LOSTime.Text = SelectedConflict.LatestLos.ToString("HH:mm");
                 LOSTime.BackColor = SelectedConflict.ConflictStatus == Models.ConflictStatus.Imminent
@@ -97,22 +97,26 @@ namespace AtopPlugin.UI
                     + SelectedConflict.VerticalSep + " " + "ft";
                 ActualSep.Text = SelectedConflict.LongTimeact.ToString("mm") + " min " + SelectedConflict.LongTimeact.ToString("ss") + " sec"
                     + " ( " + "N/A" + " ) " + SelectedConflict.VerticalAct + " " + "ft";
-                INTcs.Text = SelectedConflict.Intruder.AircraftType + "\n" + SelectedConflict.Intruder.Callsign + "\n" + SelectedConflict.Intruder.TAS;
-                IntAlt.Text = "F" + AltitudeBlock.ExtractAltitudeBlock(SelectedConflict.Intruder);
-                INTTOPdata.Text = SelectedConflict.ConflictType == Models.ConflictType.Reciprocal
-                    ? ConvertToArinc424(SelectedConflict.Top.Position1.Latitude, SelectedConflict.Top.Position1.Longitude) + "\n" + SelectedConflict.Top.Time.ToString("HHmm") : null;
-                INTconfstart.Text = ConvertToArinc424(SelectedConflict.FirstConflictTime.StartLatlong.Latitude, SelectedConflict.FirstConflictTime.StartLatlong.Longitude)
-                    + "\n" + SelectedConflict.FirstConflictTime.StartTime.ToString("HHmm");
-                INTconfend.Text = ConvertToArinc424(SelectedConflict.FirstConflictTime.EndLatlong.Latitude, SelectedConflict.FirstConflictTime.EndLatlong.Longitude)
-                    + "\n" + SelectedConflict.FirstConflictTime.EndTime.ToString("HHmm");
-                ACTcs.Text = SelectedConflict.Active.AircraftType + "\n" + SelectedConflict.Active.Callsign + "\n" + SelectedConflict.Active.TAS;
-                ACTAlt.Text = "F" + AltitudeBlock.ExtractAltitudeBlock(SelectedConflict.Active);
-                ACTTOPdata.Text = SelectedConflict.ConflictType == Models.ConflictType.Reciprocal
-                    ? ConvertToArinc424(SelectedConflict.Top.Position1.Latitude, SelectedConflict.Top.Position2.Longitude) + "\n" + SelectedConflict.Top.Time.ToString("HHmm") : null;
-                ACTconfstart.Text = ConvertToArinc424(SelectedConflict.FirstConflictTime2.StartLatlong.Latitude, SelectedConflict.FirstConflictTime2.StartLatlong.Longitude)
-                    + "\n" + SelectedConflict.FirstConflictTime2.StartTime.ToString("HHmm");
-                ACTconfend.Text = ConvertToArinc424(SelectedConflict.FirstConflictTime2.EndLatlong.Latitude, SelectedConflict.FirstConflictTime2.EndLatlong.Longitude)
-                    + "\n" + SelectedConflict.FirstConflictTime2.EndTime.ToString("HHmm");
+                INTcs.Text = SelectedConflict.Intruder?.AircraftType + "\n" + SelectedConflict.Intruder?.Callsign + "\n" + SelectedConflict.Intruder?.TAS;
+                IntAlt.Text = SelectedConflict.Intruder != null ? "F" + AltitudeBlock.ExtractAltitudeBlock(SelectedConflict.Intruder) : "";
+                INTTOPdata.Text = SelectedConflict.ConflictType == Models.ConflictType.Reciprocal && SelectedConflict.Top != null
+                    ? ConvertToArinc424(SelectedConflict.Top.Position1.Latitude, SelectedConflict.Top.Position1.Longitude) + "\n" + SelectedConflict.Top.Time.ToString("HHmm") : "";
+                INTconfstart.Text = SelectedConflict.FirstConflictTime?.StartLatlong != null
+                    ? ConvertToArinc424(SelectedConflict.FirstConflictTime.StartLatlong.Latitude, SelectedConflict.FirstConflictTime.StartLatlong.Longitude)
+                        + "\n" + SelectedConflict.FirstConflictTime.StartTime.ToString("HHmm") : "";
+                INTconfend.Text = SelectedConflict.FirstConflictTime?.EndLatlong != null
+                    ? ConvertToArinc424(SelectedConflict.FirstConflictTime.EndLatlong.Latitude, SelectedConflict.FirstConflictTime.EndLatlong.Longitude)
+                        + "\n" + SelectedConflict.FirstConflictTime.EndTime.ToString("HHmm") : "";
+                ACTcs.Text = SelectedConflict.Active?.AircraftType + "\n" + SelectedConflict.Active?.Callsign + "\n" + SelectedConflict.Active?.TAS;
+                ACTAlt.Text = SelectedConflict.Active != null ? "F" + AltitudeBlock.ExtractAltitudeBlock(SelectedConflict.Active) : "";
+                ACTTOPdata.Text = SelectedConflict.ConflictType == Models.ConflictType.Reciprocal && SelectedConflict.Top != null
+                    ? ConvertToArinc424(SelectedConflict.Top.Position1.Latitude, SelectedConflict.Top.Position2.Longitude) + "\n" + SelectedConflict.Top.Time.ToString("HHmm") : "";
+                ACTconfstart.Text = SelectedConflict.FirstConflictTime2?.StartLatlong != null
+                    ? ConvertToArinc424(SelectedConflict.FirstConflictTime2.StartLatlong.Latitude, SelectedConflict.FirstConflictTime2.StartLatlong.Longitude)
+                        + "\n" + SelectedConflict.FirstConflictTime2.StartTime.ToString("HHmm") : "";
+                ACTconfend.Text = SelectedConflict.FirstConflictTime2?.EndLatlong != null
+                    ? ConvertToArinc424(SelectedConflict.FirstConflictTime2.EndLatlong.Latitude, SelectedConflict.FirstConflictTime2.EndLatlong.Longitude)
+                        + "\n" + SelectedConflict.FirstConflictTime2.EndTime.ToString("HHmm") : "";
 
             }
             if (!ConflictProbe.ConflictDatas.Any())
@@ -132,6 +136,23 @@ namespace AtopPlugin.UI
         {
             Close();
             Dispose();
+        }
+
+        private void DrawButton_Click(object sender, EventArgs e)
+        {
+            // Toggle the conflict segment renderer
+            ConflictSegmentRenderer.Enabled = !ConflictSegmentRenderer.Enabled;
+            
+            // Update the button appearance to show state
+            DrawButton.BackColor = ConflictSegmentRenderer.Enabled 
+                ? Colours.GetColour(Colours.Identities.Custom)
+                : Colours.GetColour(Colours.Identities.Default);
+            
+            // Force update of conflict lines
+            if (ConflictSegmentRenderer.Enabled)
+            {
+                ConflictSegmentRenderer.UpdateConflictLines();
+            }
         }
     }
 }

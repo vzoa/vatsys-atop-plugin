@@ -3,15 +3,17 @@
  * Offloads heavy O(n²) conflict detection from vatSys plugin
  * 
  * Per FAA ATOP NAS-MD-4714 Algorithm Specifications
+ * 
+ * Probing is event-driven per ATOP spec Section 12.1.1:
+ * - Triggered by C# plugin on FDR updates
+ * - No interval-based probing
  */
 
 // Store FDRs indexed by callsign
 const fdrs = new Map();
-let conflictCheckInterval = null;
 
 // Configuration per NAS-MD-4714 Section 6.2 and Appendix A.3.82
 const CONFIG = {
-    checkIntervalMs: 5000, // Check conflicts every 5 seconds
     advisoryThresholdHours: 2,      // Advisory: > 30 min, <= 2 hours
     imminentThresholdMinutes: 30,   // Imminent: > 1 min, <= 30 min
     actualThresholdMinutes: 1,      // Actual: <= 1 min
@@ -39,6 +41,7 @@ self.onmessage = function(e) {
             bulkUpdateFDRs(data);
             break;
         case 'requestProbe':
+            // Event-driven probe request from C# plugin
             const conflicts = probeAllConflicts();
             self.postMessage({ type: 'conflictResults', data: conflicts });
             break;
@@ -46,28 +49,15 @@ self.onmessage = function(e) {
             Object.assign(CONFIG, data);
             break;
         case 'start':
-            startConflictChecking();
+            // No longer starts interval - just log ready
+            console.log('[ConflictWorker] Ready for event-driven probe requests');
             break;
         case 'stop':
-            stopConflictChecking();
+            // No interval to stop - just log
+            console.log('[ConflictWorker] Stopped');
             break;
     }
 };
-
-function startConflictChecking() {
-    if (conflictCheckInterval) return;
-    conflictCheckInterval = setInterval(() => {
-        const conflicts = probeAllConflicts();
-        self.postMessage({ type: 'conflictResults', data: conflicts });
-    }, CONFIG.checkIntervalMs);
-}
-
-function stopConflictChecking() {
-    if (conflictCheckInterval) {
-        clearInterval(conflictCheckInterval);
-        conflictCheckInterval = null;
-    }
-}
 
 function updateFDR(fdrData) {
     fdrs.set(fdrData.callsign, {

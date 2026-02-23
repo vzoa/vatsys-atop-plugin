@@ -15,24 +15,11 @@ public static class AtopPluginStateManager
     private static readonly ConcurrentDictionary<string, AtopAircraftState> AircraftStates = new();
     private static readonly ConcurrentDictionary<string, AtopAircraftDisplayState> DisplayStates = new();
     private static readonly ConcurrentDictionary<string, ConflictProbe.Conflicts> Conflicts = new();
-    private static readonly ConcurrentDictionary<string, DateTime> lastProbeTimeDict = new();
-    private static bool _probeEnabled = Config.ConflictProbeEnabled;
     private static bool _activated;
     private static readonly object StatesLock = new();
     private static readonly object ConflictProbeLock = new();
     private static readonly object ActivationLock = new();
-    private static readonly Random _random = new Random();
     private static bool _initialized = false;
-
-    private static bool ProbeEnabled
-    {
-        get => _probeEnabled;
-        set
-        {
-            _probeEnabled = value;
-            Config.ConflictProbeEnabled = value;
-        }
-    }
 
     public static bool Activated
     {
@@ -61,8 +48,6 @@ public static class AtopPluginStateManager
 
     private static void OnCallsignConflictsUpdated(string callsign, ConflictProbe.Conflicts conflicts)
     {
-        if (!ProbeEnabled) return;
-        
         lock (ConflictProbeLock)
         {
             Conflicts.AddOrUpdate(callsign, conflicts, (_, _) => conflicts);
@@ -135,41 +120,6 @@ public static class AtopPluginStateManager
         else
         {
             await Task.Run(() => displayState.UpdateFromAtopState(atopState));
-        }
-    }
-
-    public static async Task RunConflictProbe(FDP2.FDR fdr)
-    {
-        // With webapp-based conflict calculation, conflicts are pushed to us via WebSocket
-        // This method now just ensures the state manager is initialized and returns cached results
-        
-        if (!_initialized) Initialize();
-        
-        // The webapp sends conflict updates which are handled by OnCallsignConflictsUpdated
-        // We can still manually request a probe result from the cache if needed
-        if (ProbeEnabled)
-        {
-            var cachedConflicts = await Task.Run(() => ConflictProbe.Probe(fdr));
-            
-            lock (ConflictProbeLock)
-            {
-                if (!ProbeEnabled) return;
-                Conflicts.AddOrUpdate(fdr.Callsign, cachedConflicts, (_, _) => cachedConflicts);
-            }
-        }
-    }
-
-    public static bool IsConflictProbeEnabled()
-    {
-        return ProbeEnabled;
-    }
-
-    public static void SetConflictProbe(bool conflictProbeEnabled)
-    {
-        lock (ConflictProbeLock)
-        {
-            ProbeEnabled = conflictProbeEnabled;
-            if (!ProbeEnabled) Conflicts.Clear();
         }
     }
 

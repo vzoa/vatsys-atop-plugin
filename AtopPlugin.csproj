@@ -87,9 +87,11 @@
     <Compile Include="Display\Label\AltitudeLabelItem.cs" />
     <Compile Include="Display\Label\ILabelItem.cs" />
     <Compile Include="Display\Label\LabelItemRegistry.cs" />
+    <Compile Include="Display\ConflictSegmentRenderer.cs" />
     <Compile Include="Display\StripItemRenderer.cs" />
     <Compile Include="Display\TrackColorRenderer.cs" />
     <Compile Include="Extensions.cs" />
+    <Compile Include="Helpers\LocalWebServer.cs" />
     <Compile Include="Helpers\WebSocketServer.cs" />
     <Compile Include="Logic\AltitudeCalculator.cs" />
     <Compile Include="Logic\FlightDataCalculator.cs" />

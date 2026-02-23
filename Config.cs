@@ -12,16 +12,6 @@ public static class Config
 
     private static readonly AtopPluginConfiguration Configuration = LoadFromFile();
 
-    public static bool ConflictProbeEnabled
-    {
-        get => Configuration.EnableConflictProbe;
-        set
-        {
-            Configuration.EnableConflictProbe = value;
-            SaveConfigurationToFile(Configuration);
-        }
-    }
-
     public static MinimaRegion MinimaRegion => Configuration.MinimaRegion;
 
     private static AtopPluginConfiguration LoadFromFile()
@@ -47,7 +37,6 @@ public static class Config
     // ReSharper disable once MemberCanBePrivate.Global
     public record AtopPluginConfiguration
     {
-        public bool EnableConflictProbe { get; set; } = true;
         public MinimaRegion MinimaRegion { get; set; } = MinimaRegion.Pacific;
     }
 }

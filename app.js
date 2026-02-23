@@ -22,6 +22,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initWindowActivation();
     initButtonHandlers();
     initConflictWorker();
+    initSectorQueueClock();
     connectWebSocket();
     
     // Initial render of empty conflict table
@@ -230,6 +231,10 @@ function connectWebSocket() {
                     break;
                 case 'FDRRemove':
                     handleFDRRemove(data);
+                    break;
+                case 'ProbeRequest':
+                    // C# plugin requests a conflict probe
+                    handleProbeRequest(data);
                     break;
                 case 'Error':
                     showError(data.Message);
@@ -516,6 +521,34 @@ function showError(message) {
 }
 
 // ============================================
+// SECTOR QUEUE WINDOW - Clock Update
+// ============================================
+
+function initSectorQueueClock() {
+    updateSectorQueueClock();
+    setInterval(updateSectorQueueClock, 1000);
+}
+
+function updateSectorQueueClock() {
+    const now = new Date();
+    
+    // Format time as HH:MM:SS
+    const timeStr = now.toTimeString().substring(0, 8);
+    const timeEl = document.getElementById('sq-time');
+    if (timeEl) timeEl.textContent = timeStr;
+    
+    // Format date as DD Mon YY
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const day = now.getDate().toString().padStart(2, '0');
+    const month = months[now.getMonth()];
+    const year = now.getFullYear().toString().slice(-2);
+    const dateStr = `${day} ${month} ${year}`;
+    
+    const dateEl = document.getElementById('sq-date');
+    if (dateEl) dateEl.textContent = dateStr;
+}
+
+// ============================================
 // CONFLICT WORKER INTEGRATION
 // ============================================
 
@@ -656,6 +689,17 @@ function handleFDRBulkUpdate(data) {
         type: 'bulkUpdateFDRs',
         data: workerFdrs
     });
+}
+
+// Handle probe request from C# plugin (event-driven per ATOP spec 12.1.1)
+function handleProbeRequest(data) {
+    if (!conflictWorker) return;
+    
+    console.log('=== Probe Request from C# ===');
+    console.log('Callsign:', data.Callsign || 'ALL');
+    
+    // Request probe from worker
+    conflictWorker.postMessage({ type: 'requestProbe' });
 }
 
 function handleFDRUpdate(data) {

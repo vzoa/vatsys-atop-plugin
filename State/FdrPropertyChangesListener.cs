@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
+using AtopPlugin.Helpers;
 using vatsys;
 
 namespace AtopPlugin.State;
@@ -29,6 +30,9 @@ public static class FdrPropertyChangesListener
         if (!RelevantProperties.Contains(eventArgs.PropertyName)) return;
         await AtopPluginStateManager.ProcessFdrUpdate(fdr);
         await AtopPluginStateManager.ProcessDisplayUpdate(fdr);
-        await AtopPluginStateManager.RunConflictProbe(fdr);
+        
+        // Request conflict probe from webapp (event-driven per ATOP spec 12.1.1)
+        await AtopWebSocketServer.Instance.BroadcastFlightPlanDataAsync(fdr);
+        await AtopWebSocketServer.Instance.RequestProbeAsync(fdr.Callsign);
     }
 }

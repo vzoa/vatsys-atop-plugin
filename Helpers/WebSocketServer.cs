@@ -20,7 +20,6 @@ namespace AtopPlugin.Helpers
         private readonly List<WebSocket> _connectedClients = new List<WebSocket>();
         private readonly int _port;
         private CancellationTokenSource _cts;
-        private System.Timers.Timer _fdrBroadcastTimer;
 
         // Event for conflict results received from webapp
         public event Action<List<WebAppConflictResult>> ConflictResultsReceived;
@@ -42,20 +41,12 @@ namespace AtopPlugin.Helpers
         {
             _cts = new CancellationTokenSource();
             Task.Run(() => StartServerAsync(_cts.Token));
-            
-            // Start periodic FDR broadcast
-            _fdrBroadcastTimer = new System.Timers.Timer(3000); // Every 3 seconds
-            _fdrBroadcastTimer.Elapsed += (s, e) => _ = BroadcastAllFDRsAsync();
-            _fdrBroadcastTimer.AutoReset = true;
-            _fdrBroadcastTimer.Start();
         }
 
         public void Stop()
         {
             _cts?.Cancel();
             _listener?.Stop();
-            _fdrBroadcastTimer?.Stop();
-            _fdrBroadcastTimer?.Dispose();
             foreach (var client in _connectedClients)
             {
                 client?.Dispose();
@@ -132,6 +123,10 @@ namespace AtopPlugin.Helpers
                     {
                         await BroadcastFlightPlanDataAsync(FDP2.GetFDRs[fdrIndex]);
                     }
+                    else
+                    {
+                        await BroadcastErrorAsync($"Flight plan not found for '{request.Callsign}'");
+                    }
                 }
                 else if (request?.Type == "UpdateFDR")
                 {
@@ -174,12 +169,28 @@ namespace AtopPlugin.Helpers
             try
             {
                 var fdrIndex = FDP2.GetFDRIndex(request.Callsign);
-                if (fdrIndex == -1) return;
+                if (fdrIndex == -1)
+                {
+                    await BroadcastErrorAsync($"Flight plan not found for '{request.Callsign}'");
+                    return;
+                }
 
                 var fdr = FDP2.GetFDRs[fdrIndex];
 
                 // Only allow modifications if we have permission
-                if (!fdr.HavePermission && fdr.IsTracked) return;
+                if (!fdr.HavePermission && fdr.IsTracked)
+                {
+                    await BroadcastErrorAsync($"No permission to modify '{request.Callsign}'");
+                    return;
+                }
+
+                // Handle Delete/Cancel action
+                if (request.Action == "Delete")
+                {
+                    FDP2.DeleteFDR(fdr);
+                    await BroadcastErrorAsync($"Flight plan '{request.Callsign}' deleted");
+                    return;
+                }
 
                 // Use FDP2.ModifyFDR for flight plan changes
                 if (request.Action == "Modify")
@@ -333,6 +344,24 @@ namespace AtopPlugin.Helpers
                 RFL = fdr?.RFL,
                 SelectedAltitude = selectedAltitude,
                 ResponseStatus = responseStatus,
+                Timestamp = DateTime.UtcNow
+            };
+
+            await BroadcastAsync(data);
+        }
+
+        /// <summary>
+        /// Requests a conflict probe from the webapp for a specific callsign
+        /// Per ATOP spec 12.1.1, probes are event-driven on FDR updates
+        /// </summary>
+        public async Task RequestProbeAsync(string callsign = null)
+        {
+            if (_connectedClients.Count == 0) return;
+
+            var data = new
+            {
+                Type = "ProbeRequest",
+                Callsign = callsign,
                 Timestamp = DateTime.UtcNow
             };
 

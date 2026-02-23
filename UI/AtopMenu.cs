@@ -1,6 +1,8 @@
 using System;
 using System.Threading;
 using System.Windows.Forms;
+using AtopPlugin.Conflict;
+using AtopPlugin.Display;
 using AtopPlugin.State;
 using vatsys;
 using vatsys.Plugin;
@@ -20,9 +22,9 @@ public static class AtopMenu
     static AtopMenu()
     {
         InitializeActivationToggle();
-        InitializeSettingsMenu();
+        //InitializeSettingsMenu();
         InitializeVersionItem();
-        InitializeConflictSummaryWindow();
+        //InitializeConflictSummaryWindow();
         //InitializeAltitudeWindow();
     }
 
@@ -41,27 +43,27 @@ public static class AtopMenu
     //    altitudeWindowItem.Item.Click += (_, _) => MMI.InvokeOnGUI(AltitudeWindow.Show);
     //    MMI.AddCustomMenuItem(altitudeWindowItem);
     //}
-    private static void InitializeConflictSummaryWindow()
-    {
-        var conflictWindowItem = new CustomToolStripMenuItem(CustomToolStripMenuItemWindowType.Main,
-            CustomToolStripMenuItemCategory.Custom, new ToolStripMenuItem("Conflict Summary"))
-        {
-            CustomCategoryName = CategoryName
-        };
-        conflictWindowItem.Item.Click += (_, _) => MMI.InvokeOnGUI(ConflictSummaryWindow.Show);
-        MMI.AddCustomMenuItem(conflictWindowItem);
-    }
+    //private static void InitializeConflictSummaryWindow()
+    //{
+    //    var conflictWindowItem = new CustomToolStripMenuItem(CustomToolStripMenuItemWindowType.Main,
+    //        CustomToolStripMenuItemCategory.Custom, new ToolStripMenuItem("Conflict Summary"))
+    //    {
+    //        CustomCategoryName = CategoryName
+    //    };
+    //    conflictWindowItem.Item.Click += (_, _) => MMI.InvokeOnGUI(ConflictSummaryWindow.Show);
+    //    MMI.AddCustomMenuItem(conflictWindowItem);
+    //}
 
-    private static void InitializeSettingsMenu()
-    {
-        var settingsMenuItem = new CustomToolStripMenuItem(CustomToolStripMenuItemWindowType.Main,
-            CustomToolStripMenuItemCategory.Custom, new ToolStripMenuItem("Settings"))
-        {
-            CustomCategoryName = CategoryName
-        };
-        settingsMenuItem.Item.Click += (_, _) => MMI.InvokeOnGUI(SettingsWindow.Show);
-        MMI.AddCustomMenuItem(settingsMenuItem);
-    }
+    //private static void InitializeSettingsMenu()
+    //{
+    //    var settingsMenuItem = new CustomToolStripMenuItem(CustomToolStripMenuItemWindowType.Main,
+    //        CustomToolStripMenuItemCategory.Custom, new ToolStripMenuItem("Settings"))
+    //    {
+    //        CustomCategoryName = CategoryName
+    //    };
+    //    settingsMenuItem.Item.Click += (_, _) => MMI.InvokeOnGUI(SettingsWindow.Show);
+    //    MMI.AddCustomMenuItem(settingsMenuItem);
+    //}
 
     private static void InitializeActivationToggle()
     {

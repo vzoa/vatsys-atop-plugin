@@ -282,7 +282,7 @@ namespace AtopPlugin.UI
             this.DrawButton.TabIndex = 15;
             this.DrawButton.Text = "Draw";
             this.DrawButton.UseVisualStyleBackColor = true;
-            //this.DrawButton.Click += new System.EventHandler(this.DrawButton_Click);
+            this.DrawButton.Click += new System.EventHandler(this.DrawButton_Click);
             // 
             // CloseButton
             // 
