@@ -47,11 +47,14 @@ namespace AtopPlugin.Helpers
         {
             _cts?.Cancel();
             _listener?.Stop();
-            foreach (var client in _connectedClients)
+            lock (_connectedClients)
             {
-                client?.Dispose();
+                foreach (var client in _connectedClients)
+                {
+                    client?.Dispose();
+                }
+                _connectedClients.Clear();
             }
-            _connectedClients.Clear();
         }
 
         private async Task StartServerAsync(CancellationToken ct)
@@ -68,7 +71,7 @@ namespace AtopPlugin.Helpers
                     if (context.Request.IsWebSocketRequest)
                     {
                         var wsContext = await context.AcceptWebSocketAsync(null);
-                        _connectedClients.Add(wsContext.WebSocket);
+                        lock (_connectedClients) _connectedClients.Add(wsContext.WebSocket);
                         _ = HandleClientAsync(wsContext.WebSocket, ct);
                     }
                     else
@@ -95,7 +98,7 @@ namespace AtopPlugin.Helpers
                     if (result.MessageType == WebSocketMessageType.Close)
                     {
                         await socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", ct);
-                        _connectedClients.Remove(socket);
+                        lock (_connectedClients) _connectedClients.Remove(socket);
                     }
                     else if (result.MessageType == WebSocketMessageType.Text)
                     {
@@ -106,7 +109,7 @@ namespace AtopPlugin.Helpers
             }
             catch
             {
-                _connectedClients.Remove(socket);
+                lock (_connectedClients) _connectedClients.Remove(socket);
             }
         }
 
@@ -471,7 +474,13 @@ namespace AtopPlugin.Helpers
 
             var deadClients = new List<WebSocket>();
 
-            foreach (var client in _connectedClients)
+            List<WebSocket> snapshot;
+            lock (_connectedClients)
+            {
+                snapshot = _connectedClients.ToList();
+            }
+
+            foreach (var client in snapshot)
             {
                 try
                 {
@@ -490,9 +499,12 @@ namespace AtopPlugin.Helpers
                 }
             }
 
-            foreach (var dead in deadClients)
+            lock (_connectedClients)
             {
-                _connectedClients.Remove(dead);
+                foreach (var dead in deadClients)
+                {
+                    _connectedClients.Remove(dead);
+                }
             }
         }
     }
