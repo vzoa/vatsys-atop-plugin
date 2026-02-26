@@ -310,8 +310,11 @@ function handleAltitudeUpdate(data) {
 }
 
 function handleFlightPlanUpdate(data) {
+    // Only refresh if this is the flight plan already open
+    if (!currentFDR || currentFDR.Callsign !== data.Callsign) return;
+
     currentFDR = data;
-    
+
     // Update status header
     setTextContent('fp-callsign-display', data.Callsign || '-------');
     setTextContent('fp-dep-display', data.DepAirport || '----');
