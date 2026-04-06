@@ -27,14 +27,20 @@ namespace vatsys_atop_plugin.UI
         }
         public static void Handle(CustomLabelItemMouseClickEventArgs eventArgs)
         {
-
-            AnnotationWindow window = new AnnotationWindow(eventArgs.Track.GetFDR());
-
-            if (eventArgs.Button == CustomLabelItemMouseButton.Right)
+            try
             {
-                MMI.InvokeOnGUI(window.Show);
+                AnnotationWindow window = new AnnotationWindow(eventArgs.Track.GetFDR());
+
+                if (eventArgs.Button == CustomLabelItemMouseButton.Right)
+                {
+                    MMI.InvokeOnGUI(window.Show);
+                }
+                eventArgs.Handled = true;
             }
-            eventArgs.Handled = true;
+            catch (Exception ex)
+            {
+                Errors.Add(new Exception($"AnnotationWindow.Handle: {ex.Message}", ex));
+            }
         }
 
         private void TextFieldState()

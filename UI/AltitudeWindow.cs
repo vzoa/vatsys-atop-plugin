@@ -89,13 +89,20 @@ namespace vatsys_atop_plugin.UI
 
         public static void Handle(CustomLabelItemMouseClickEventArgs eventArgs)
         {
-            AltitudeWindow window = GetInstance(eventArgs.Track.GetFDR(), eventArgs.Track);
-
-            if (eventArgs.Button == CustomLabelItemMouseButton.Right)
+            try
             {
-                MMI.InvokeOnGUI(window.Show);
+                AltitudeWindow window = GetInstance(eventArgs.Track.GetFDR(), eventArgs.Track);
+
+                if (eventArgs.Button == CustomLabelItemMouseButton.Right)
+                {
+                    MMI.InvokeOnGUI(window.Show);
+                }
+                eventArgs.Handled = true;
             }
-            eventArgs.Handled = true;
+            catch (Exception ex)
+            {
+                Errors.Add(new Exception($"AltitudeWindow.Handle: {ex.Message}", ex));
+            }
         }
 
 

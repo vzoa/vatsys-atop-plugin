@@ -120,9 +120,16 @@ public static class ConflictSegmentRenderer
     
     private static void OnConflictsUpdated(object? sender, EventArgs e)
     {
-        if (Enabled)
+        try
         {
-            UpdateConflictLines();
+            if (Enabled)
+            {
+                UpdateConflictLines();
+            }
+        }
+        catch (Exception ex)
+        {
+            Errors.Add(new Exception($"ConflictSegmentRenderer.OnConflictsUpdated: {ex.Message}", ex));
         }
     }
     

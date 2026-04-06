@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -26,13 +27,21 @@ public static class FdrPropertyChangesListener
 
     private static async void Handle(object sender, PropertyChangedEventArgs eventArgs)
     {
-        if (sender is not FDP2.FDR fdr) return;
-        if (!RelevantProperties.Contains(eventArgs.PropertyName)) return;
-        await AtopPluginStateManager.ProcessFdrUpdate(fdr);
-        await AtopPluginStateManager.ProcessDisplayUpdate(fdr);
-        
-        // Request conflict probe from webapp (event-driven per ATOP spec 12.1.1)
-        await AtopWebSocketServer.Instance.BroadcastFlightPlanDataAsync(fdr);
-        await AtopWebSocketServer.Instance.RequestProbeAsync(fdr.Callsign);
+        try
+        {
+            if (sender is not FDP2.FDR fdr) return;
+            if (!RelevantProperties.Contains(eventArgs.PropertyName)) return;
+            await AtopPluginStateManager.ProcessFdrUpdate(fdr);
+            await AtopPluginStateManager.ProcessDisplayUpdate(fdr);
+
+            // Request conflict probe from webapp (event-driven per ATOP spec 12.1.1)
+            await AtopWebSocketServer.Instance.BroadcastFlightPlanDataAsync(fdr);
+            await AtopWebSocketServer.Instance.BroadcastFDRForConflictAsync(fdr);
+            await AtopWebSocketServer.Instance.RequestProbeAsync(fdr.Callsign);
+        }
+        catch (Exception ex)
+        {
+            Errors.Add(new Exception($"FdrPropertyChangesListener.Handle: {ex.Message}", ex));
+        }
     }
 }

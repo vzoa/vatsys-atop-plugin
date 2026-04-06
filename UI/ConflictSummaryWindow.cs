@@ -23,7 +23,14 @@ public partial class ConflictSummaryWindow : BaseForm
 
     private async void ConflictSummaryWindow_Load(object sender, EventArgs e)
     {
-         await DisplayConflictsAsync();
+        try
+        {
+            await DisplayConflictsAsync();
+        }
+        catch (Exception ex)
+        {
+            Errors.Add(new Exception($"ConflictSummaryWindow_Load: {ex.Message}", ex));
+        }
     }
 
     private async Task DisplayConflictsAsync()

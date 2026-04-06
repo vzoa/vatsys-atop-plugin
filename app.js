@@ -311,6 +311,7 @@ function handleAltitudeUpdate(data) {
 
 function handleFlightPlanUpdate(data) {
     currentFDR = data;
+    console.log(`[FlightPlanUpdate] Received for ${data.Callsign} (state=${data.State}) - NOTE: this only updates the form UI, NOT the conflict worker`);
     
     // Update status header
     setTextContent('fp-callsign-display', data.Callsign || '-------');
@@ -647,7 +648,10 @@ function updateConflictSummary(results) {
 
 function handleFDRBulkUpdate(data) {
     // Receive FDRs from plugin and send to worker
-    if (!conflictWorker) return;
+    if (!conflictWorker) {
+        console.warn('[FDRBulkUpdate] No conflict worker available!');
+        return;
+    }
     
     const fdrs = data.FDRs || [];
     
@@ -655,14 +659,15 @@ function handleFDRBulkUpdate(data) {
     console.log('=== FDR Bulk Update Received ===');
     console.log('Total FDRs:', fdrs.length);
     if (fdrs.length > 0) {
-        console.table(fdrs.slice(0, 10).map(f => ({
+        console.table(fdrs.map(f => ({
             callsign: f.Callsign,
             state: f.State,
             cfl: f.CFL,
             rfl: f.RFL,
             waypoints: f.RouteWaypoints?.length || 0
         })));
-        if (fdrs.length > 10) console.log(`... and ${fdrs.length - 10} more`);
+    } else {
+        console.warn('[FDRBulkUpdate] WARNING: Received bulk update with 0 FDRs');
     }
     
     // Update cache
@@ -693,10 +698,19 @@ function handleFDRBulkUpdate(data) {
 
 // Handle probe request from C# plugin (event-driven per ATOP spec 12.1.1)
 function handleProbeRequest(data) {
-    if (!conflictWorker) return;
+    if (!conflictWorker) {
+        console.warn('[ProbeRequest] No conflict worker available!');
+        return;
+    }
     
     console.log('=== Probe Request from C# ===');
     console.log('Callsign:', data.Callsign || 'ALL');
+    console.log('FDRs in browser cache:', fdrCache.size);
+    if (fdrCache.size === 0) {
+        console.warn('[ProbeRequest] WARNING: No FDRs cached in browser - worker has nothing to probe!');
+        console.warn('[ProbeRequest] The C# plugin sends FlightPlanUpdate messages but those only update the UI form.');
+        console.warn('[ProbeRequest] FDRBulkUpdate or FDRUpdate messages are needed to feed the conflict worker.');
+    }
     
     // Request probe from worker
     conflictWorker.postMessage({ type: 'requestProbe' });
@@ -704,10 +718,18 @@ function handleProbeRequest(data) {
 
 function handleFDRUpdate(data) {
     // Single FDR update from plugin
-    if (!conflictWorker) return;
+    if (!conflictWorker) {
+        console.warn('[FDRUpdate] No conflict worker available!');
+        return;
+    }
     
     const fdr = data.FDR;
-    if (!fdr) return;
+    if (!fdr) {
+        console.warn('[FDRUpdate] Received FDRUpdate but data.FDR is null/undefined:', data);
+        return;
+    }
+    
+    console.log(`[FDRUpdate] Feeding worker: ${fdr.Callsign} | state=${fdr.State} | CFL=${fdr.CFL} RFL=${fdr.RFL} | waypoints=${fdr.RouteWaypoints?.length || 0}`);
     
     fdrCache.set(fdr.Callsign, fdr);
     

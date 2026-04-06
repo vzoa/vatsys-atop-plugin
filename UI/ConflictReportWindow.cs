@@ -36,7 +36,14 @@ namespace AtopPlugin.UI
 
         private void UpdateConflicts(object sender, EventArgs e)
         {
-            this.Invoke((Action)DisplayConflictDetails);
+            try
+            {
+                this.Invoke((Action)DisplayConflictDetails);
+            }
+            catch (Exception ex)
+            {
+                Errors.Add(new Exception($"ConflictReportWindow.UpdateConflicts: {ex.Message}", ex));
+            }
             //MessageBox.Show(@"Examined conflict situation has changed!");
         }
 

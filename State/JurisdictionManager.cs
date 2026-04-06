@@ -58,18 +58,21 @@ public static class JurisdictionManager
             }
 
             // Proceed only if atopState and NextSector are valid
-            MMI.HandoffJurisdiction(fdr, atopState.NextSector);
+            MMI.HandoffJurisdiction(fdr, localAtopState.NextSector);
         }
 
         // Invoke the internal method SendTextMessage from Network
+        if (atopState == null) return;
+
         Type networkType = typeof(Network);
         if (networkType != null)
         {
             // Get the method info for the internal method
             MethodInfo sendTextMessageMethod = networkType.GetMethod("SendTextMessage", BindingFlags.NonPublic | BindingFlags.Static);
-            object networkInstance = networkType.GetField("Instance", BindingFlags.NonPublic | BindingFlags.Static).GetValue(null);
-            if (sendTextMessageMethod != null)
+            FieldInfo instanceField = networkType.GetField("Instance", BindingFlags.NonPublic | BindingFlags.Static);
+            if (sendTextMessageMethod != null && instanceField != null)
             {
+                object networkInstance = instanceField.GetValue(null);
                 if (isInControlledSector && fdr.IsTrackedByMe && fdr.State is not FDR.FDRStates.STATE_INHIBITED &&
                 DateTime.UtcNow == atopState.BoundaryTime.Subtract(TimeSpan.FromSeconds(2820)))
                 {

@@ -30,8 +30,15 @@ public static class ConflictProbe
 
     static ConflictProbe()
     {
-        // Subscribe to conflict results from WebSocket server
-        AtopWebSocketServer.Instance.ConflictResultsReceived += OnWebAppConflictResultsReceived;
+        try
+        {
+            // Subscribe to conflict results from WebSocket server
+            AtopWebSocketServer.Instance.ConflictResultsReceived += OnWebAppConflictResultsReceived;
+        }
+        catch (Exception ex)
+        {
+            Errors.Add(new Exception($"ConflictProbe static init: {ex.Message}", ex));
+        }
     }
 
     /// <summary>
@@ -39,7 +46,9 @@ public static class ConflictProbe
     /// </summary>
     private static void OnWebAppConflictResultsReceived(List<WebAppConflictResult> results)
     {
-        if (results == null) return;
+        try
+        {
+            if (results == null) return;
 
         // Track which callsigns are affected
         var affectedCallsigns = new HashSet<string>();
@@ -104,6 +113,11 @@ public static class ConflictProbe
         {
             var callsignConflicts = GetConflictsForCallsign(callsign);
             CallsignConflictsUpdated?.Invoke(callsign, callsignConflicts);
+        }
+        }
+        catch (Exception ex)
+        {
+            Errors.Add(new Exception($"OnWebAppConflictResultsReceived: {ex.Message}", ex));
         }
     }
 

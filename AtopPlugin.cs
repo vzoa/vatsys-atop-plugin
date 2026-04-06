@@ -2,6 +2,7 @@
 using AtopPlugin.Helpers;
 using AtopPlugin.State;
 using AtopPlugin.UI;
+using System;
 using System.ComponentModel.Composition;
 using System.Threading.Tasks;
 using vatsys;
@@ -28,45 +29,91 @@ public class AtopPlugin : ILabelPlugin, IStripPlugin
     public CustomLabelItem? GetCustomLabelItem(string itemType, Track track, FDP2.FDR flightDataRecord,
         RDP.RadarTrack radarTrack)
     {
-        return LabelItemRenderer.RenderLabelItem(itemType, track, flightDataRecord, radarTrack);
+        try
+        {
+            return LabelItemRenderer.RenderLabelItem(itemType, track, flightDataRecord, radarTrack);
+        }
+        catch (Exception ex)
+        {
+            Errors.Add(new Exception($"GetCustomLabelItem: {ex.Message}", ex));
+            return null;
+        }
     }
 
     public CustomStripItem? GetCustomStripItem(string itemType, Track track, FDP2.FDR flightDataRecord,
         RDP.RadarTrack radarTrack)
     {
-        return StripItemRenderer.RenderStripItem(itemType, track, flightDataRecord, radarTrack);
+        try
+        {
+            return StripItemRenderer.RenderStripItem(itemType, track, flightDataRecord, radarTrack);
+        }
+        catch (Exception ex)
+        {
+            Errors.Add(new Exception($"GetCustomStripItem: {ex.Message}", ex));
+            return null;
+        }
     }
 
     public void OnFDRUpdate(FDP2.FDR updated)
     {
-        _ = AtopPluginStateManager.ProcessFdrUpdate(updated);
-        _ = AtopPluginStateManager.ProcessDisplayUpdate(updated);
-
-        FdrPropertyChangesListener.RegisterHandler(updated);
-
-        // Don't manage jurisdiction if not connected as ATC
-        if (Network.Me.IsRealATC)
+        try
         {
-            _ = JurisdictionManager.HandleFdrUpdate(updated);
+            _ = AtopPluginStateManager.ProcessFdrUpdate(updated);
+            _ = AtopPluginStateManager.ProcessDisplayUpdate(updated);
+
+            FdrPropertyChangesListener.RegisterHandler(updated);
+
+            // Don't manage jurisdiction if not connected as ATC
+            if (Network.Me.IsRealATC)
+            {
+                _ = JurisdictionManager.HandleFdrUpdate(updated);
+            }
+
+            // Broadcast updated FDR and request conflict probe (event-driven per ATOP spec 12.1.1)
+            Task.Run(async () =>
+            {
+                try
+                {
+                    await AtopWebSocketServer.Instance.BroadcastFlightPlanDataAsync(updated);
+                    await AtopWebSocketServer.Instance.BroadcastFDRForConflictAsync(updated);
+                    await AtopWebSocketServer.Instance.RequestProbeAsync(updated.Callsign);
+                }
+                catch (Exception ex)
+                {
+                    Errors.Add(new Exception($"OnFDRUpdate background task: {ex.Message}", ex));
+                }
+            });
         }
-
-        // Broadcast updated FDR and request conflict probe (event-driven per ATOP spec 12.1.1)
-        Task.Run(async () =>
+        catch (Exception ex)
         {
-            await AtopWebSocketServer.Instance.BroadcastFlightPlanDataAsync(updated);
-            await AtopWebSocketServer.Instance.RequestProbeAsync(updated.Callsign);
-        });
+            Errors.Add(new Exception($"OnFDRUpdate: {ex.Message}", ex));
+        }
     }
 
     public void OnRadarTrackUpdate(RDP.RadarTrack updated)
     {
-        // don't manage jurisdiction if not connected as ATC
-        if (Network.Me.IsRealATC) _ = JurisdictionManager.HandleRadarTrackUpdate(updated);
+        try
+        {
+            // don't manage jurisdiction if not connected as ATC
+            if (Network.Me.IsRealATC) _ = JurisdictionManager.HandleRadarTrackUpdate(updated);
+        }
+        catch (Exception ex)
+        {
+            Errors.Add(new Exception($"OnRadarTrackUpdate: {ex.Message}", ex));
+        }
     }
 
     public CustomColour? SelectASDTrackColour(Track track)
     {
-        return TrackColorRenderer.GetAsdColor(track);
+        try
+        {
+            return TrackColorRenderer.GetAsdColor(track);
+        }
+        catch (Exception ex)
+        {
+            Errors.Add(new Exception($"SelectASDTrackColour: {ex.Message}", ex));
+            return null;
+        }
     }
 
     public CustomColour? SelectGroundTrackColour(Track track)

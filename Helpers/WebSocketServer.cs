@@ -1,4 +1,5 @@
 using AtopPlugin.Conflict;
+using AtopPlugin.Logic;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
@@ -354,6 +355,46 @@ namespace AtopPlugin.Helpers
         }
 
         /// <summary>
+        /// Broadcasts a single FDR to the webapp in the format the conflict worker expects (FDRUpdate).
+        /// Includes RNP, RVSM, jet status, and route waypoints needed for conflict detection.
+        /// </summary>
+        public async Task BroadcastFDRForConflictAsync(FDP2.FDR fdr)
+        {
+            if (fdr == null || _connectedClients.Count == 0) return;
+
+            var calcData = Logic.FlightDataCalculator.GetCalculatedFlightData(fdr);
+
+            var data = new
+            {
+                Type = "FDRUpdate",
+                FDR = new
+                {
+                    Callsign = fdr.Callsign,
+                    State = fdr.State.ToString().Replace("STATE_", ""),
+                    CFL = fdr.CFLUpper != -1 ? fdr.CFLUpper / 100 : fdr.RFL / 100,
+                    RFL = fdr.RFL / 100,
+                    Route = fdr.Route,
+                    RouteWaypoints = GetRouteWaypoints(fdr),
+                    ATD = fdr.ATD != DateTime.MaxValue ? fdr.ATD.ToString("o") : null,
+                    DepAirport = fdr.DepAirport,
+                    DesAirport = fdr.DesAirport,
+                    AircraftType = fdr.AircraftType,
+                    GroundSpeed = fdr.PredictedPosition?.Groundspeed,
+                    TAS = fdr.TAS,
+                    // Conflict-relevant capabilities
+                    rnp4 = calcData.Rnp4,
+                    rnp10 = calcData.Rnp10,
+                    hasDatalink = calcData.Cpdlc,
+                    rvsmApproved = fdr.RVSM,
+                    isJet = fdr.PerformanceData?.IsJet ?? false
+                },
+                Timestamp = DateTime.UtcNow
+            };
+
+            await BroadcastAsync(data);
+        }
+
+        /// <summary>
         /// Requests a conflict probe from the webapp for a specific callsign
         /// Per ATOP spec 12.1.1, probes are event-driven on FDR updates
         /// </summary>
@@ -415,20 +456,28 @@ namespace AtopPlugin.Helpers
                     fdr.State != FDP2.FDR.FDRStates.STATE_INACTIVE &&
                     fdr.State != FDP2.FDR.FDRStates.STATE_PREACTIVE &&
                     fdr.State != FDP2.FDR.FDRStates.STATE_FINISHED
-                ).Select(fdr => new
-                {
-                    Callsign = fdr.Callsign,
-                    State = fdr.State.ToString(),
-                    CFL = fdr.CFLUpper,
-                    RFL = fdr.RFL / 100,
-                    Route = fdr.Route,
-                    RouteWaypoints = GetRouteWaypoints(fdr),
-                    ATD = fdr.ATD != DateTime.MaxValue ? fdr.ATD.ToString("o") : null,
-                    DepAirport = fdr.DepAirport,
-                    DesAirport = fdr.DesAirport,
-                    AircraftType = fdr.AircraftType,
-                    GroundSpeed = fdr.PredictedPosition?.Groundspeed,
-                    TAS = fdr.TAS
+                ).Select(fdr => {
+                    var calcData = FlightDataCalculator.GetCalculatedFlightData(fdr);
+                    return new
+                    {
+                        Callsign = fdr.Callsign,
+                        State = fdr.State.ToString().Replace("STATE_", ""),
+                        CFL = fdr.CFLUpper != -1 ? fdr.CFLUpper / 100 : fdr.RFL / 100,
+                        RFL = fdr.RFL / 100,
+                        Route = fdr.Route,
+                        RouteWaypoints = GetRouteWaypoints(fdr),
+                        ATD = fdr.ATD != DateTime.MaxValue ? fdr.ATD.ToString("o") : null,
+                        DepAirport = fdr.DepAirport,
+                        DesAirport = fdr.DesAirport,
+                        AircraftType = fdr.AircraftType,
+                        GroundSpeed = fdr.PredictedPosition?.Groundspeed,
+                        TAS = fdr.TAS,
+                        rnp4 = calcData.Rnp4,
+                        rnp10 = calcData.Rnp10,
+                        hasDatalink = calcData.Cpdlc,
+                        rvsmApproved = fdr.RVSM,
+                        isJet = fdr.PerformanceData?.IsJet ?? false
+                    };
                 }).ToList();
                 
                 var data = new

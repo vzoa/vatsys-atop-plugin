@@ -43,16 +43,16 @@ public static class AtopMenu
     //    altitudeWindowItem.Item.Click += (_, _) => MMI.InvokeOnGUI(AltitudeWindow.Show);
     //    MMI.AddCustomMenuItem(altitudeWindowItem);
     //}
-    //private static void InitializeConflictSummaryWindow()
-    //{
-    //    var conflictWindowItem = new CustomToolStripMenuItem(CustomToolStripMenuItemWindowType.Main,
-    //        CustomToolStripMenuItemCategory.Custom, new ToolStripMenuItem("Conflict Summary"))
-    //    {
-    //        CustomCategoryName = CategoryName
-    //    };
-    //    conflictWindowItem.Item.Click += (_, _) => MMI.InvokeOnGUI(ConflictSummaryWindow.Show);
-    //    MMI.AddCustomMenuItem(conflictWindowItem);
-    //}
+    private static void InitializeConflictSummaryWindow()
+    {
+        var conflictWindowItem = new CustomToolStripMenuItem(CustomToolStripMenuItemWindowType.Main,
+            CustomToolStripMenuItemCategory.Custom, new ToolStripMenuItem("Conflict Summary"))
+        {
+            CustomCategoryName = CategoryName
+        };
+        conflictWindowItem.Item.Click += (_, _) => MMI.InvokeOnGUI(ConflictSummaryWindow.Show);
+        MMI.AddCustomMenuItem(conflictWindowItem);
+    }
 
     //private static void InitializeSettingsMenu()
     //{
@@ -72,7 +72,11 @@ public static class AtopMenu
         {
             CustomCategoryName = CategoryName
         };
-        activationMenuItem.Item.Click += (_, _) => MMI.InvokeOnGUI(AtopPluginStateManager.ToggleActivated);
+        activationMenuItem.Item.Click += (_, _) =>
+        {
+            try { MMI.InvokeOnGUI(AtopPluginStateManager.ToggleActivated); }
+            catch (Exception ex) { Errors.Add(new Exception($"AtopMenu.ActivationToggle: {ex.Message}", ex)); }
+        };
         MMI.AddCustomMenuItem(activationMenuItem);
     }
 
