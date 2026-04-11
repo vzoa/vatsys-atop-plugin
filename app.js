@@ -236,6 +236,9 @@ function connectWebSocket() {
                     // C# plugin requests a conflict probe
                     handleProbeRequest(data);
                     break;
+                case 'InhibitionAreas':
+                    handleInhibitionAreas(data);
+                    break;
                 case 'Error':
                     showError(data.Message);
                     showResponse(data.Message, true);
@@ -595,7 +598,13 @@ function handleWorkerConflictResults(results) {
             active: c.activeCallsign,
             status: c.status,
             type: c.conflictType,
-            vertSep: c.verticalAct + '/' + c.verticalSep + 'ft'
+            latSep: c.latSep + ' nm',
+            vertSep: c.verticalAct + '/' + c.verticalSep + ' ft',
+            trkAngle: (c.trkAngle ?? 0).toFixed(1) + '°',
+            longTime: c.longTimeAct,
+            longDist: c.longDistAct,
+            earliestLos: c.earliestLos,
+            latestLos: c.latestLos
         })));
     }
     
@@ -619,7 +628,11 @@ function handleWorkerConflictResults(results) {
                 LateralSep: c.latSep,
                 VerticalSep: c.verticalSep,
                 VerticalAct: c.verticalAct,
-                TrkAngle: c.trkAngle
+                TrkAngle: c.trkAngle,
+                StartLat: c.startLat,
+                StartLon: c.startLon,
+                EndLat: c.endLat,
+                EndLon: c.endLon
             })),
             ActualCount: results.actual?.length || 0,
             ImminentCount: results.imminent?.length || 0,
@@ -714,6 +727,21 @@ function handleProbeRequest(data) {
     
     // Request probe from worker
     conflictWorker.postMessage({ type: 'requestProbe' });
+}
+
+function handleInhibitionAreas(data) {
+    if (!conflictWorker) {
+        console.warn('[InhibitionAreas] No conflict worker available!');
+        return;
+    }
+
+    const areas = data.Areas || [];
+    console.log(`[InhibitionAreas] Received ${areas.length} inhibition area(s)`);
+
+    conflictWorker.postMessage({
+        type: 'setInhibitionAreas',
+        data: areas
+    });
 }
 
 function handleFDRUpdate(data) {

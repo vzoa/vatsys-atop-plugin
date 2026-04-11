@@ -24,7 +24,7 @@ public static class AtopMenu
         InitializeActivationToggle();
         //InitializeSettingsMenu();
         InitializeVersionItem();
-        //InitializeConflictSummaryWindow();
+        InitializeConflictSummaryWindow();
         //InitializeAltitudeWindow();
     }
 

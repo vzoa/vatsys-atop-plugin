@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 using AtopPlugin.Conflict;
 using AtopPlugin.State;
@@ -15,17 +14,17 @@ public partial class ConflictSummaryWindow : BaseForm
     public ConflictSummaryWindow()
     {
         InitializeComponent();
-        ConflictsUpdated += ConflictSummaryWindow_Load;
-        conflictListView.MouseClick += ConflictListView_MouseClick; // Subscribe to the event only once\
+        ConflictsUpdated += OnConflictsUpdated;
+        conflictListView.MouseClick += ConflictListView_MouseClick;
         conflictListView.View = View.Details;
         conflictListView.HeaderStyle = ColumnHeaderStyle.None;
     }
 
-    private async void ConflictSummaryWindow_Load(object sender, EventArgs e)
+    private void ConflictSummaryWindow_Load(object sender, EventArgs e)
     {
         try
         {
-            await DisplayConflictsAsync();
+            DisplayConflicts();
         }
         catch (Exception ex)
         {
@@ -33,77 +32,82 @@ public partial class ConflictSummaryWindow : BaseForm
         }
     }
 
-    private async Task DisplayConflictsAsync()
+    private void OnConflictsUpdated(object sender, EventArgs e)
     {
-        // Only clear and add columns if necessary
-        if (conflictListView.Columns.Count == 0)
+        try
         {
-            conflictListView.Columns.Add("Intruder Callsign", 80, HorizontalAlignment.Left);
-            conflictListView.Columns.Add("Intruder Attitude", 25, HorizontalAlignment.Left);
-            conflictListView.Columns.Add("Active Callsign", 70, HorizontalAlignment.Left);
-            conflictListView.Columns.Add("Active Attitude", 20, HorizontalAlignment.Left);
-            conflictListView.Columns.Add("Conflict Override", 50, HorizontalAlignment.Left);
-            conflictListView.Columns.Add("Conflict Symbol", 50, HorizontalAlignment.Left);
-            conflictListView.Columns.Add("Earliest LOS", 80, HorizontalAlignment.Left);
-            conflictListView.Columns.Add("Conflict End", 80, HorizontalAlignment.Left);
+            MMI.InvokeOnGUI(DisplayConflicts);
         }
-
-        // Fetch and process conflicts in the background
-        var conflictDatas = await Task.Run(() => ConflictDatas.OrderBy(t => t.EarliestLos).ToList());
-
-        // Batch updates to minimize UI refreshes
-        var listViewItems = new List<ListViewItem>();
-        foreach (var conflict in conflictDatas)
+        catch (Exception ex)
         {
-            var intruderState = conflict.Intruder?.GetAtopState();
-            var activeState = conflict.Active.GetAtopState();
-
-            if (intruderState != null && activeState != null)
-            {
-                var intAtt = new AtopAircraftDisplayState(intruderState);
-                var actAtt = new AtopAircraftDisplayState(activeState);
-
-                var item = new ListViewItem(conflict.Intruder?.Callsign.PadRight(7));
-                item.SubItems.Add(intAtt.ConflictAttitudeFlag?.Value.ToString().PadRight(1) ?? "");
-                item.SubItems.Add(conflict.Active.Callsign.PadRight(7));
-                item.SubItems.Add(actAtt.ConflictAttitudeFlag?.Value.ToString().PadRight(6) ?? "");
-                item.SubItems.Add(" ").ToString().PadRight(2);
-                item.SubItems.Add(AtopAircraftDisplayState.GetConflictSymbol(conflict).PadRight(2));
-                item.SubItems.Add(conflict.EarliestLos.ToString("HHmm").PadRight(4));
-                item.SubItems.Add(conflict.ConflictEnd.ToString("HHmm").PadRight(4));
-                item.Tag = conflict;
-
-                listViewItems.Add(item);
-            }
+            Errors.Add(new Exception($"ConflictSummaryWindow.OnConflictsUpdated: {ex.Message}", ex));
         }
+    }
 
-        // Check if the control is ready to be invoked
-        if (IsDisposed || !IsHandleCreated || conflictListView.IsDisposed || !conflictListView.IsHandleCreated)
-            return;
-
-        conflictListView.Invoke(new MethodInvoker(() =>
-        {
-            if (conflictListView.IsDisposed) return;
-
-            conflictListView.Items.Clear();
-
-            // Add all items at once to avoid repetitive updates
-            conflictListView.Items.AddRange(listViewItems.ToArray());
-
-            // Perform UI updates only after all data is processed
-            conflictListView.Refresh();
-        }));
-
-        // msalikhov(2024-10-13): disabling automatically showing the window until we fix the rendering
-        if (IsDisposed || !IsHandleCreated)
-            return;
-
-        Invoke(new MethodInvoker(() =>
+    private void DisplayConflicts()
+    {
+        try
         {
             if (IsDisposed) return;
-            // Avoid multiple distinct checks inside the loop
-            Visible = conflictDatas.Any();
-        }));
+
+            // Only add columns once
+            if (conflictListView.Columns.Count == 0)
+            {
+                conflictListView.Columns.Add("Intruder Callsign", 80, HorizontalAlignment.Left);
+                conflictListView.Columns.Add("Intruder Attitude", 25, HorizontalAlignment.Left);
+                conflictListView.Columns.Add("Active Callsign", 70, HorizontalAlignment.Left);
+                conflictListView.Columns.Add("Active Attitude", 20, HorizontalAlignment.Left);
+                conflictListView.Columns.Add("Conflict Override", 50, HorizontalAlignment.Left);
+                conflictListView.Columns.Add("Conflict Symbol", 50, HorizontalAlignment.Left);
+                conflictListView.Columns.Add("Earliest LOS", 80, HorizontalAlignment.Left);
+                conflictListView.Columns.Add("Conflict End", 80, HorizontalAlignment.Left);
+            }
+
+            var conflictDatas = ConflictDatas?.OrderBy(t => t.EarliestLos).ToList() ?? new List<ConflictData>();
+
+            conflictListView.BeginUpdate();
+            conflictListView.Items.Clear();
+
+            foreach (var conflict in conflictDatas)
+            {
+                var intruderState = conflict.Intruder?.GetAtopState();
+                var activeState = conflict.Active?.GetAtopState();
+
+                if (intruderState != null && activeState != null)
+                {
+                    var intAtt = new AtopAircraftDisplayState(intruderState);
+                    var actAtt = new AtopAircraftDisplayState(activeState);
+
+                    var item = new ListViewItem(conflict.Intruder?.Callsign?.PadRight(7) ?? "");
+                    item.SubItems.Add(intAtt.ConflictAttitudeFlag?.Value.ToString().PadRight(1) ?? "");
+                    item.SubItems.Add(conflict.Active.Callsign?.PadRight(7) ?? "");
+                    item.SubItems.Add(actAtt.ConflictAttitudeFlag?.Value.ToString().PadRight(6) ?? "");
+                    item.SubItems.Add("");
+                    item.SubItems.Add(AtopAircraftDisplayState.GetConflictSymbol(conflict).PadRight(2));
+                    item.SubItems.Add(conflict.EarliestLos.ToString("HHmm"));
+                    item.SubItems.Add(conflict.ConflictEnd.ToString("HHmm"));
+                    item.Tag = conflict;
+
+                    conflictListView.Items.Add(item);
+                }
+            }
+
+            conflictListView.EndUpdate();
+
+            // Auto-show when there are conflicts, auto-hide when there aren't
+            if (conflictDatas.Count > 0)
+            {
+                if (!Visible) Show();
+            }
+            else
+            {
+                if (Visible) Hide();
+            }
+        }
+        catch (Exception ex)
+        {
+            Errors.Add(new Exception($"ConflictSummaryWindow.DisplayConflicts: {ex.Message}", ex));
+        }
     }
 
     private void ConflictListView_MouseClick(object sender, MouseEventArgs e)

@@ -26,6 +26,10 @@ const CONFIG = {
     reciprocalMinAngle: 135         // Exclusive: angle must be > 135 for Reciprocal
 };
 
+// Store STCA inhibition areas from AlertParameters.xml
+// Each area: { name, lowerLevel, upperLevel, boundary: [{lat, lon}] }
+let inhibitionAreas = [];
+
 // Message handler
 self.onmessage = function(e) {
     const { type, data } = e.data;
@@ -52,6 +56,10 @@ self.onmessage = function(e) {
         case 'setConfig':
             Object.assign(CONFIG, data);
             console.log('[ConflictWorker] Config updated:', CONFIG);
+            break;
+        case 'setInhibitionAreas':
+            inhibitionAreas = data || [];
+            console.log(`[ConflictWorker] Loaded ${inhibitionAreas.length} inhibition area(s)`);
             break;
         case 'start':
             // No longer starts interval - just log ready
@@ -196,9 +204,31 @@ function checkConflict(fdr1, fdr2) {
         return null;
     }
     
+    // Filter and clip conflict segments against inhibition (radar) areas.
+    // - Segments entirely inside a radar area are suppressed (STCA handles them).
+    // - Segments that cross a radar boundary are clipped so only the
+    //   non-radar (oceanic) portion remains, and times are interpolated.
+    // - Segments entirely outside radar areas are kept as-is.
+    const alt1 = fdr1.cfl || fdr1.rfl || 0;
+    const alt2 = fdr2.cfl || fdr2.rfl || 0;
+    const uninhibitedSegments = [];
+    for (const seg of conflictSegments) {
+        const clipped = clipSegmentToNonInhibited(seg, alt1, alt2);
+        if (clipped) {
+            uninhibitedSegments.push(clipped);
+        } else {
+            console.log(`[ConflictWorker]   ${pair}: segment suppressed (entirely in radar area) ${seg.startLatLon.lat.toFixed(2)},${seg.startLatLon.lon.toFixed(2)} -> ${seg.endLatLon.lat.toFixed(2)},${seg.endLatLon.lon.toFixed(2)}`);
+        }
+    }
+    
+    if (uninhibitedSegments.length === 0) {
+        console.log(`[ConflictWorker]   ${pair}: PASS - all conflict segments within radar inhibition areas`);
+        return null;
+    }
+    
     // Sort by start time
-    conflictSegments.sort((a, b) => a.startTime - b.startTime);
-    const firstConflict = conflictSegments[0];
+    uninhibitedSegments.sort((a, b) => a.startTime - b.startTime);
+    const firstConflict = uninhibitedSegments[0];
     
     // 5. Longitudinal Separation Check
     const longTimeSep = getLongitudinalTimeMinima(fdr1, fdr2);
@@ -247,8 +277,134 @@ function checkConflict(fdr1, fdr2) {
         verticalAct: verticalAct,
         trkAngle: trkAngle,
         longTimeAct: longTimeAct,
-        longDistAct: longDistAct
+        longDistAct: longDistAct,
+        startLat: firstConflict.startLatLon.lat,
+        startLon: firstConflict.startLatLon.lon,
+        endLat: firstConflict.endLatLon.lat,
+        endLon: firstConflict.endLatLon.lon
     };
+}
+
+// ============================================
+// INHIBITION AREA CHECKS
+// ============================================
+
+/**
+ * Check if a point is inhibited by any inhibition area.
+ * Mirrors vatSys RDP.cs STCA logic: skip if either aircraft's altitude
+ * is within the area's vertical bounds and the point is inside the polygon.
+ */
+function isPointInhibited(lat, lon, altFL1, altFL2) {
+    for (const area of inhibitionAreas) {
+        if (!area.boundary || area.boundary.length < 3) continue;
+        // Check if either aircraft altitude is within the inhibition band
+        // vatSys uses: lowerLevel <= alt && upperLevel > alt (FL values)
+        const alt1InBand = area.lowerLevel <= altFL1 && area.upperLevel > altFL1;
+        const alt2InBand = area.lowerLevel <= altFL2 && area.upperLevel > altFL2;
+        if ((alt1InBand || alt2InBand) && isPointInPolygon(lat, lon, area.boundary)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/**
+ * Ray-casting point-in-polygon test.
+ * polygon: array of {lat, lon}
+ */
+function isPointInPolygon(lat, lon, polygon) {
+    let inside = false;
+    for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+        const yi = polygon[i].lat, xi = polygon[i].lon;
+        const yj = polygon[j].lat, xj = polygon[j].lon;
+        if (((yi > lat) !== (yj > lat)) &&
+            (lon < (xj - xi) * (lat - yi) / (yj - yi) + xi)) {
+            inside = !inside;
+        }
+    }
+    return inside;
+}
+
+/**
+ * Clip a conflict segment so only the portion outside inhibition areas remains.
+ * Returns the clipped segment, or null if the entire segment is inhibited.
+ *
+ * Cases:
+ *  - Both ends outside all areas → return as-is.
+ *  - Both ends inside the same area → fully suppressed, return null.
+ *  - Start inside, end outside → clip start to the boundary crossing.
+ *  - Start outside, end inside → clip end to the boundary crossing.
+ */
+function clipSegmentToNonInhibited(seg, altFL1, altFL2) {
+    const startIn = isPointInhibited(seg.startLatLon.lat, seg.startLatLon.lon, altFL1, altFL2);
+    const endIn = isPointInhibited(seg.endLatLon.lat, seg.endLatLon.lon, altFL1, altFL2);
+
+    // Entirely outside — keep whole segment
+    if (!startIn && !endIn) return seg;
+
+    // Entirely inside — suppress
+    if (startIn && endIn) return null;
+
+    // Find the intersection point with the inhibition area boundary
+    const crossing = findInhibitionBoundaryCrossing(seg.startLatLon, seg.endLatLon, altFL1, altFL2);
+    if (!crossing) {
+        // Couldn't find crossing (shouldn't happen) — keep segment as-is to be safe
+        return seg;
+    }
+
+    // Interpolate the time at the crossing point
+    const totalDist = calculateDistance(seg.startLatLon, seg.endLatLon);
+    const crossingDist = calculateDistance(seg.startLatLon, crossing);
+    const ratio = totalDist > 0 ? crossingDist / totalDist : 0;
+    const crossingTime = seg.startTime + ratio * (seg.endTime - seg.startTime);
+
+    if (startIn) {
+        // Start is in radar area — clip start to the boundary crossing
+        return {
+            startLatLon: crossing,
+            endLatLon: seg.endLatLon,
+            startTime: crossingTime,
+            endTime: seg.endTime
+        };
+    } else {
+        // End is in radar area — clip end to the boundary crossing
+        return {
+            startLatLon: seg.startLatLon,
+            endLatLon: crossing,
+            startTime: seg.startTime,
+            endTime: crossingTime
+        };
+    }
+}
+
+/**
+ * Find the point where a line segment crosses an inhibition area boundary.
+ * Walks the polygon edges and returns the intersection closest to the start.
+ */
+function findInhibitionBoundaryCrossing(from, to, altFL1, altFL2) {
+    let bestCrossing = null;
+    let bestDist = Infinity;
+
+    for (const area of inhibitionAreas) {
+        if (!area.boundary || area.boundary.length < 3) continue;
+        const alt1InBand = area.lowerLevel <= altFL1 && area.upperLevel > altFL1;
+        const alt2InBand = area.lowerLevel <= altFL2 && area.upperLevel > altFL2;
+        if (!alt1InBand && !alt2InBand) continue;
+
+        const poly = area.boundary;
+        for (let i = 0; i < poly.length; i++) {
+            const j = (i + 1) % poly.length;
+            const ix = lineIntersection(poly[i], poly[j], from, to);
+            if (ix) {
+                const d = calculateDistance(from, ix);
+                if (d < bestDist) {
+                    bestDist = d;
+                    bestCrossing = ix;
+                }
+            }
+        }
+    }
+    return bestCrossing;
 }
 
 // ============================================
@@ -270,8 +426,9 @@ function passesTemporalTest(fdr1, fdr2) {
 }
 
 function getAltitudeDifference(fdr1, fdr2) {
-    const alt1 = fdr1.cfl || fdr1.rfl || 0;
-    const alt2 = fdr2.cfl || fdr2.rfl || 0;
+    // CFL/RFL are in flight levels (hundreds of feet), convert to feet
+    const alt1 = (fdr1.cfl || fdr1.rfl || 0) * 100;
+    const alt2 = (fdr2.cfl || fdr2.rfl || 0) * 100;
     return Math.abs(alt1 - alt2);
 }
 

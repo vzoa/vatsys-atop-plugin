@@ -73,8 +73,37 @@ public static class ConflictProbe
                 VerticalSep = (int)(result.VerticalSep ?? 0),
                 VerticalAct = (int)(result.VerticalAct ?? 0),
                 EarliestLos = ParseDateTime(result.EarliestLos),
-                LatestLos = ParseDateTime(result.LatestLos)
+                LatestLos = ParseDateTime(result.LatestLos),
+                ConflictEnd = ParseDateTime(result.LatestLos),
+                TrkAngle = result.TrkAngle ?? 0
             };
+
+            // Create conflict segments for ASD rendering if lat/lon data is available
+            if (result.StartLat.HasValue && result.StartLon.HasValue &&
+                result.EndLat.HasValue && result.EndLon.HasValue)
+            {
+                var startCoord = new Coordinate(result.StartLat.Value, result.StartLon.Value);
+                var endCoord = new Coordinate(result.EndLat.Value, result.EndLon.Value);
+                var earliestLos = ParseDateTime(result.EarliestLos);
+                var latestLos = ParseDateTime(result.LatestLos);
+
+                conflictData.FirstConflictTime = new LateralConflictCalculator.ConflictSegment
+                {
+                    Callsign = result.IntruderCallsign,
+                    StartLatlong = startCoord,
+                    EndLatlong = endCoord,
+                    StartTime = earliestLos,
+                    EndTime = latestLos
+                };
+                conflictData.FirstConflictTime2 = new LateralConflictCalculator.ConflictSegment
+                {
+                    Callsign = result.ActiveCallsign,
+                    StartLatlong = startCoord,
+                    EndLatlong = endCoord,
+                    StartTime = earliestLos,
+                    EndTime = latestLos
+                };
+            }
 
             var key = $"{result.IntruderCallsign}-{result.ActiveCallsign}";
             newConflicts[key] = conflictData;

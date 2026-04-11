@@ -38,13 +38,12 @@ namespace AtopPlugin.UI
         {
             try
             {
-                this.Invoke((Action)DisplayConflictDetails);
+                MMI.InvokeOnGUI(DisplayConflictDetails);
             }
             catch (Exception ex)
             {
                 Errors.Add(new Exception($"ConflictReportWindow.UpdateConflicts: {ex.Message}", ex));
             }
-            //MessageBox.Show(@"Examined conflict situation has changed!");
         }
 
 
@@ -128,6 +127,8 @@ namespace AtopPlugin.UI
             }
             if (!ConflictProbe.ConflictDatas.Any())
             {
+                ConflictProbe.ConflictsUpdated -= UpdateConflicts;
+                ConflictSegmentRenderer.RemoveConflict(SelectedConflict);
                 this.Close();
                 this.Dispose();
             }
@@ -141,25 +142,19 @@ namespace AtopPlugin.UI
 
         private void CloseButton_Click(object sender, EventArgs e)
         {
+            ConflictProbe.ConflictsUpdated -= UpdateConflicts;
+            ConflictSegmentRenderer.RemoveConflict(SelectedConflict);
             Close();
             Dispose();
         }
 
         private void DrawButton_Click(object sender, EventArgs e)
         {
-            // Toggle the conflict segment renderer
-            ConflictSegmentRenderer.Enabled = !ConflictSegmentRenderer.Enabled;
-            
-            // Update the button appearance to show state
-            DrawButton.BackColor = ConflictSegmentRenderer.Enabled 
+            var drawn = ConflictSegmentRenderer.ToggleConflict(SelectedConflict);
+
+            DrawButton.BackColor = drawn
                 ? Colours.GetColour(Colours.Identities.Custom)
                 : Colours.GetColour(Colours.Identities.Default);
-            
-            // Force update of conflict lines
-            if (ConflictSegmentRenderer.Enabled)
-            {
-                ConflictSegmentRenderer.UpdateConflictLines();
-            }
         }
     }
 }

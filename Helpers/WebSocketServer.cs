@@ -73,6 +73,8 @@ namespace AtopPlugin.Helpers
                     {
                         var wsContext = await context.AcceptWebSocketAsync(null);
                         lock (_connectedClients) _connectedClients.Add(wsContext.WebSocket);
+                        // Send inhibition areas to new client so conflict worker can filter
+                        _ = BroadcastInhibitionAreasAsync();
                         _ = HandleClientAsync(wsContext.WebSocket, ct);
                     }
                     else
@@ -162,7 +164,11 @@ namespace AtopPlugin.Helpers
                 LateralSep = c.LateralSep,
                 VerticalSep = c.VerticalSep,
                 VerticalAct = c.VerticalAct,
-                TrkAngle = c.TrkAngle
+                TrkAngle = c.TrkAngle,
+                StartLat = c.StartLat,
+                StartLon = c.StartLon,
+                EndLat = c.EndLat,
+                EndLon = c.EndLon
             }).ToList();
             
             ConflictResultsReceived?.Invoke(conflicts);
@@ -395,6 +401,62 @@ namespace AtopPlugin.Helpers
         }
 
         /// <summary>
+        /// Broadcasts STCA inhibition areas from AlertParameters.xml to the webapp
+        /// so the conflict worker can skip probing inside those areas.
+        /// </summary>
+        public async Task BroadcastInhibitionAreasAsync()
+        {
+            if (_connectedClients.Count == 0) return;
+
+            try
+            {
+                // Alerts is internal, so use reflection to access Alerts.Instance.ConflictParameters
+                var alertsType = typeof(CAParams).Assembly.GetType("vatsys.Alerts");
+                if (alertsType == null) return;
+
+                var instanceField = alertsType.GetField("Instance", BindingFlags.Public | BindingFlags.Static);
+                var alertsInstance = instanceField?.GetValue(null);
+                if (alertsInstance == null) return;
+
+                var conflictParamsProp = alertsType.GetProperty("ConflictParameters", BindingFlags.Public | BindingFlags.Instance);
+                var conflictParams = conflictParamsProp?.GetValue(alertsInstance) as IList<CAParams>;
+                if (conflictParams == null) return;
+
+                var areas = new List<object>();
+                foreach (var caParam in conflictParams)
+                {
+                    foreach (var area in caParam.InhibitionAreas)
+                    {
+                        areas.Add(new
+                        {
+                            name = area.Name,
+                            lowerLevel = area.LowerLevel,
+                            upperLevel = area.UpperLevel,
+                            boundary = area.Boundary.Select(c => new
+                            {
+                                lat = c.Latitude,
+                                lon = c.Longitude
+                            }).ToList()
+                        });
+                    }
+                }
+
+                var data = new
+                {
+                    Type = "InhibitionAreas",
+                    Areas = areas,
+                    Timestamp = DateTime.UtcNow
+                };
+
+                await BroadcastAsync(data);
+            }
+            catch (Exception ex)
+            {
+                Errors.Add(new Exception($"BroadcastInhibitionAreas: {ex.Message}", ex));
+            }
+        }
+
+        /// <summary>
         /// Requests a conflict probe from the webapp for a specific callsign
         /// Per ATOP spec 12.1.1, probes are event-driven on FDR updates
         /// </summary>
@@ -593,5 +655,9 @@ namespace AtopPlugin.Helpers
         public double? VerticalSep { get; set; }
         public double? VerticalAct { get; set; }
         public double? TrkAngle { get; set; }
+        public double? StartLat { get; set; }
+        public double? StartLon { get; set; }
+        public double? EndLat { get; set; }
+        public double? EndLon { get; set; }
     }
 }
