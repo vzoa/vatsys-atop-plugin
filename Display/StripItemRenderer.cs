@@ -17,14 +17,6 @@ public static class StripItemRenderer
         var displayState = fdr.GetDisplayState()!;
 
         // Handle indexed point items (AURORA_POINT_0 through AURORA_POINT_N)
-        if (itemType.StartsWith(StripConstants.StripItemPointLonPrefix))
-        {
-            var indexStr = itemType.Substring(StripConstants.StripItemPointLonPrefix.Length);
-            if (int.TryParse(indexStr, out var pointIndex))
-                return RenderPointLonStripItem(fdr, pointIndex);
-            return null;
-        }
-
         if (itemType.StartsWith(StripConstants.StripItemPointPrefix))
         {
             var indexStr = itemType.Substring(StripConstants.StripItemPointPrefix.Length);
@@ -115,13 +107,13 @@ public static class StripItemRenderer
 
         // ZPOINTs are computed sector boundary crossings — always show as lat/lon
         if (segment.Type == Segment.SegmentTypes.ZPOINT)
-            return new CustomStripItem { Text = FormatLat(segment.Intersection.LatLong) };
+            return new CustomStripItem { Text = FormatLatLon(segment.Intersection.LatLong) };
 
         var text = segment.Intersection.Name;
 
         // Unknown intersection (no match in airspace data) — show as lat/lon
         if (Airspace2.GetIntersection(text, segment.Intersection.LatLong) == null)
-            text = FormatLat(segment.Intersection.LatLong);
+            text = FormatLatLon(segment.Intersection.LatLong);
         else if (segment.Intersection.Type == Airspace2.Intersection.Types.Unknown &&
                  !string.IsNullOrEmpty(segment.Intersection.FullName))
             text = segment.Intersection.FullName;
@@ -129,45 +121,23 @@ public static class StripItemRenderer
         return new CustomStripItem { Text = text };
     }
 
-    private static CustomStripItem RenderPointLonStripItem(FDP2.FDR fdr, int pointIndex)
-    {
-        if (pointIndex < 0 || pointIndex >= fdr.ParsedRoute.Count)
-            return new CustomStripItem { Text = "" };
-
-        var segment = fdr.ParsedRoute[pointIndex];
-
-        // ZPOINTs always show lon
-        if (segment.Type == Segment.SegmentTypes.ZPOINT)
-            return new CustomStripItem { Text = FormatLon(segment.Intersection.LatLong) };
-
-        var name = segment.Intersection.Name;
-
-        // Unknown intersection — show lon
-        if (Airspace2.GetIntersection(name, segment.Intersection.LatLong) == null)
-            return new CustomStripItem { Text = FormatLon(segment.Intersection.LatLong) };
-
-        // Named waypoint — no lon line needed
-        return new CustomStripItem { Text = "" };
-    }
-
-    internal static string FormatLat(Coordinate latLong)
+    internal static string FormatLatLon(Coordinate latLong)
     {
         var lat = latLong.Latitude;
+        var lon = latLong.Longitude;
+
         var latDir = lat >= 0 ? "N" : "S";
+        var lonDir = lon >= 0 ? "E" : "W";
+
         lat = Math.Abs(lat);
+        lon = Math.Abs(lon);
+
         var latDeg = (int)lat;
         var latMin = (int)Math.Round((lat - latDeg) * 60);
-        return $"{latDeg:D2}{latMin:D2}{latDir}";
-    }
-
-    internal static string FormatLon(Coordinate latLong)
-    {
-        var lon = latLong.Longitude;
-        var lonDir = lon >= 0 ? "E" : "W";
-        lon = Math.Abs(lon);
         var lonDeg = (int)lon;
         var lonMin = (int)Math.Round((lon - lonDeg) * 60);
-        return $"{lonDeg:D3}{lonMin:D2}{lonDir}";
+
+        return $"{latDeg:D2}{latMin:D2}{latDir}\n{lonDeg:D3}{lonMin:D2}{lonDir}";
     }
 
     private static CustomStripItem RenderCallsignStripItem(FDP2.FDR fdr)
