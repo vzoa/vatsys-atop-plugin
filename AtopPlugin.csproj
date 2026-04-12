@@ -20,7 +20,7 @@
     <DebugSymbols>true</DebugSymbols>
     <DebugType>full</DebugType>
     <Optimize>true</Optimize>
-    <OutputPath>..\..\..\OneDrive\Documents\GitHub\atop-oakland-dataset\Plugins\</OutputPath>
+    <OutputPath>..\..\..\OneDrive\Documents\GitHub\atop-oakland-dataset\Plugins\Atop Plugin\</OutputPath>
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
@@ -58,8 +58,16 @@
       <HintPath>E:\vatSys\bin\vatSys.exe</HintPath>
       <Private>False</Private>
     </Reference>
+    <Reference Include="vatSys" Condition="!Exists('E:\vatSys\bin\vatSys.exe') And Exists('C:\Program Files (x86)\vatSys\bin\vatSys.exe')">
+      <HintPath>C:\Program Files (x86)\vatSys\bin\vatSys.exe</HintPath>
+      <Private>False</Private>
+    </Reference>
     <Reference Include="VATSYSControls" Condition="Exists('E:\vatSys\bin\VATSYSControls.dll')">
       <HintPath>E:\vatSys\bin\VATSYSControls.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="VATSYSControls" Condition="!Exists('E:\vatSys\bin\VATSYSControls.dll') And Exists('C:\Program Files (x86)\vatSys\bin\VATSYSControls.dll')">
+      <HintPath>C:\Program Files (x86)\vatSys\bin\VATSYSControls.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <!-- Fallback path for CI -->

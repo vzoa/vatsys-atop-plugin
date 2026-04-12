@@ -1,8 +1,7 @@
 ﻿using AtopPlugin.Models;
-using System.Collections.Generic;
+using System;
 using vatsys;
 using vatsys.Plugin;
-using static System.Net.Mime.MediaTypeNames;
 using static vatsys.FDP2.FDR.ExtractedRoute;
 
 namespace AtopPlugin.Display;
@@ -16,6 +15,23 @@ public static class StripItemRenderer
 
         var atopState = fdr.GetAtopState()!;
         var displayState = fdr.GetDisplayState()!;
+
+        // Handle indexed point items (AURORA_POINT_0 through AURORA_POINT_N)
+        if (itemType.StartsWith(StripConstants.StripItemPointLonPrefix))
+        {
+            var indexStr = itemType.Substring(StripConstants.StripItemPointLonPrefix.Length);
+            if (int.TryParse(indexStr, out var pointIndex))
+                return RenderPointLonStripItem(fdr, pointIndex);
+            return null;
+        }
+
+        if (itemType.StartsWith(StripConstants.StripItemPointPrefix))
+        {
+            var indexStr = itemType.Substring(StripConstants.StripItemPointPrefix.Length);
+            if (int.TryParse(indexStr, out var pointIndex))
+                return RenderPointStripItem(fdr, pointIndex);
+            return null;
+        }
 
         return itemType switch
         {
@@ -63,7 +79,7 @@ public static class StripItemRenderer
 
             StripConstants.StripItemRequestedLevel => new CustomStripItem { Text = displayState.RequestedLevel },
 
-            StripConstants.StripItemPoint => RenderPointStripItem(fdr),
+            StripConstants.StripItemPoint => RenderPointStripItem(fdr, 0),
 
             StripConstants.StripItemRoute => new CustomStripItem { Text = Symbols.StripRouteItem },
 
@@ -90,26 +106,68 @@ public static class StripItemRenderer
         };
     }
 
-    private static CustomStripItem RenderPointStripItem(FDP2.FDR fdr)
+    private static CustomStripItem RenderPointStripItem(FDP2.FDR fdr, int pointIndex)
     {
-        var stripItem = new StripItem();
+        if (pointIndex < 0 || pointIndex >= fdr.ParsedRoute.Count)
+            return new CustomStripItem { Text = "" };
 
-        var segment = (Segment)null;
-        segment = fdr.ParsedRoute[stripItem.PointIndex + 1];
+        var segment = fdr.ParsedRoute[pointIndex];
+
+        // ZPOINTs are computed sector boundary crossings — always show as lat/lon
+        if (segment.Type == Segment.SegmentTypes.ZPOINT)
+            return new CustomStripItem { Text = FormatLat(segment.Intersection.LatLong) };
+
         var text = segment.Intersection.Name;
-        var customItem = new CustomStripItem { Text = text };
-        if (stripItem.PointIndexSpecified && fdr.ParsedRoute.Count > stripItem.PointIndex)
-        {
-            if (Airspace2.GetIntersection(text, segment.Intersection.LatLong) == null)
-                text = Conversions.ConvertToReadableLatLongDDDMM(segment.Intersection.LatLong).ToString();
-            else if (segment.Intersection.Type == Airspace2.Intersection.Types.Unknown &&
-                     segment.Intersection.FullName != "") text = segment.Intersection.FullName;
 
-            customItem = new CustomStripItem { Text = text };
-        }
+        // Unknown intersection (no match in airspace data) — show as lat/lon
+        if (Airspace2.GetIntersection(text, segment.Intersection.LatLong) == null)
+            text = FormatLat(segment.Intersection.LatLong);
+        else if (segment.Intersection.Type == Airspace2.Intersection.Types.Unknown &&
+                 !string.IsNullOrEmpty(segment.Intersection.FullName))
+            text = segment.Intersection.FullName;
 
+        return new CustomStripItem { Text = text };
+    }
 
-        return customItem;
+    private static CustomStripItem RenderPointLonStripItem(FDP2.FDR fdr, int pointIndex)
+    {
+        if (pointIndex < 0 || pointIndex >= fdr.ParsedRoute.Count)
+            return new CustomStripItem { Text = "" };
+
+        var segment = fdr.ParsedRoute[pointIndex];
+
+        // ZPOINTs always show lon
+        if (segment.Type == Segment.SegmentTypes.ZPOINT)
+            return new CustomStripItem { Text = FormatLon(segment.Intersection.LatLong) };
+
+        var name = segment.Intersection.Name;
+
+        // Unknown intersection — show lon
+        if (Airspace2.GetIntersection(name, segment.Intersection.LatLong) == null)
+            return new CustomStripItem { Text = FormatLon(segment.Intersection.LatLong) };
+
+        // Named waypoint — no lon line needed
+        return new CustomStripItem { Text = "" };
+    }
+
+    internal static string FormatLat(Coordinate latLong)
+    {
+        var lat = latLong.Latitude;
+        var latDir = lat >= 0 ? "N" : "S";
+        lat = Math.Abs(lat);
+        var latDeg = (int)lat;
+        var latMin = (int)Math.Round((lat - latDeg) * 60);
+        return $"{latDeg:D2}{latMin:D2}{latDir}";
+    }
+
+    internal static string FormatLon(Coordinate latLong)
+    {
+        var lon = latLong.Longitude;
+        var lonDir = lon >= 0 ? "E" : "W";
+        lon = Math.Abs(lon);
+        var lonDeg = (int)lon;
+        var lonMin = (int)Math.Round((lon - lonDeg) * 60);
+        return $"{lonDeg:D3}{lonMin:D2}{lonDir}";
     }
 
     private static CustomStripItem RenderCallsignStripItem(FDP2.FDR fdr)

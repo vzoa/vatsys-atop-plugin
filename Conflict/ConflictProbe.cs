@@ -178,7 +178,7 @@ public static class ConflictProbe
     private static DateTime ParseDateTime(string isoString)
     {
         if (string.IsNullOrEmpty(isoString)) return DateTime.UtcNow;
-        return DateTime.TryParse(isoString, out var dt) ? dt : DateTime.UtcNow;
+        return DateTime.TryParse(isoString, null, System.Globalization.DateTimeStyles.RoundtripKind, out var dt) ? dt : DateTime.UtcNow;
     }
 
     /// <summary>

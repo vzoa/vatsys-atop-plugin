@@ -79,6 +79,8 @@ public static class StripConstants
     public const string StripItemRequestedLevel = "AURORA_REQUESTED_LEVEL";
     public const string StripItemManEst = "AURORA_MAN_EST";
     public const string StripItemPoint = "AURORA_POINT";
+    public const string StripItemPointPrefix = "AURORA_POINT_";
+    public const string StripItemPointLonPrefix = "AURORA_POINTLON_";
     public const string StripItemRoute = "AURORA_ROUTE_STRIP";
     public const string StripItemRadarInd = "AURORA_RADAR_IND";
     public const string StripItemAnnotInd = "AURORA_ANNOT_STRIP";
