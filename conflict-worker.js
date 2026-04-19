@@ -49,7 +49,7 @@ self.onmessage = function(e) {
             break;
         case 'requestProbe':
             // Event-driven probe request from C# plugin
-            console.log(`[ConflictWorker] Probe requested, FDRs in store: ${fdrs.size}`);
+            console.log(`[ConflictWorker] Probe requested, FDRs in store: ${fdrs.size}, inhibition areas: ${inhibitionAreas.length}`);
             const conflicts = probeAllConflicts();
             self.postMessage({ type: 'conflictResults', data: conflicts });
             break;
@@ -128,11 +128,12 @@ function probeAllConflicts() {
     const activeFdrs = fdrArray.filter(fdr => 
         fdr.state !== 'INACTIVE' && 
         fdr.state !== 'PREACTIVE' && 
+        fdr.state !== 'COORDINATED' &&
         fdr.state !== 'FINISHED' &&
         fdr.parsedRoute.length >= 2
     );
     
-    console.log(`[ConflictWorker] Active FDRs after filter (state != INACTIVE/PREACTIVE/FINISHED, route >= 2 pts): ${activeFdrs.length}`);
+    console.log(`[ConflictWorker] Active FDRs after filter (state != INACTIVE/PREACTIVE/COORDINATED/FINISHED, route >= 2 pts): ${activeFdrs.length}`);
     
     // Log which FDRs were filtered out and why
     const filteredOut = fdrArray.filter(fdr => !activeFdrs.includes(fdr));
@@ -244,12 +245,22 @@ function checkConflict(fdr1, fdr2) {
         return null;
     }
     
-    // 6. Determine Conflict Status
+    // 6. Determine Conflict Status — future conflicts only
     const now = Date.now();
-    const timeUntilLOS = Math.abs(firstConflict.startTime - now);
+    
+    // Skip conflicts that are entirely in the past
+    if (firstConflict.endTime < now) {
+        console.log(`[ConflictWorker]   ${pair}: PASS - conflict entirely in the past (ended ${((now - firstConflict.endTime)/60000).toFixed(1)}min ago)`);
+        return null;
+    }
+    
+    const timeUntilLOS = firstConflict.startTime - now;
     
     let status;
-    if (timeUntilLOS < CONFIG.actualThresholdMinutes * 60000) {
+    if (timeUntilLOS <= 0) {
+        // Conflict is happening now (startTime in past, endTime in future)
+        status = 'Actual';
+    } else if (timeUntilLOS < CONFIG.actualThresholdMinutes * 60000) {
         status = 'Actual';
     } else if (timeUntilLOS <= CONFIG.imminentThresholdMinutes * 60000) {
         status = 'Imminent';
@@ -643,14 +654,18 @@ function calculateAreaOfConflict(fdr1, fdr2, lateralSep) {
             
             if (intersections.length >= 2) {
                 // There's a conflict segment
-                const startTime = interpolateTime(route2[j - 1], route2[j], intersections[0]);
-                const endTime = interpolateTime(route2[j - 1], route2[j], intersections[1]);
+                const t0 = interpolateTime(route2[j - 1], route2[j], intersections[0]);
+                const t1 = interpolateTime(route2[j - 1], route2[j], intersections[1]);
+                
+                // Ensure chronological order (intersection order != time order)
+                const earlier = t0 <= t1 ? 0 : 1;
+                const later = 1 - earlier;
                 
                 conflictSegments.push({
-                    startLatLon: intersections[0],
-                    endLatLon: intersections[1],
-                    startTime: startTime,
-                    endTime: endTime
+                    startLatLon: intersections[earlier],
+                    endLatLon: intersections[later],
+                    startTime: Math.min(t0, t1),
+                    endTime: Math.max(t0, t1)
                 });
             }
         }

@@ -82,10 +82,19 @@ public static class ConflictProbe
             if (result.StartLat.HasValue && result.StartLon.HasValue &&
                 result.EndLat.HasValue && result.EndLon.HasValue)
             {
-                var startCoord = new Coordinate(result.StartLat.Value, result.StartLon.Value);
-                var endCoord = new Coordinate(result.EndLat.Value, result.EndLon.Value);
-                var earliestLos = ParseDateTime(result.EarliestLos);
-                var latestLos = ParseDateTime(result.LatestLos);
+                var coord1 = new Coordinate(result.StartLat.Value, result.StartLon.Value);
+                var coord2 = new Coordinate(result.EndLat.Value, result.EndLon.Value);
+                var time1 = ParseDateTime(result.EarliestLos);
+                var time2 = ParseDateTime(result.LatestLos);
+
+                // Enforce chronological ordering — swap coords if times are backward
+                var startCoord = time1 <= time2 ? coord1 : coord2;
+                var endCoord = time1 <= time2 ? coord2 : coord1;
+                var earliestLos = time1 <= time2 ? time1 : time2;
+                var latestLos = time1 <= time2 ? time2 : time1;
+
+                conflictData.EarliestLos = earliestLos;
+                conflictData.LatestLos = latestLos;
 
                 conflictData.FirstConflictTime = new LateralConflictCalculator.ConflictSegment
                 {
@@ -187,7 +196,7 @@ public static class ConflictProbe
     public static Conflicts Probe(FDR fdr)
     {
         if (!MMI.IsMySectorConcerned(fdr) ||
-            fdr.State is FDR.FDRStates.STATE_INACTIVE or FDR.FDRStates.STATE_PREACTIVE or FDR.FDRStates.STATE_FINISHED)
+            fdr.State is FDR.FDRStates.STATE_INACTIVE or FDR.FDRStates.STATE_PREACTIVE or FDR.FDRStates.STATE_COORDINATED or FDR.FDRStates.STATE_FINISHED)
             return EmptyConflicts();
 
         return GetConflictsForCallsign(fdr.Callsign);

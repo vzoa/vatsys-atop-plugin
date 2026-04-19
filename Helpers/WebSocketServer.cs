@@ -142,6 +142,10 @@ namespace AtopPlugin.Helpers
                 {
                     HandleConflictResults(request);
                 }
+                else if (request?.Type == "RequestInhibitionAreas")
+                {
+                    await BroadcastInhibitionAreasAsync();
+                }
             }
             catch (Exception ex)
             {
@@ -517,6 +521,7 @@ namespace AtopPlugin.Helpers
                 var fdrs = FDP2.GetFDRs.Where(fdr => 
                     fdr.State != FDP2.FDR.FDRStates.STATE_INACTIVE &&
                     fdr.State != FDP2.FDR.FDRStates.STATE_PREACTIVE &&
+                    fdr.State != FDP2.FDR.FDRStates.STATE_COORDINATED &&
                     fdr.State != FDP2.FDR.FDRStates.STATE_FINISHED
                 ).Select(fdr => {
                     var calcData = FlightDataCalculator.GetCalculatedFlightData(fdr);

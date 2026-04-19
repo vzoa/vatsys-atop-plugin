@@ -23,14 +23,25 @@ namespace AtopPlugin.UI
 
         private ConflictData SelectedConflict;
         private LateralConflictCalculator[] conflictSegment;
+
+        // Initial state for change detection
+        private readonly string _intruderCallsign;
+        private readonly string _activeCallsign;
+        private readonly DateTime _initialEarliestLos;
+        private readonly DateTime _initialLatestLos;
+        private static readonly TimeSpan TimeChangeThreshold = TimeSpan.FromMinutes(3);
+
         public ConflictReportWindow(ConflictData SelectedConflict)
         {
             InitializeComponent();
             this.SelectedConflict = SelectedConflict;
 
+            _intruderCallsign = SelectedConflict.Intruder?.Callsign;
+            _activeCallsign = SelectedConflict.Active?.Callsign;
+            _initialEarliestLos = SelectedConflict.EarliestLos;
+            _initialLatestLos = SelectedConflict.LatestLos;
 
             ConflictProbe.ConflictsUpdated += UpdateConflicts;
-
         }
 
 
@@ -38,7 +49,7 @@ namespace AtopPlugin.UI
         {
             try
             {
-                MMI.InvokeOnGUI(DisplayConflictDetails);
+                MMI.InvokeOnGUI(OnConflictDataChanged);
             }
             catch (Exception ex)
             {
@@ -49,7 +60,7 @@ namespace AtopPlugin.UI
 
         private void ConflictReportWindow_Load(object sender, EventArgs e)
         {
-
+            DisplayConflictDetails();
         }
 
 
@@ -87,65 +98,109 @@ namespace AtopPlugin.UI
 
             return $"{degreesString}{minutesString}";
         }
+        /// <summary>
+        /// Renders conflict details once (static content per ATOP spec).
+        /// Called on form Load only.
+        /// </summary>
         public void DisplayConflictDetails()
         {
-
-            if (this.IsHandleCreated && this.Visible)
-            {
-                //AtopAircraftDisplayState intAtt = new AtopAircraftDisplayState(SelectedConflict.Intruder.GetAtopState());
-                //AtopAircraftDisplayState actAtt = new AtopAircraftDisplayState(SelectedConflict.Active.GetAtopState());
-                ConflictType.Text = SelectedConflict.ConflictType?.ToString().ToLower() ?? "unknown";
-                Degrees.Text = SelectedConflict.TrkAngle.ToString("000.0") + " degrees";
-                LOSTime.Text = SelectedConflict.LatestLos.ToString("HH:mm");
-                LOSTime.BackColor = SelectedConflict.ConflictStatus == Models.ConflictStatus.Imminent
-                    ? Colours.GetColour(Colours.Identities.Emergency) : Colours.GetColour(Colours.Identities.Warning);
-                RequiredSep.Text = SelectedConflict.LongTimesep.ToString("mm") + " minutes" + " (" + " " + SelectedConflict.LatSep + " " + "nm" + ") "
-                    + SelectedConflict.VerticalSep + " " + "ft";
-                ActualSep.Text = SelectedConflict.LongTimeact.ToString("mm") + " min " + SelectedConflict.LongTimeact.ToString("ss") + " sec"
-                    + " ( " + "N/A" + " ) " + SelectedConflict.VerticalAct + " " + "ft";
-                INTcs.Text = SelectedConflict.Intruder?.AircraftType + "\n" + SelectedConflict.Intruder?.Callsign + "\n" + SelectedConflict.Intruder?.TAS;
-                IntAlt.Text = SelectedConflict.Intruder != null ? "F" + AltitudeBlock.ExtractAltitudeBlock(SelectedConflict.Intruder) : "";
-                INTTOPdata.Text = SelectedConflict.ConflictType == Models.ConflictType.Reciprocal && SelectedConflict.Top != null
-                    ? ConvertToArinc424(SelectedConflict.Top.Position1.Latitude, SelectedConflict.Top.Position1.Longitude) + "\n" + SelectedConflict.Top.Time.ToString("HHmm") : "";
-                INTconfstart.Text = SelectedConflict.FirstConflictTime?.StartLatlong != null
-                    ? ConvertToArinc424(SelectedConflict.FirstConflictTime.StartLatlong.Latitude, SelectedConflict.FirstConflictTime.StartLatlong.Longitude)
-                        + "\n" + SelectedConflict.FirstConflictTime.StartTime.ToString("HHmm") : "";
-                INTconfend.Text = SelectedConflict.FirstConflictTime?.EndLatlong != null
-                    ? ConvertToArinc424(SelectedConflict.FirstConflictTime.EndLatlong.Latitude, SelectedConflict.FirstConflictTime.EndLatlong.Longitude)
-                        + "\n" + SelectedConflict.FirstConflictTime.EndTime.ToString("HHmm") : "";
-                ACTcs.Text = SelectedConflict.Active?.AircraftType + "\n" + SelectedConflict.Active?.Callsign + "\n" + SelectedConflict.Active?.TAS;
-                ACTAlt.Text = SelectedConflict.Active != null ? "F" + AltitudeBlock.ExtractAltitudeBlock(SelectedConflict.Active) : "";
-                ACTTOPdata.Text = SelectedConflict.ConflictType == Models.ConflictType.Reciprocal && SelectedConflict.Top != null
-                    ? ConvertToArinc424(SelectedConflict.Top.Position1.Latitude, SelectedConflict.Top.Position2.Longitude) + "\n" + SelectedConflict.Top.Time.ToString("HHmm") : "";
-                ACTconfstart.Text = SelectedConflict.FirstConflictTime2?.StartLatlong != null
-                    ? ConvertToArinc424(SelectedConflict.FirstConflictTime2.StartLatlong.Latitude, SelectedConflict.FirstConflictTime2.StartLatlong.Longitude)
-                        + "\n" + SelectedConflict.FirstConflictTime2.StartTime.ToString("HHmm") : "";
-                ACTconfend.Text = SelectedConflict.FirstConflictTime2?.EndLatlong != null
-                    ? ConvertToArinc424(SelectedConflict.FirstConflictTime2.EndLatlong.Latitude, SelectedConflict.FirstConflictTime2.EndLatlong.Longitude)
-                        + "\n" + SelectedConflict.FirstConflictTime2.EndTime.ToString("HHmm") : "";
-
-            }
-            if (!ConflictProbe.ConflictDatas.Any())
-            {
-                ConflictProbe.ConflictsUpdated -= UpdateConflicts;
-                ConflictSegmentRenderer.RemoveConflict(SelectedConflict);
-                this.Close();
-                this.Dispose();
-            }
+            ConflictType.Text = SelectedConflict.ConflictType?.ToString().ToLower() ?? "unknown";
+            Degrees.Text = SelectedConflict.TrkAngle.ToString("000.0") + " degrees";
+            LOSTime.Text = SelectedConflict.LatestLos.ToString("HH:mm");
+            LOSTime.BackColor = SelectedConflict.ConflictStatus == Models.ConflictStatus.Imminent
+                ? Colours.GetColour(Colours.Identities.Emergency) : Colours.GetColour(Colours.Identities.Warning);
+            RequiredSep.Text = SelectedConflict.LongTimesep.ToString("mm") + " minutes" + " (" + " " + SelectedConflict.LatSep + " " + "nm" + ") "
+                + SelectedConflict.VerticalSep + " " + "ft";
+            ActualSep.Text = SelectedConflict.LongTimeact.ToString("mm") + " min " + SelectedConflict.LongTimeact.ToString("ss") + " sec"
+                + " ( " + "N/A" + " ) " + SelectedConflict.VerticalAct + " " + "ft";
+            INTcs.Text = SelectedConflict.Intruder?.AircraftType + "\n" + SelectedConflict.Intruder?.Callsign + "\n" + SelectedConflict.Intruder?.TAS;
+            IntAlt.Text = SelectedConflict.Intruder != null ? "F" + AltitudeBlock.ExtractAltitudeBlock(SelectedConflict.Intruder) : "";
+            INTTOPdata.Text = SelectedConflict.ConflictType == Models.ConflictType.Reciprocal && SelectedConflict.Top != null
+                ? ConvertToArinc424(SelectedConflict.Top.Position1.Latitude, SelectedConflict.Top.Position1.Longitude) + "\n" + SelectedConflict.Top.Time.ToString("HHmm") : "";
+            INTconfstart.Text = SelectedConflict.FirstConflictTime?.StartLatlong != null
+                ? ConvertToArinc424(SelectedConflict.FirstConflictTime.StartLatlong.Latitude, SelectedConflict.FirstConflictTime.StartLatlong.Longitude)
+                    + "\n" + SelectedConflict.FirstConflictTime.StartTime.ToString("HHmm") : "";
+            INTconfend.Text = SelectedConflict.FirstConflictTime?.EndLatlong != null
+                ? ConvertToArinc424(SelectedConflict.FirstConflictTime.EndLatlong.Latitude, SelectedConflict.FirstConflictTime.EndLatlong.Longitude)
+                    + "\n" + SelectedConflict.FirstConflictTime.EndTime.ToString("HHmm") : "";
+            ACTcs.Text = SelectedConflict.Active?.AircraftType + "\n" + SelectedConflict.Active?.Callsign + "\n" + SelectedConflict.Active?.TAS;
+            ACTAlt.Text = SelectedConflict.Active != null ? "F" + AltitudeBlock.ExtractAltitudeBlock(SelectedConflict.Active) : "";
+            ACTTOPdata.Text = SelectedConflict.ConflictType == Models.ConflictType.Reciprocal && SelectedConflict.Top != null
+                ? ConvertToArinc424(SelectedConflict.Top.Position1.Latitude, SelectedConflict.Top.Position2.Longitude) + "\n" + SelectedConflict.Top.Time.ToString("HHmm") : "";
+            ACTconfstart.Text = SelectedConflict.FirstConflictTime2?.StartLatlong != null
+                ? ConvertToArinc424(SelectedConflict.FirstConflictTime2.StartLatlong.Latitude, SelectedConflict.FirstConflictTime2.StartLatlong.Longitude)
+                    + "\n" + SelectedConflict.FirstConflictTime2.StartTime.ToString("HHmm") : "";
+            ACTconfend.Text = SelectedConflict.FirstConflictTime2?.EndLatlong != null
+                ? ConvertToArinc424(SelectedConflict.FirstConflictTime2.EndLatlong.Latitude, SelectedConflict.FirstConflictTime2.EndLatlong.Longitude)
+                    + "\n" + SelectedConflict.FirstConflictTime2.EndTime.ToString("HHmm") : "";
         }
-        //public Vector2 ConvertLLToScreen(Coordinate ll)
-        //{
-        //    return this.ConvertLLToScreen(ll, this.GetRenderParams());
-        //}
 
-        
+        /// <summary>
+        /// Called on each ConflictsUpdated event. Checks for time revisions
+        /// and dynamically updates required separation per ATOP spec.
+        /// </summary>
+        private void OnConflictDataChanged()
+        {
+            if (!IsHandleCreated || IsDisposed) return;
 
-        private void CloseButton_Click(object sender, EventArgs e)
+            // Find the current matching conflict by callsign pair
+            var currentConflict = ConflictProbe.ConflictDatas
+                .FirstOrDefault(c => c.Intruder?.Callsign == _intruderCallsign && c.Active?.Callsign == _activeCallsign);
+
+            // Conflict may temporarily disappear between probe cycles — don't close
+            if (currentConflict == null) return;
+
+            // If conflict times have materially changed (> threshold), show acknowledgement popup
+            if (Math.Abs((currentConflict.EarliestLos - _initialEarliestLos).TotalMinutes) > TimeChangeThreshold.TotalMinutes ||
+                Math.Abs((currentConflict.LatestLos - _initialLatestLos).TotalMinutes) > TimeChangeThreshold.TotalMinutes)
+            {
+                ShowConflictChangedPopup();
+                return;
+            }
+
+            // Dynamically update required separation (e.g. reduced separation flags applied)
+            RequiredSep.Text = currentConflict.LongTimesep.ToString("mm") + " minutes" + " (" + " " + currentConflict.LatSep + " " + "nm" + ") "
+                + currentConflict.VerticalSep + " " + "ft";
+        }
+
+        /// <summary>
+        /// Shows "Examined conflict situation has changed!" popup.
+        /// Disables both Summary and Report windows until acknowledged,
+        /// then closes this report window.
+        /// </summary>
+        private void ShowConflictChangedPopup()
+        {
+            // Unsubscribe first to prevent re-entrant calls while MessageBox is shown
+            ConflictProbe.ConflictsUpdated -= UpdateConflicts;
+
+            // Disable both windows to block user input
+            var summaryWindows = Application.OpenForms.OfType<ConflictSummaryWindow>().ToList();
+            foreach (var sw in summaryWindows) sw.Enabled = false;
+            this.Enabled = false;
+
+            MessageBox.Show(this, "Examined conflict situation has changed!", "Information",
+                MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+            // Re-enable summary windows
+            foreach (var sw in summaryWindows) sw.Enabled = true;
+
+            // Close this report window (deletes ASD conflict display)
+            ConflictSegmentRenderer.RemoveConflict(SelectedConflict);
+            Close();
+            Dispose();
+        }
+
+        private void CleanupAndClose()
         {
             ConflictProbe.ConflictsUpdated -= UpdateConflicts;
             ConflictSegmentRenderer.RemoveConflict(SelectedConflict);
             Close();
             Dispose();
+        }
+
+        private void CloseButton_Click(object sender, EventArgs e)
+        {
+            CleanupAndClose();
         }
 
         private void DrawButton_Click(object sender, EventArgs e)
