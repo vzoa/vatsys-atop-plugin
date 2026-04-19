@@ -1,5 +1,8 @@
-﻿using AtopPlugin.Display.Label;
+﻿using System;
+using AtopPlugin.Display.Label;
+using AtopPlugin.Helpers;
 using AtopPlugin.State;
+using AtopPlugin.UI;
 using vatsys;
 using vatsys.Plugin;
 
@@ -35,25 +38,18 @@ public static class LabelItemRenderer
         return itemType switch
         {
             LabelConstants.LabelItemSelectHori => track.IsSelected()
-                ? new CustomLabelItem { Text = Symbols.Empty, Border = BorderFlags.Bottom }
+                ? new CustomLabelItem { Text = Symbols.Empty, Border = BorderFlags.Top | BorderFlags.Bottom }
                 : null,
 
             LabelConstants.LabelItemSelectVert => track.IsSelected()
-                ? new CustomLabelItem { Text = Symbols.Empty, Border = BorderFlags.Left }
+                ? new CustomLabelItem { Text = Symbols.Empty, Border = BorderFlags.Left | BorderFlags.Right }
                 : null,
 
-            LabelConstants.LabelItemCommIcon => atopState.DownlinkIndicator
-                ? new CustomLabelItem { Text = Symbols.CommDownlink, Border = BorderFlags.All }
-                : new CustomLabelItem { Text = Symbols.CommEmpty },
+            LabelConstants.LabelItemCommIcon => atopState.DownlinkIndicator || CpdlcPluginBridge.HasOpenDownlinks(fdr.Callsign)
+                ? new CustomLabelItem { Text = Symbols.CommDownlink, Border = BorderFlags.All, OnMouseClick = HandleCommIconClick }
+                : new CustomLabelItem { Text = Symbols.CommEmpty, OnMouseClick = HandleCommIconClick },
 
-            LabelConstants.LabelItemAdsbCpdlc => fdr.State is FDP2.FDR.FDRStates.STATE_PREACTIVE or
-                FDP2.FDR.FDRStates.STATE_COORDINATED
-                ? new CustomLabelItem
-                {
-                    Text = displayState.CpdlcAdsbSymbol, ForeColourIdentity = Colours.Identities.Custom,
-                    CustomForeColour = CustomColors.NotCda
-                }
-                : new CustomLabelItem { Text = displayState.CpdlcAdsbSymbol },
+            LabelConstants.LabelItemAdsbCpdlc => RenderAdsbCpdlcLabelItem(fdr, displayState),
 
             LabelConstants.LabelItemAdsFlags => new CustomLabelItem { Text = displayState.AdsFlag },
 
@@ -146,6 +142,40 @@ public static class LabelItemRenderer
             LabelConstants.LabelItemDestination => new CustomLabelItem { Text = fdr.DesAirport },
 
             _ => LabelItemRegistry.GetLabelItem(itemType)?.Render(fdr, displayState, atopState)
+        };
+    }
+
+    private static void HandleCommIconClick(CustomLabelItemMouseClickEventArgs e)
+    {
+        try
+        {
+            if (e.Button != CustomLabelItemMouseButton.Left) return;
+
+            var callsign = e.Track.GetFDR()?.Callsign;
+            if (!string.IsNullOrEmpty(callsign))
+                AtopMenu.OpenClearanceWindow(callsign);
+
+            e.Handled = true;
+        }
+        catch (Exception ex)
+        {
+            Errors.Add(new Exception($"CommIconClick: {ex.Message}", ex));
+        }
+    }
+
+    private static CustomLabelItem? RenderAdsbCpdlcLabelItem(FDP2.FDR fdr, AtopAircraftDisplayState displayState)
+    {
+        if (!CpdlcPluginBridge.IsAvailable) return null;
+
+        var connState = CpdlcPluginBridge.GetConnectionState(fdr.Callsign);
+        if (connState == CpdlcPluginBridge.CpdlcConnectionState.CurrentDataAuthority)
+            return new CustomLabelItem { Text = displayState.CpdlcAdsbSymbol };
+
+        return new CustomLabelItem
+        {
+            Text = displayState.CpdlcAdsbSymbol,
+            ForeColourIdentity = Colours.Identities.Custom,
+            CustomForeColour = CustomColors.NotCda
         };
     }
 }

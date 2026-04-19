@@ -15,6 +15,11 @@ public static class CustomColors
     public static readonly CustomColour Imminent = new(255, 0, 0);
     public static readonly CustomColour SpecialConditionCode = new(255, 255, 0);
     public static readonly CustomColour ApsBlue = new(141, 182, 205);
+    public static readonly CustomColour OverflownGrey = new(128, 128, 128);
+    public static readonly CustomColour Black = new(0, 0, 0);
+    public static readonly CustomColour White = new(255, 255, 255);
+    public static readonly CustomColour OverdueGreen = new(0, 255, 0);
+    public static readonly CustomColour OverdueYellow = new(255, 255, 0);
 }
 
 public static class Symbols
@@ -81,6 +86,7 @@ public static class StripConstants
     public const string StripItemPoint = "AURORA_POINT";
     public const string StripItemPointPrefix = "AURORA_POINT_";
     public const string StripItemPointLonPrefix = "AURORA_POINTLON_";
+    public const string StripItemEtopPrefix = "AURORA_ETOP_";
     public const string StripItemRoute = "AURORA_ROUTE_STRIP";
     public const string StripItemRadarInd = "AURORA_RADAR_IND";
     public const string StripItemAnnotInd = "AURORA_ANNOT_STRIP";
