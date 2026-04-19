@@ -1,0 +1,151 @@
+<Window x:Class="AtopPlugin.UI.Wpf.ClearanceWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="CLEARANCE"
+        Width="820" Height="640"
+        WindowStyle="None"
+        AllowsTransparency="False"
+        ResizeMode="CanResizeWithGrip"
+        Background="#C0C0C0"
+        FontFamily="Consolas"
+        FontSize="12">
+
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="AtopTheme.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="28"/>    <!-- Row 0: Title bar -->
+            <RowDefinition Height="32"/>    <!-- Row 1: Callsign + route -->
+            <RowDefinition Height="28"/>    <!-- Row 2: Category tabs -->
+            <RowDefinition Height="28"/>    <!-- Row 3: Sub-category tabs -->
+            <RowDefinition Height="*"/>     <!-- Row 4: Template list (with inline fields + EOS) -->
+            <RowDefinition Height="Auto"/>  <!-- Row 5: Construction area + INS/DEL -->
+            <RowDefinition Height="Auto"/>  <!-- Row 6: Downlink display -->
+            <RowDefinition Height="36"/>    <!-- Row 7: Action buttons -->
+        </Grid.RowDefinitions>
+
+        <!-- Row 0: Title bar -->
+        <Border Grid.Row="0" Background="#5F9EA0" MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
+            <Grid>
+                <TextBlock Text="CLEARANCE"
+                           Foreground="White"
+                           FontWeight="Bold" FontSize="14"
+                           VerticalAlignment="Center" Margin="8,0,0,0"/>
+                <Button Content="X" HorizontalAlignment="Right"
+                        Width="28" Height="22" Margin="0,3,4,3"
+                        Style="{StaticResource MotifButton}"
+                        Click="Close_Click"/>
+            </Grid>
+        </Border>
+
+        <!-- Row 1: Callsign + Route -->
+        <Grid Grid.Row="1" Margin="4,2,4,2">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <Border Grid.Column="0" Background="#FFFF00"
+                    Padding="8,2" Margin="0,0,6,0"
+                    BorderThickness="2" BorderBrush="#404040">
+                <TextBlock x:Name="CallsignText" FontWeight="Bold" FontSize="14"
+                           Foreground="Black"/>
+            </Border>
+
+            <Border Grid.Column="1" Style="{StaticResource SunkenBorder}" Padding="4,2">
+                <TextBlock x:Name="RouteText" VerticalAlignment="Center"
+                           TextTrimming="CharacterEllipsis"
+                           Style="{StaticResource AtopLabel}"/>
+            </Border>
+        </Grid>
+
+        <!-- Row 2: Category tabs -->
+        <Border Grid.Row="2" Margin="4,0,4,0">
+            <WrapPanel x:Name="CategoryPanel" Orientation="Horizontal"/>
+        </Border>
+
+        <!-- Row 3: Sub-category tabs -->
+        <Border Grid.Row="3" Margin="4,0,4,0">
+            <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+                <WrapPanel x:Name="SubCategoryPanel" Orientation="Horizontal"/>
+            </ScrollViewer>
+        </Border>
+
+        <!-- Row 4: Template list — each row has arrow, ID, template text with inline param fields, EOS -->
+        <Border Grid.Row="4" Style="{StaticResource SunkenBorder}" Margin="4,4,4,2">
+            <ScrollViewer x:Name="TemplateScroller"
+                          VerticalScrollBarVisibility="Auto"
+                          HorizontalScrollBarVisibility="Auto"
+                          Background="White">
+                <StackPanel x:Name="TemplatePanel"/>
+            </ScrollViewer>
+        </Border>
+
+        <!-- Row 5: Construction area with INS/DEL buttons -->
+        <Border Grid.Row="5" Margin="4,0,4,2" MinHeight="50" MaxHeight="100">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Construction lines -->
+                <Border Grid.Column="0" Style="{StaticResource SunkenBorder}" Padding="4,2"
+                        Background="White">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
+                        <StackPanel x:Name="ConstructionPanel"/>
+                    </ScrollViewer>
+                </Border>
+
+                <!-- INS / DEL buttons -->
+                <StackPanel Grid.Column="1" Orientation="Vertical" Margin="4,0,0,0"
+                            VerticalAlignment="Center">
+                    <Button Content="INS" Style="{StaticResource MotifButton}"
+                            Width="44" Margin="0,2"
+                            Click="Insert_Click"/>
+                    <Button Content="DEL" Style="{StaticResource MotifButton}"
+                            Width="44" Margin="0,2"
+                            Click="Delete_Click"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Row 6: Downlink request display (at bottom per spec) -->
+        <Border x:Name="DownlinkPanel" Grid.Row="6"
+                Style="{StaticResource SunkenBorder}"
+                Margin="4,0,4,2" Padding="4,2"
+                MaxHeight="60"
+                Visibility="Collapsed">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel x:Name="DownlinkList"/>
+            </ScrollViewer>
+        </Border>
+
+        <!-- Row 7: Action buttons — labels per spec Figure 9-1 -->
+        <Border Grid.Row="7" Margin="4,0,4,4">
+            <WrapPanel Orientation="Horizontal" HorizontalAlignment="Center"
+                       VerticalAlignment="Center">
+                <Button Content="PRB"   Style="{StaticResource MotifActionButton}" IsEnabled="False"/>
+                <Button Content="CAN"   Style="{StaticResource MotifActionButton}" Click="Cancel_Click"/>
+                <Button Content="TPRB"  Style="{StaticResource MotifActionButton}" IsEnabled="False"/>
+                <Button Content="SND"   Style="{StaticResource MotifActionButton}" Click="Send_Click"/>
+                <Button Content="UNABL" Style="{StaticResource MotifActionButton}" Click="Unable_Click"/>
+                <Button Content="VHF"   Style="{StaticResource MotifActionButton}" IsEnabled="False"/>
+                <Button Content="SAVE"  Style="{StaticResource MotifActionButton}" IsEnabled="False"/>
+                <Button Content="EALT"  Style="{StaticResource MotifActionButton}" IsEnabled="False"/>
+                <Button Content="OVRD"  Style="{StaticResource MotifActionButton}" IsEnabled="False"/>
+                <Button Content="COORD" Style="{StaticResource MotifActionButton}" IsEnabled="False"/>
+                <Button Content="ACPT"  Style="{StaticResource MotifActionButton}" IsEnabled="False"/>
+                <Button Content="REJ"   Style="{StaticResource MotifActionButton}" IsEnabled="False"/>
+                <Button Content="HLP"   Style="{StaticResource MotifActionButton}" IsEnabled="False"/>
+                <Button Content="CLS"   Style="{StaticResource MotifActionButton}" Click="Close_Click"/>
+            </WrapPanel>
+        </Border>
+    </Grid>
+</Window>

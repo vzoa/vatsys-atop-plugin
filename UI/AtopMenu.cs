@@ -1,9 +1,11 @@
 using System;
 using System.Threading;
 using System.Windows.Forms;
+using System.Windows.Interop;
 using AtopPlugin.Conflict;
 using AtopPlugin.Display;
 using AtopPlugin.State;
+using AtopPlugin.UI.Wpf;
 using vatsys;
 using vatsys.Plugin;
 using vatsys_atop_plugin.UI;
@@ -18,6 +20,8 @@ public static class AtopMenu
     private static readonly ToolStripMenuItem ActivationToggle = new("Activate");
     private static readonly ConflictSummaryWindow ConflictSummaryWindow = new();
     //private static readonly AltitudeWindow AltitudeWindow = new();
+
+    private static ClearanceWindow? _clearanceWindow;
 
     static AtopMenu()
     {
@@ -98,5 +102,41 @@ public static class AtopMenu
     public static void SetActivationState(bool state)
     {
         MMI.InvokeOnGUI(() => ActivationToggle.Checked = state);
+    }
+
+    /// <summary>
+    /// Opens the ATOP Clearance window for a specific callsign.
+    /// Can be called from label/strip click handlers.
+    /// </summary>
+    public static void OpenClearanceWindow(string callsign)
+    {
+        if (string.IsNullOrEmpty(callsign)) return;
+
+        MMI.InvokeOnGUI(() =>
+        {
+            try
+            {
+                if (_clearanceWindow == null)
+                {
+                    _clearanceWindow = new ClearanceWindow();
+
+                    // Set WinForms parent for modeless keyboard interop
+                    var mainForm = System.Windows.Forms.Application.OpenForms["MainForm"];
+                    if (mainForm != null)
+                    {
+                        var helper = new WindowInteropHelper(_clearanceWindow);
+                        helper.Owner = mainForm.Handle;
+                    }
+
+                    System.Windows.Forms.Integration.ElementHost.EnableModelessKeyboardInterop(_clearanceWindow);
+                }
+
+                _clearanceWindow.ShowForCallsign(callsign);
+            }
+            catch (Exception ex)
+            {
+                Errors.Add(new Exception($"AtopMenu.OpenClearanceWindow: {ex.Message}", ex));
+            }
+        });
     }
 }

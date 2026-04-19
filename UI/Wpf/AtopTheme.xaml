@@ -1,0 +1,162 @@
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- ATOP Motif Colors -->
+    <SolidColorBrush x:Key="AtopBackground" Color="#C0C0C0"/>
+    <SolidColorBrush x:Key="AtopTitleBar" Color="#5F9EA0"/>
+    <SolidColorBrush x:Key="AtopTitleText" Color="White"/>
+    <SolidColorBrush x:Key="AtopText" Color="Black"/>
+    <SolidColorBrush x:Key="AtopCallsignBg" Color="#FFFF00"/>
+    <SolidColorBrush x:Key="AtopCallsignText" Color="Black"/>
+    <SolidColorBrush x:Key="AtopFieldBg" Color="White"/>
+    <SolidColorBrush x:Key="AtopFieldText" Color="Black"/>
+    <SolidColorBrush x:Key="AtopButtonFace" Color="#C0C0C0"/>
+    <SolidColorBrush x:Key="AtopButtonHighlight" Color="#FFFFFF"/>
+    <SolidColorBrush x:Key="AtopButtonShadow" Color="#808080"/>
+    <SolidColorBrush x:Key="AtopButtonDarkShadow" Color="#404040"/>
+    <SolidColorBrush x:Key="AtopSelectedTab" Color="#A0A0A0"/>
+    <SolidColorBrush x:Key="AtopSunkenBg" Color="#E0E0E0"/>
+    <SolidColorBrush x:Key="AtopProbeBg" Color="#F0F0F0"/>
+    <SolidColorBrush x:Key="AtopEosMarker" Color="Black"/>
+    <SolidColorBrush x:Key="AtopGreen" Color="#00C000"/>
+    <SolidColorBrush x:Key="AtopSaveHighlight" Color="#A0D0A0"/>
+
+    <!-- Monospace Font -->
+    <FontFamily x:Key="AtopFont">Consolas</FontFamily>
+
+    <!-- Motif 3D raised button style -->
+    <Style x:Key="MotifButton" TargetType="Button">
+        <Setter Property="FontFamily" Value="{StaticResource AtopFont}"/>
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="Background" Value="{StaticResource AtopButtonFace}"/>
+        <Setter Property="Foreground" Value="{StaticResource AtopText}"/>
+        <Setter Property="Padding" Value="6,2"/>
+        <Setter Property="MinHeight" Value="24"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="OuterBorder"
+                            BorderThickness="2"
+                            Background="{TemplateBinding Background}">
+                        <Border.BorderBrush>
+                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                <GradientStop Color="#FFFFFF" Offset="0"/>
+                                <GradientStop Color="#808080" Offset="1"/>
+                            </LinearGradientBrush>
+                        </Border.BorderBrush>
+                        <ContentPresenter HorizontalAlignment="Center"
+                                          VerticalAlignment="Center"
+                                          Margin="{TemplateBinding Padding}"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="OuterBorder" Property="BorderBrush">
+                                <Setter.Value>
+                                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                        <GradientStop Color="#808080" Offset="0"/>
+                                        <GradientStop Color="#FFFFFF" Offset="1"/>
+                                    </LinearGradientBrush>
+                                </Setter.Value>
+                            </Setter>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Foreground" Value="#808080"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Tab-style button (for category bar) -->
+    <Style x:Key="MotifTab" TargetType="ToggleButton">
+        <Setter Property="FontFamily" Value="{StaticResource AtopFont}"/>
+        <Setter Property="FontSize" Value="11"/>
+        <Setter Property="Background" Value="{StaticResource AtopButtonFace}"/>
+        <Setter Property="Foreground" Value="{StaticResource AtopText}"/>
+        <Setter Property="Padding" Value="8,3"/>
+        <Setter Property="MinHeight" Value="22"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ToggleButton">
+                    <Border x:Name="TabBorder"
+                            BorderThickness="2"
+                            Background="{TemplateBinding Background}">
+                        <Border.BorderBrush>
+                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                <GradientStop Color="#FFFFFF" Offset="0"/>
+                                <GradientStop Color="#808080" Offset="1"/>
+                            </LinearGradientBrush>
+                        </Border.BorderBrush>
+                        <ContentPresenter HorizontalAlignment="Center"
+                                          VerticalAlignment="Center"
+                                          Margin="{TemplateBinding Padding}"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="TabBorder" Property="Background" Value="{StaticResource AtopSelectedTab}"/>
+                            <Setter TargetName="TabBorder" Property="BorderBrush">
+                                <Setter.Value>
+                                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                        <GradientStop Color="#808080" Offset="0"/>
+                                        <GradientStop Color="#FFFFFF" Offset="1"/>
+                                    </LinearGradientBrush>
+                                </Setter.Value>
+                            </Setter>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Sunken field style -->
+    <Style x:Key="SunkenBorder" TargetType="Border">
+        <Setter Property="Background" Value="{StaticResource AtopSunkenBg}"/>
+        <Setter Property="BorderThickness" Value="2"/>
+        <Setter Property="BorderBrush">
+            <Setter.Value>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                    <GradientStop Color="#808080" Offset="0"/>
+                    <GradientStop Color="#FFFFFF" Offset="1"/>
+                </LinearGradientBrush>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Editable field text box -->
+    <Style x:Key="AtopTextBox" TargetType="TextBox">
+        <Setter Property="FontFamily" Value="{StaticResource AtopFont}"/>
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="Background" Value="{StaticResource AtopFieldBg}"/>
+        <Setter Property="Foreground" Value="{StaticResource AtopFieldText}"/>
+        <Setter Property="CharacterCasing" Value="Upper"/>
+        <Setter Property="Padding" Value="2,1"/>
+        <Setter Property="BorderThickness" Value="2"/>
+        <Setter Property="BorderBrush">
+            <Setter.Value>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                    <GradientStop Color="#808080" Offset="0"/>
+                    <GradientStop Color="#FFFFFF" Offset="1"/>
+                </LinearGradientBrush>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Monospace label -->
+    <Style x:Key="AtopLabel" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{StaticResource AtopFont}"/>
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="Foreground" Value="{StaticResource AtopText}"/>
+    </Style>
+
+    <!-- Bottom button bar button (wider, for PRB/CAN/SND etc) -->
+    <Style x:Key="MotifActionButton" TargetType="Button" BasedOn="{StaticResource MotifButton}">
+        <Setter Property="MinWidth" Value="54"/>
+        <Setter Property="MinHeight" Value="28"/>
+        <Setter Property="FontSize" Value="11"/>
+        <Setter Property="Margin" Value="2,0"/>
+    </Style>
+
+</ResourceDictionary>
