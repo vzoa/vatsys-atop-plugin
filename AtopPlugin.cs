@@ -22,6 +22,7 @@ public class AtopPlugin : ILabelPlugin, IStripPlugin
         AtopWebSocketServer.Instance.Start();
         LocalWebServer.Start(); // Serve webapp and auto-open browser
         ConflictSegmentRenderer.Initialize(); // Initialize conflict segment rendering
+        LabelDragOverrideHandler.Initialize(); // Allow unclamped label leader lengths
     }
 
     public string Name => "ATOP Plugin";
