@@ -36,29 +36,24 @@
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Button">
-                    <Border x:Name="OuterBorder"
-                            BorderThickness="2"
+                    <!-- Light border (top + left) -->
+                    <Border x:Name="LightBorder"
+                            BorderThickness="2,2,0,0"
+                            BorderBrush="#FFFFFF"
                             Background="{TemplateBinding Background}">
-                        <Border.BorderBrush>
-                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                                <GradientStop Color="#FFFFFF" Offset="0"/>
-                                <GradientStop Color="#808080" Offset="1"/>
-                            </LinearGradientBrush>
-                        </Border.BorderBrush>
-                        <ContentPresenter HorizontalAlignment="Center"
-                                          VerticalAlignment="Center"
-                                          Margin="{TemplateBinding Padding}"/>
+                        <!-- Dark border (bottom + right) -->
+                        <Border x:Name="DarkBorder"
+                                BorderThickness="0,0,2,2"
+                                BorderBrush="#808080">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"
+                                              Margin="{TemplateBinding Padding}"/>
+                        </Border>
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsPressed" Value="True">
-                            <Setter TargetName="OuterBorder" Property="BorderBrush">
-                                <Setter.Value>
-                                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                                        <GradientStop Color="#808080" Offset="0"/>
-                                        <GradientStop Color="#FFFFFF" Offset="1"/>
-                                    </LinearGradientBrush>
-                                </Setter.Value>
-                            </Setter>
+                            <Setter TargetName="LightBorder" Property="BorderBrush" Value="#808080"/>
+                            <Setter TargetName="DarkBorder" Property="BorderBrush" Value="#FFFFFF"/>
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter Property="Foreground" Value="#808080"/>
@@ -153,10 +148,9 @@
 
     <!-- Bottom button bar button (wider, for PRB/CAN/SND etc) -->
     <Style x:Key="MotifActionButton" TargetType="Button" BasedOn="{StaticResource MotifButton}">
-        <Setter Property="MinWidth" Value="54"/>
         <Setter Property="MinHeight" Value="28"/>
         <Setter Property="FontSize" Value="11"/>
-        <Setter Property="Margin" Value="2,0"/>
+        <Setter Property="Margin" Value="1,0"/>
     </Style>
 
 </ResourceDictionary>
