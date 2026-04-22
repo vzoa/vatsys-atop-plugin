@@ -40,6 +40,7 @@ public class AtopDownlinkInfo
     public int MessageId { get; set; }
     public string Content { get; set; } = "";
     public DateTimeOffset Received { get; set; }
+    public int? ResponseType { get; set; }
     public bool IsClosed { get; set; }
     public bool IsAcknowledged { get; set; }
     public int? MessageReference { get; set; }

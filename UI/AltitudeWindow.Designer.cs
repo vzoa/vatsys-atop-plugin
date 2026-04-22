@@ -108,6 +108,7 @@ namespace vatsys_atop_plugin.UI
             this.btn_send = new vatsys.GenericButton();
             this.btn_probe = new vatsys.GenericButton();
             this.btn_search = new vatsys.GenericButton();
+            this.btn_unable = new vatsys.GenericButton();
             this.fld_level = new vatsys.TextField();
             this.fld_time = new vatsys.TextField();
             this.lbl_call = new vatsys.TextLabel();
@@ -275,6 +276,25 @@ namespace vatsys_atop_plugin.UI
             this.btn_search.TabIndex = 56;
             this.btn_search.Text = "SEARCH";
             this.btn_search.UseVisualStyleBackColor = false;
+            this.btn_search.Click += new System.EventHandler(this.btn_search_Click);
+            // 
+            // btn_unable
+            // 
+            this.btn_unable.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
+            this.btn_unable.FlatAppearance.BorderSize = 5;
+            this.btn_unable.FlatStyle = System.Windows.Forms.FlatStyle.Popup;
+            this.btn_unable.Font = new System.Drawing.Font("Terminus (TTF)", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.btn_unable.Location = new System.Drawing.Point(114, -2);
+            this.btn_unable.Name = "btn_unable";
+            this.btn_unable.Padding = new System.Windows.Forms.Padding(3);
+            this.btn_unable.Size = new System.Drawing.Size(77, 24);
+            this.btn_unable.SubFont = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.btn_unable.SubText = "";
+            this.btn_unable.TabIndex = 61;
+            this.btn_unable.Text = "UNABLE";
+            this.btn_unable.UseVisualStyleBackColor = false;
+            this.btn_unable.Visible = false;
+            this.btn_unable.Click += new System.EventHandler(this.btn_unable_Click);
             // 
             // fld_level
             // 
@@ -419,6 +439,7 @@ namespace vatsys_atop_plugin.UI
             this.Controls.Add(this.lbl_call);
             this.Controls.Add(this.fld_time);
             this.Controls.Add(this.fld_level);
+            this.Controls.Add(this.btn_unable);
             this.Controls.Add(this.btn_search);
             this.Controls.Add(this.btn_probe);
             this.Controls.Add(this.btn_send);
@@ -454,6 +475,7 @@ namespace vatsys_atop_plugin.UI
         private TextField fld_level;
         private TextField fld_time;
         private GenericButton btn_search;
+        private GenericButton btn_unable;
         private TextLabel lbl_call;
         private ListView lvw_altitudes;
         private GenericButton btn_response;

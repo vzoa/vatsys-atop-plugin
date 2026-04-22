@@ -79,6 +79,8 @@ public static class StripItemRenderer
                 }
                 : null,
 
+            StripConstants.StripItemLevel => new CustomStripItem { Text = displayState.CurrentLevel },
+
             StripConstants.StripItemVmi => new CustomStripItem { Text = displayState.AltitudeFlag?.Value ?? "" },
 
             StripConstants.StripItemComplex => displayState.IsRestrictionsIndicatorToggled
@@ -337,23 +339,16 @@ public static class StripItemRenderer
     {
         if (!CpdlcPluginBridge.IsAvailable) return null;
 
+        var connState = CpdlcPluginBridge.GetConnectionState(fdr.Callsign);
+        if (connState is not (CpdlcPluginBridge.CpdlcConnectionState.CurrentDataAuthority or CpdlcPluginBridge.CpdlcConnectionState.NextDataAuthority))
+            return null;
+
         var text = fdr.GetDisplayState()!.CpdlcAdsbSymbol;
         if (string.IsNullOrEmpty(text)) return null;
 
-        var connState = CpdlcPluginBridge.GetConnectionState(fdr.Callsign);
-        if (connState == CpdlcPluginBridge.CpdlcConnectionState.CurrentDataAuthority)
-        {
-            var stripItem = GetStripItemWithColorsForDirection(fdr.GetAtopState()?.DirectionOfFlight);
-            stripItem.Text = text;
-            return stripItem;
-        }
-
-        return new CustomStripItem
-        {
-            Text = text,
-            ForeColourIdentity = Colours.Identities.Custom,
-            CustomForeColour = CustomColors.NotCda
-        };
+        var stripItem = GetStripItemWithColorsForDirection(fdr.GetAtopState()?.DirectionOfFlight);
+        stripItem.Text = text;
+        return stripItem;
     }
 
     private static readonly ConcurrentDictionary<string, byte> _acknowledgedOverdue = new();

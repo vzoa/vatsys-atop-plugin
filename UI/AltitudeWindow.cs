@@ -1,8 +1,11 @@
 ﻿using AtopPlugin;
+using AtopPlugin.Display;
+using AtopPlugin.Helpers;
 using AtopPlugin.Logic;
 using AtopPlugin.Models;
 using AtopPlugin.State;
 using System;
+using System.Collections.Generic;
 using System.Data;
 using System.Drawing;
 using System.Linq;
@@ -23,6 +26,13 @@ namespace vatsys_atop_plugin.UI
         private object source;
 
         private object datablock;
+        private bool _virtualProbePending;
+        private bool _overrideActive;
+        private bool _searchInProgress;
+        private Queue<int> _pendingSearchLevels = new();
+        private int? _currentSearchLevel;
+        private bool _openedFromCommIcon;
+        private int? _replyDownlinkMessageId;
 
         private static AltitudeWindow instance;
 
@@ -30,33 +40,163 @@ namespace vatsys_atop_plugin.UI
         private AltitudeWindow(FDP2.FDR sourcefdr, Track dataBlock)
         {
             InitializeComponent();
-            //this.conflict = (object)inConflict;
-            this.datablock = (object)dataBlock;
-            this.source = (object)sourcefdr;
-            //PopulateAltitudeListView();
-            UpdateSearchButtonState();
-            ControlButtonState();
-            AltitudeListViewState();
-            ClimbByCheckState();
-            lbl_call.Text = ((FDP2.FDR)this.source).Callsign.ToUpper();
+            BindToSource(sourcefdr, dataBlock);
             this.StartPosition = FormStartPosition.Manual;
             Point cursorPosition = Cursor.Position;
             this.Location = cursorPosition;
+
+            VirtualProbeResultsReceived += OnVirtualProbeResultsReceived;
         }
 
-        public static AltitudeWindow GetInstance(FDP2.FDR sourcefdr, Track dataBlock)
+        public static AltitudeWindow GetInstance(FDP2.FDR sourcefdr, Track dataBlock, bool openedFromCommIcon = false, int? replyDownlinkMessageId = null)
         {
             if (instance == null || instance.IsDisposed)
             {
                 instance = new AltitudeWindow(sourcefdr, dataBlock);
+                instance.BindToSource(sourcefdr, dataBlock, openedFromCommIcon, replyDownlinkMessageId);
                 instance.TopMost = true;
             }
             else
             {
-                //instance.BringToFront(); // Bring existing instance to front
+                instance.BindToSource(sourcefdr, dataBlock, openedFromCommIcon, replyDownlinkMessageId);
                 instance.TopMost = true;
             }
             return instance;
+        }
+
+        private void BindToSource(FDP2.FDR sourcefdr, Track dataBlock, bool openedFromCommIcon = false, int? replyDownlinkMessageId = null)
+        {
+            this.datablock = (object)dataBlock;
+            this.source = (object)sourcefdr;
+
+            _virtualProbePending = false;
+            _overrideActive = false;
+            _searchInProgress = false;
+            _pendingSearchLevels.Clear();
+            _currentSearchLevel = null;
+            _openedFromCommIcon = openedFromCommIcon;
+            _replyDownlinkMessageId = ResolveReplyDownlinkMessageId(sourcefdr.Callsign, replyDownlinkMessageId);
+
+            InitializeAltitudeItems();
+            ResetSearchResults();
+
+            UpdateSearchButtonState();
+            ControlButtonState();
+            AltitudeListViewState();
+            ClimbByCheckState();
+            lbl_call.Text = sourcefdr.Callsign.ToUpper();
+            btn_probe.Text = "Probe";
+            btn_response.Text = "-";
+            btn_unable.Visible = _openedFromCommIcon && _replyDownlinkMessageId.HasValue;
+            btn_unable.Enabled = btn_unable.Visible;
+            btn_search.Visible = !btn_unable.Visible;
+        }
+
+        private static string FormatAltitude(int altitude)
+        {
+            return altitude == 600 ? "600" : altitude.ToString("D3");
+        }
+
+        private static bool TryParseAltitude(string text, out int altitude)
+        {
+            var digits = new string((text ?? string.Empty).Where(char.IsDigit).ToArray());
+            return int.TryParse(digits, out altitude);
+        }
+
+        private void InitializeAltitudeItems()
+        {
+            foreach (ListViewItem item in lvw_altitudes.Items)
+            {
+                if (item.Tag is int) continue;
+
+                if (TryParseAltitude(item.Text, out int altitude))
+                {
+                    item.Tag = altitude;
+                    item.Text = FormatAltitude(altitude);
+                }
+            }
+        }
+
+        private static int GetAltitudeValue(ListViewItem item)
+        {
+            if (item.Tag is int altitude)
+                return altitude;
+
+            return TryParseAltitude(item.Text, out altitude) ? altitude : 0;
+        }
+
+        private static int? ResolveReplyDownlinkMessageId(string callsign, int? explicitReplyDownlinkMessageId)
+        {
+            if (explicitReplyDownlinkMessageId.HasValue)
+                return explicitReplyDownlinkMessageId;
+
+            return CpdlcPluginBridge.GetOpenDownlinkDetails(callsign)
+                .OrderByDescending(d => d.Received)
+                .Select(d => (int?)d.MessageId)
+                .FirstOrDefault();
+        }
+
+        private void ResetSearchResults()
+        {
+            foreach (ListViewItem item in lvw_altitudes.Items)
+            {
+                var altitude = GetAltitudeValue(item);
+                item.Text = FormatAltitude(altitude);
+                item.ForeColor = SystemColors.WindowText;
+            }
+        }
+
+        private void SetSearchMarker(int altitude, bool available)
+        {
+            foreach (ListViewItem item in lvw_altitudes.Items)
+            {
+                if (GetAltitudeValue(item) != altitude) continue;
+
+                item.Text = $"{(available ? "*" : "X")} {FormatAltitude(altitude)}";
+                item.ForeColor = available ? Color.Green : Color.Red;
+                break;
+            }
+        }
+
+        private void SetButtonsEnabledForSearch(bool enabled)
+        {
+            btn_probe.Enabled = enabled && !(btn_probe.Text == "Override" && !_overrideActive);
+            btn_send.Enabled = enabled && !(btn_probe.Text == "Override" && !_overrideActive);
+            btn_vhf.Enabled = enabled && !(btn_probe.Text == "Override" && !_overrideActive);
+            btn_cancel.Enabled = enabled;
+            btn_close.Enabled = enabled;
+            btn_search.Enabled = enabled;
+            btn_unable.Enabled = enabled && btn_unable.Visible;
+        }
+
+        private void UpdateSearchButtonState()
+        {
+            bool searchEligible = source is FDP2.FDR sourceFdr
+                && sourceFdr.IsTrackedByMe
+                && sourceFdr.ControllingSector?.Name is "OA"
+                && btn_probe.Text == "Override"
+                && !_searchInProgress
+                && !_openedFromCommIcon;
+
+            btn_search.Enabled = searchEligible;
+        }
+
+        private void RequestNextSearchProbe(FDP2.FDR sourceFdr)
+        {
+            if (_pendingSearchLevels.Count == 0)
+            {
+                _searchInProgress = false;
+                _virtualProbePending = false;
+                _currentSearchLevel = null;
+                SetButtonsEnabledForSearch(true);
+                btn_cancel.Enabled = true;
+                UpdateSearchButtonState();
+                return;
+            }
+
+            _currentSearchLevel = _pendingSearchLevels.Dequeue();
+            _virtualProbePending = true;
+            RequestVirtualProbe(sourceFdr.Callsign, _currentSearchLevel.Value);
         }
 
         private void PopulateAltitudeListView()
@@ -125,16 +265,6 @@ namespace vatsys_atop_plugin.UI
             //lvw_altitudes.SetScrollPosVert(scrollBar1.PercentageValue);
         }
 
-        private void UpdateSearchButtonState()
-        {
-            if (((FDP2.FDR)this.source).IsTrackedByMe && ((FDP2.FDR)this.source).ControllingSector.Name is "OA")
-            {
-                btn_search.Enabled = true;
-            }
-
-        }
-
-
         private void AltitudeListViewState()
         {
             string cflText = ((FDP2.FDR)this.source).CFLString;
@@ -147,7 +277,7 @@ namespace vatsys_atop_plugin.UI
                         var parts = cflText.Split('B');
                         if (parts.Length == 2 && int.TryParse(parts[0], out int low) && int.TryParse(parts[1], out int high))
                         {
-                            int altitude = int.Parse(item.Text);
+                            int altitude = GetAltitudeValue(item);
                             if (altitude >= low && altitude <= high)
                             {
                                 item.Selected = true;
@@ -157,7 +287,7 @@ namespace vatsys_atop_plugin.UI
                             }
                         }
                     }
-                    else if (item.Text == cflText)
+                    else if (TryParseAltitude(cflText, out int currentAltitude) && GetAltitudeValue(item) == currentAltitude)
                     {
                         item.Selected = true;
                         item.Focused = true;
@@ -166,7 +296,7 @@ namespace vatsys_atop_plugin.UI
                         fld_time.Enabled = false;
                     }
                 }
-                else if (((FDP2.FDR)this.source).CFLUpper == -1 && item.Text == (((FDP2.FDR)this.source).RFL / 100).ToString())
+                else if (((FDP2.FDR)this.source).CFLUpper == -1 && GetAltitudeValue(item) == (((FDP2.FDR)this.source).RFL / 100))
                 {
                     item.Selected = true;
                     item.Focused = true;
@@ -202,100 +332,148 @@ namespace vatsys_atop_plugin.UI
 
         private void btn_probe_Click(object sender, EventArgs e)
         {
-            if (lvw_altitudes.SelectedItems.Count > 0)
+            try
             {
-                ListViewItem selectedItem = lvw_altitudes.SelectedItems[0];
-                int lowest = int.Parse(lvw_altitudes.SelectedItems[0].Text) * 100;
-                int highest = int.Parse(lvw_altitudes.SelectedItems[0].Text) * 100;
+                if (!(source is FDP2.FDR sourceFdr) || lvw_altitudes.SelectedItems.Count == 0)
+                    return;
 
-                foreach (ListViewItem item in lvw_altitudes.SelectedItems)
+                if (string.Equals(btn_probe.Text, "Override", StringComparison.OrdinalIgnoreCase))
                 {
-                    int value = int.Parse(item.Text) * 100;
-                    if (value < lowest)
-                    {
-                        lowest = value;
-                    }
-                    else if (value > highest)
-                    {
-                        highest = value;
-                    }
-                    try
-                    {
-                        if (lvw_altitudes.SelectedItems.Count >= 1 && selectedItem.Text == ((FDP2.FDR)this.source).CFLString)
-                        {
-                            fld_time.Enabled = false;
-                            climbByCheck.Enabled = false;
-                            ManualProbe((FDP2.FDR)this.source);
-                        }
-
-                        if (lvw_altitudes.SelectedItems.Count > 1)
-                        {
-                            ManualProbe((FDP2.FDR)this.source);
-                            FDP2.SetPRL(GetFDRs.FirstOrDefault(s => s.Callsign == "*" + ((FDP2.FDR)this.source).Callsign), ((FDP2.FDR)this.source).PRL);
-                            FDP2.SetCFL(GetFDRs.FirstOrDefault(s => s.Callsign == "*" + ((FDP2.FDR)this.source).Callsign), lowest, highest, false, true);
-                        }
-
-                        else if (lvw_altitudes.SelectedItems.Count == 1 && int.TryParse(selectedItem.Text, out int selectedAltitude))
-                        {
-                            ManualProbe((FDP2.FDR)this.source);
-                            FDP2.SetPRL(GetFDRs.FirstOrDefault(s => s.Callsign == "*" + ((FDP2.FDR)this.source).Callsign), ((FDP2.FDR)this.source).PRL);
-                            FDP2.SetCFL(GetFDRs.FirstOrDefault(s => s.Callsign == "*" + ((FDP2.FDR)this.source).Callsign), selectedAltitude.ToString());
-                        }
-
-                    }
-
-                    catch
-                    {
-                        btn_response.Text = "ERROR";
-                        btn_response.BackColor = Color.Red;
-                        btn_response.ForeColor = Color.Yellow;
-                    }
-
+                    _overrideActive = true;
+                    btn_probe.Text = "Probe";
+                    btn_send.Enabled = true;
+                    btn_vhf.Enabled = true;
+                    btn_response.Text = "OVERRIDE";
+                    btn_response.BackColor = Color.Yellow;
+                    btn_response.ForeColor = Color.Black;
+                    return;
                 }
+
+                var selectedLevels = lvw_altitudes.SelectedItems
+                    .Cast<ListViewItem>()
+                    .Select(item => int.Parse(item.Text))
+                    .ToList();
+
+                int lowest = selectedLevels.Min();
+                int highest = selectedLevels.Max();
+                int currentFl = sourceFdr.PRL / 100;
+
+                int proposedFl;
+                if (selectedLevels.Count == 1)
+                {
+                    proposedFl = selectedLevels[0];
+                }
+                else if (currentFl < lowest)
+                {
+                    proposedFl = lowest;
+                }
+                else if (currentFl > highest)
+                {
+                    proposedFl = highest;
+                }
+                else
+                {
+                    proposedFl = currentFl;
+                }
+
+                if (sourceFdr.PerformanceData?.MaxAltitude < proposedFl)
+                {
+                    btn_response.BackColor = Color.Yellow;
+                    btn_response.ForeColor = Color.Black;
+                    btn_response.Text = "LOGIC";
+                    btn_send.Enabled = false;
+                    btn_vhf.Enabled = false;
+                    return;
+                }
+
+                ResetSearchResults();
+                _virtualProbePending = true;
+                _overrideActive = false;
+                UpdateSearchButtonState();
+                btn_probe.Enabled = false;
+                btn_cancel.Enabled = true;
+                btn_response.Text = "PROBING";
+                btn_response.BackColor = Color.LightGray;
+                btn_response.ForeColor = Color.Black;
+
+                ProbeRouteRenderer.ShowForTrack(datablock as Track);
+
+                RequestVirtualProbe(sourceFdr.Callsign, proposedFl);
+            }
+            catch
+            {
+                _virtualProbePending = false;
+                btn_response.Text = "ERROR";
+                btn_response.BackColor = Color.Red;
+                btn_response.ForeColor = Color.Yellow;
+            }
+        }
+
+        private void OnVirtualProbeResultsReceived(string callsign, Conflicts conflicts)
+        {
+            if (!(source is FDP2.FDR sourceFdr)) return;
+            if (!string.Equals(sourceFdr.Callsign, callsign, StringComparison.OrdinalIgnoreCase)) return;
+
+            if (InvokeRequired)
+            {
+                BeginInvoke(new Action(() => OnVirtualProbeResultsReceived(callsign, conflicts)));
+                return;
             }
 
-            var badLogic = ((FDP2.FDR)source)?.PerformanceData.MaxAltitude < Convert.ToInt32(lvw_altitudes.SelectedItems[0].Text);
-            var conflictType = ((FDP2.FDR)source)?.GetConflicts();
+            if (_searchInProgress)
+            {
+                bool available = conflicts.ActualConflicts.Count == 0
+                              && conflicts.ImminentConflicts.Count == 0
+                              && conflicts.AdvisoryConflicts.Count == 0;
 
-            if (conflictType.Equals(ConflictStatus.Imminent) || conflictType.Equals(ConflictStatus.Actual))
+                if (_currentSearchLevel.HasValue)
+                    SetSearchMarker(_currentSearchLevel.Value, available);
+
+                RequestNextSearchProbe(sourceFdr);
+                return;
+            }
+
+            if (!_virtualProbePending) return;
+
+            _virtualProbePending = false;
+            _overrideActive = false;
+
+            bool hasAlert = conflicts.ActualConflicts.Count > 0 || conflicts.ImminentConflicts.Count > 0;
+            bool hasWarn = conflicts.AdvisoryConflicts.Count > 0;
+
+            if (hasAlert)
             {
                 btn_probe.Text = "Override";
+                btn_probe.Enabled = true;
                 btn_response.BackColor = Color.Red;
                 btn_response.ForeColor = Color.Black;
                 btn_response.Text = "ALERT";
                 btn_send.Enabled = false;
                 btn_vhf.Enabled = false;
             }
-
-            else if (conflictType.Equals(ConflictStatus.Advisory))
+            else if (hasWarn)
             {
                 btn_probe.Text = "Override";
+                btn_probe.Enabled = true;
                 btn_response.BackColor = Color.Orange;
                 btn_response.ForeColor = Color.Black;
                 btn_response.Text = "WARN";
                 btn_send.Enabled = false;
                 btn_vhf.Enabled = false;
             }
-
-            else if (badLogic)
-            {
-                btn_response.BackColor = Color.Yellow;
-                btn_response.ForeColor = Color.Black;
-                btn_response.Text = "LOGIC";
-                btn_send.Enabled = false;
-                btn_vhf.Enabled = false;
-            }
-
             else
             {
-                btn_response.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(70)))), ((int)(((byte)(247)))), ((int)(((byte)(57)))));
+                btn_probe.Text = "Probe";
+                btn_probe.Enabled = true;
+                btn_response.BackColor = Color.FromArgb(70, 247, 57);
                 btn_response.ForeColor = Color.Black;
                 btn_response.Text = "OK";
+                btn_send.Enabled = true;
+                btn_vhf.Enabled = true;
             }
 
-            btn_probe.Enabled = false;
             btn_cancel.Enabled = true;
-
+            UpdateSearchButtonState();
         }
 
         private void btn_send_MouseDown(object sender, MouseEventArgs e)
@@ -315,15 +493,23 @@ namespace vatsys_atop_plugin.UI
 
         private void btn_send_Click(object sender, EventArgs e)
         {
-            btn_vhf_Click(sender, e);
-
             try
             {
+                if (btn_probe.Text == "Override" && !_overrideActive)
+                {
+                    btn_response.BackColor = Color.Yellow;
+                    btn_response.ForeColor = Color.Black;
+                    btn_response.Text = "OVERRIDE";
+                    return;
+                }
+
                 var cs = ((FDP2.FDR)source).Callsign;
                 var prl = ((FDP2.FDR)this.source).PRL;
                 var uppercfl = ((FDP2.FDR)this.source).CFLUpper;
                 var lowercfl = ((FDP2.FDR)this.source).CFLLower;
-                var listAlt = lvw_altitudes.SelectedItems[0].Text;
+                if (lvw_altitudes.SelectedItems.Count == 0)
+                    return;
+                var listAlt = FormatAltitude(GetAltitudeValue(lvw_altitudes.SelectedItems[0]));
                 var timeInputValid = false;
                 if (!string.IsNullOrEmpty(fld_time.Text))
                 {
@@ -435,15 +621,23 @@ namespace vatsys_atop_plugin.UI
 
         private void btn_vhf_Click(object sender, EventArgs e)
         {
+            if (btn_probe.Text == "Override" && !_overrideActive)
+            {
+                btn_response.BackColor = Color.Yellow;
+                btn_response.ForeColor = Color.Black;
+                btn_response.Text = "OVERRIDE";
+                return;
+            }
+
             if (lvw_altitudes.SelectedItems.Count > 0)
             {
                 ListViewItem selectedItem = lvw_altitudes.SelectedItems[0];
-                int lowest = int.Parse(lvw_altitudes.SelectedItems[0].Text) * 100;
-                int highest = int.Parse(lvw_altitudes.SelectedItems[0].Text) * 100;
+                int lowest = GetAltitudeValue(lvw_altitudes.SelectedItems[0]) * 100;
+                int highest = GetAltitudeValue(lvw_altitudes.SelectedItems[0]) * 100;
 
                 foreach (ListViewItem item in lvw_altitudes.SelectedItems)
                 {
-                    int value = int.Parse(item.Text) * 100;
+                    int value = GetAltitudeValue(item) * 100;
                     if (value < lowest)
                     {
                         lowest = value;
@@ -460,7 +654,25 @@ namespace vatsys_atop_plugin.UI
                         {
                             FDP2.SetCFL(((FDP2.FDR)this.source), selectedAltitude.ToString());
                         }
-                        btn_probe_Click(sender, e);
+
+                        _virtualProbePending = true;
+                        _overrideActive = false;
+                        btn_probe.Enabled = false;
+                        btn_cancel.Enabled = true;
+                        btn_response.Text = "PROBING";
+                        btn_response.BackColor = Color.LightGray;
+                        btn_response.ForeColor = Color.Black;
+
+                        var sourceFdr = (FDP2.FDR)this.source;
+                        var selectedLevels = lvw_altitudes.SelectedItems
+                            .Cast<ListViewItem>()
+                            .Select(GetAltitudeValue)
+                            .ToList();
+                        var proposedFl = selectedLevels.Count == 1
+                            ? selectedLevels[0]
+                            : sourceFdr.PRL / 100;
+
+                        RequestVirtualProbe(sourceFdr.Callsign, proposedFl);
                     }
 
                     catch
@@ -472,35 +684,78 @@ namespace vatsys_atop_plugin.UI
 
                 }
             }
-            Close();
-            Dispose();
+        }
+
+        private void btn_search_Click(object sender, EventArgs e)
+        {
+            if (!(source is FDP2.FDR sourceFdr) || _searchInProgress)
+                return;
+
+            ResetSearchResults();
+            _searchInProgress = true;
+            _pendingSearchLevels = new Queue<int>(lvw_altitudes.Items.Cast<ListViewItem>().Select(GetAltitudeValue));
+            _currentSearchLevel = null;
+            btn_response.Text = "SEARCH";
+            btn_response.BackColor = Color.LightGray;
+            btn_response.ForeColor = Color.Black;
+            SetButtonsEnabledForSearch(false);
+            RequestNextSearchProbe(sourceFdr);
+        }
+
+        private void btn_unable_Click(object sender, EventArgs e)
+        {
+            if (!(source is FDP2.FDR sourceFdr) || !_replyDownlinkMessageId.HasValue)
+                return;
+
+            try
+            {
+                CpdlcPluginBridge.SendUnable(_replyDownlinkMessageId.Value, sourceFdr.Callsign, "DUE TO TRAFFIC");
+                _virtualProbePending = false;
+                _overrideActive = false;
+                btn_response.Text = "UNABLE";
+                btn_response.BackColor = Color.Yellow;
+                btn_response.ForeColor = Color.Black;
+                btn_unable.Enabled = false;
+            }
+            catch
+            {
+                btn_response.Text = "ERROR";
+                btn_response.BackColor = Color.Red;
+                btn_response.ForeColor = Color.Yellow;
+            }
         }
 
         private void btn_cancel_Click(object sender, EventArgs e)
         {
-            MMI.HideGraphicRoute((Track)this.datablock);
+            ProbeRouteRenderer.HideForTrack(this.datablock as Track);
+            _searchInProgress = false;
+            _pendingSearchLevels.Clear();
+            _currentSearchLevel = null;
+            ResetSearchResults();
             btn_probe.Enabled = true;
+            btn_probe.Text = "Probe";
             btn_response.Text = "-";
-
-            foreach (FDR item in GetFDRs.Where((FDR c) => c.Callsign == "*" + ((FDP2.FDR)source).Callsign))
-            {
-                FDP2.DeleteFDR(item);
-            }
+            _virtualProbePending = false;
+            _overrideActive = false;
+            btn_send.Enabled = true;
+            btn_vhf.Enabled = true;
+            btn_close.Enabled = true;
+            UpdateSearchButtonState();
         }
         private void lvw_altitudes_SelectedIndexChanged(object sender, EventArgs e)
         {
             if (lvw_altitudes.SelectedItems.Count == 1)
             {
-                fld_level.Text = lvw_altitudes.SelectedItems[0].Text;
+                fld_level.Text = FormatAltitude(GetAltitudeValue(lvw_altitudes.SelectedItems[0]));
             }
             else if (lvw_altitudes.SelectedItems.Count > 1)
             {
-                int lowest = int.Parse(lvw_altitudes.SelectedItems[0].Text);
-                int highest = int.Parse(lvw_altitudes.SelectedItems[0].Text);
+                int lowest = GetAltitudeValue(lvw_altitudes.SelectedItems[0]);
+                int highest = GetAltitudeValue(lvw_altitudes.SelectedItems[0]);
 
                 foreach (ListViewItem item in lvw_altitudes.SelectedItems)
                 {
-                    int value = int.Parse(item.Text);
+                    int value = GetAltitudeValue(item);
                     if (value < lowest)
                     {
                         lowest = value;
@@ -539,7 +794,7 @@ namespace vatsys_atop_plugin.UI
                 {
                     foreach (ListViewItem item in lvw_altitudes.Items)
                     {
-                        int altitude = int.Parse(item.Text);
+                        int altitude = GetAltitudeValue(item);
                         if (altitude >= low && altitude <= high)
                         {
                             item.Selected = true;
@@ -551,7 +806,7 @@ namespace vatsys_atop_plugin.UI
             {
                 foreach (ListViewItem item in lvw_altitudes.Items)
                 {
-                    if (item.Text == text)
+                    if (TryParseAltitude(text, out int altitude) && GetAltitudeValue(item) == altitude)
                     {
                         item.Selected = true;
                         item.Focused = true;
@@ -581,6 +836,7 @@ namespace vatsys_atop_plugin.UI
 
         private void btn_close_Click(object sender, EventArgs e)
         {
+            VirtualProbeResultsReceived -= OnVirtualProbeResultsReceived;
             Close();
             Dispose();
         }

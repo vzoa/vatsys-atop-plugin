@@ -22,6 +22,9 @@ public static class ConflictProbe
     // Event fired when conflicts for a specific callsign are updated
     public static event Action<string, Conflicts> CallsignConflictsUpdated;
 
+    // Event fired when a virtual probe (clearance probe) returns results
+    public static event Action<string, Conflicts> VirtualProbeResultsReceived;
+
     // Thread-safe storage for active conflicts received from webapp
     private static readonly ConcurrentDictionary<string, ConflictData> ActiveConflicts = new();
 
@@ -34,6 +37,8 @@ public static class ConflictProbe
         {
             // Subscribe to conflict results from WebSocket server
             AtopWebSocketServer.Instance.ConflictResultsReceived += OnWebAppConflictResultsReceived;
+            // Subscribe to virtual probe results (clearance probing)
+            AtopWebSocketServer.Instance.ProbeVirtualResultsReceived += OnVirtualProbeResultsReceived;
         }
         catch (Exception ex)
         {
@@ -247,6 +252,61 @@ public static class ConflictProbe
         }
 
         return EmptyConflicts();
+    }
+
+    /// <summary>
+    /// Requests a virtual probe via the conflict worker. The proposed CFL (in flight levels)
+    /// is temporarily injected into the worker's FDR store for this callsign, conflict
+    /// detection runs, and results come back via VirtualProbeResultsReceived.
+    /// No real FDR is created in vatSys — no visible datablock artifacts.
+    /// </summary>
+    public static async void RequestVirtualProbe(string callsign, int proposedCflFl)
+    {
+        var fdr = GetFDRs.FirstOrDefault(f =>
+            string.Equals(f.Callsign, callsign, StringComparison.OrdinalIgnoreCase));
+        if (fdr == null) return;
+
+        await AtopWebSocketServer.Instance.ProbeVirtualFDRAsync(fdr, proposedCflFl);
+    }
+
+    /// <summary>
+    /// Handles virtual probe results from the webapp. Converts to ConflictData and fires event.
+    /// </summary>
+    private static void OnVirtualProbeResultsReceived(string callsign, List<WebAppConflictResult> results)
+    {
+        try
+        {
+            var conflictDatas = new List<ConflictData>();
+
+            foreach (var result in results)
+            {
+                var intruderFdr = GetFDRs.FirstOrDefault(f => f.Callsign == result.IntruderCallsign);
+                var activeFdr = GetFDRs.FirstOrDefault(f => f.Callsign == result.ActiveCallsign);
+                if (intruderFdr == null || activeFdr == null) continue;
+
+                conflictDatas.Add(new ConflictData
+                {
+                    Intruder = intruderFdr,
+                    Active = activeFdr,
+                    ConflictStatus = ParseConflictStatus(result.Status),
+                    ConflictType = ParseConflictType(result.ConflictType),
+                    LatSep = (int)(result.LateralSep ?? 0),
+                    VerticalSep = (int)(result.VerticalSep ?? 0),
+                    VerticalAct = (int)(result.VerticalAct ?? 0),
+                    EarliestLos = ParseDateTime(result.EarliestLos),
+                    LatestLos = ParseDateTime(result.LatestLos),
+                    ConflictEnd = ParseDateTime(result.LatestLos),
+                    TrkAngle = result.TrkAngle ?? 0
+                });
+            }
+
+            var grouped = GroupConflicts(conflictDatas);
+            VirtualProbeResultsReceived?.Invoke(callsign, grouped);
+        }
+        catch (Exception ex)
+        {
+            Errors.Add(new Exception($"OnVirtualProbeResultsReceived: {ex.Message}", ex));
+        }
     }
 
     private static Conflicts EmptyConflicts()

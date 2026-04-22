@@ -101,6 +101,8 @@
     <Compile Include="Display\Label\ILabelItem.cs" />
     <Compile Include="Display\Label\LabelItemRegistry.cs" />
     <Compile Include="Display\ConflictSegmentRenderer.cs" />
+    <Compile Include="Display\DynamicSectorBoundaryRenderer.cs" />
+    <Compile Include="Display\ProbeRouteRenderer.cs" />
     <Compile Include="Display\StripItemRenderer.cs" />
     <Compile Include="Display\TrackColorRenderer.cs" />
     <Compile Include="Extensions.cs" />

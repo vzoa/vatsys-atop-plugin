@@ -1,6 +1,8 @@
 ﻿using System;
+using System.Linq;
 using AtopPlugin.Display.Label;
 using AtopPlugin.Helpers;
+using AtopPlugin.Models;
 using AtopPlugin.State;
 using AtopPlugin.UI;
 using vatsys;
@@ -151,9 +153,19 @@ public static class LabelItemRenderer
         {
             if (e.Button != CustomLabelItemMouseButton.Left) return;
 
-            var callsign = e.Track.GetFDR()?.Callsign;
-            if (!string.IsNullOrEmpty(callsign))
-                AtopMenu.OpenClearanceWindow(callsign);
+            var fdr = e.Track.GetFDR();
+            var callsign = fdr?.Callsign;
+            if (!string.IsNullOrEmpty(callsign) && fdr != null)
+            {
+                var downlink = CpdlcPluginBridge.GetOpenDownlinkDetails(callsign)
+                    .OrderByDescending(d => d.Received)
+                    .FirstOrDefault();
+
+                if (IsAltitudeRequestDownlink(downlink))
+                    AtopMenu.OpenAltitudeWindow(fdr, e.Track, openedFromCommIcon: true, replyDownlinkMessageId: downlink!.MessageId);
+                else
+                    AtopMenu.OpenClearanceWindow(callsign);
+            }
 
             e.Handled = true;
         }
@@ -163,19 +175,53 @@ public static class LabelItemRenderer
         }
     }
 
+    private static bool IsAltitudeRequestDownlink(AtopDownlinkInfo? downlink)
+    {
+        if (downlink == null || string.IsNullOrWhiteSpace(downlink.Content)) return false;
+
+        var content = downlink.Content.ToUpperInvariant();
+        var altitudeIndicators = new[]
+        {
+            "CLIMB",
+            "DESCEND",
+            "MAINTAIN",
+            "ALTITUDE",
+            "FLIGHT LEVEL",
+            "FL",
+            "BLOCK"
+        };
+
+        var speedIndicators = new[]
+        {
+            "MACH",
+            "KNOT",
+            "SPEED"
+        };
+
+        if (speedIndicators.Any(content.Contains) && !altitudeIndicators.Any(content.Contains))
+            return false;
+
+        return altitudeIndicators.Any(content.Contains);
+    }
+
     private static CustomLabelItem? RenderAdsbCpdlcLabelItem(FDP2.FDR fdr, AtopAircraftDisplayState displayState)
     {
         if (!CpdlcPluginBridge.IsAvailable) return null;
 
         var connState = CpdlcPluginBridge.GetConnectionState(fdr.Callsign);
-        if (connState == CpdlcPluginBridge.CpdlcConnectionState.CurrentDataAuthority)
-            return new CustomLabelItem { Text = displayState.CpdlcAdsbSymbol };
+        if (connState is not (CpdlcPluginBridge.CpdlcConnectionState.CurrentDataAuthority or CpdlcPluginBridge.CpdlcConnectionState.NextDataAuthority))
+            return null;
 
-        return new CustomLabelItem
+        if (connState == CpdlcPluginBridge.CpdlcConnectionState.NextDataAuthority)
         {
-            Text = displayState.CpdlcAdsbSymbol,
-            ForeColourIdentity = Colours.Identities.Custom,
-            CustomForeColour = CustomColors.NotCda
-        };
+            return new CustomLabelItem
+            {
+                Text = displayState.CpdlcAdsbSymbol,
+                ForeColourIdentity = Colours.Identities.Custom,
+                CustomForeColour = CustomColors.NotCda
+            };
+        }
+
+        return new CustomLabelItem { Text = displayState.CpdlcAdsbSymbol };
     }
 }

@@ -22,12 +22,8 @@
     <SolidColorBrush x:Key="AtopGreen" Color="#00C000"/>
     <SolidColorBrush x:Key="AtopSaveHighlight" Color="#A0D0A0"/>
 
-    <!-- Monospace Font -->
-    <FontFamily x:Key="AtopFont">Consolas</FontFamily>
-
     <!-- Motif 3D raised button style -->
     <Style x:Key="MotifButton" TargetType="Button">
-        <Setter Property="FontFamily" Value="{StaticResource AtopFont}"/>
         <Setter Property="FontSize" Value="12"/>
         <Setter Property="Background" Value="{StaticResource AtopButtonFace}"/>
         <Setter Property="Foreground" Value="{StaticResource AtopText}"/>
@@ -66,7 +62,6 @@
 
     <!-- Tab-style button (for category bar) -->
     <Style x:Key="MotifTab" TargetType="ToggleButton">
-        <Setter Property="FontFamily" Value="{StaticResource AtopFont}"/>
         <Setter Property="FontSize" Value="11"/>
         <Setter Property="Background" Value="{StaticResource AtopButtonFace}"/>
         <Setter Property="Foreground" Value="{StaticResource AtopText}"/>
@@ -122,7 +117,6 @@
 
     <!-- Editable field text box -->
     <Style x:Key="AtopTextBox" TargetType="TextBox">
-        <Setter Property="FontFamily" Value="{StaticResource AtopFont}"/>
         <Setter Property="FontSize" Value="12"/>
         <Setter Property="Background" Value="{StaticResource AtopFieldBg}"/>
         <Setter Property="Foreground" Value="{StaticResource AtopFieldText}"/>
@@ -141,7 +135,6 @@
 
     <!-- Monospace label -->
     <Style x:Key="AtopLabel" TargetType="TextBlock">
-        <Setter Property="FontFamily" Value="{StaticResource AtopFont}"/>
         <Setter Property="FontSize" Value="12"/>
         <Setter Property="Foreground" Value="{StaticResource AtopText}"/>
     </Style>

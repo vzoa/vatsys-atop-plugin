@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
+using System.Drawing;
 using System.Linq;
 using System.Reflection;
 using AtopPlugin.Conflict;
+using AtopPlugin.Models;
 using vatsys;
 
 namespace AtopPlugin.Display;
@@ -29,6 +31,13 @@ public static class ConflictSegmentRenderer
 
     // Per-conflict tracking: key = conflict key, value = LATC object in MMI
     private static readonly Dictionary<string, object> _drawnConflicts = new();
+    private static readonly Dictionary<string, ConflictStatus> _drawnConflictStatuses = new();
+
+    // Global LATC colour override (ASD uses StaticTools brush for LATC rendering)
+    private static readonly Color ActualConflictColor = Color.FromArgb(255, 0, 0);
+    private static readonly Color NonActualConflictColor = Color.FromArgb(255, 165, 0);
+    private static Color? _originalLatcColor;
+    private static bool _latcColorOverrideActive;
 
     /// <summary>
     /// Returns a stable key for a conflict pair (order-independent).
@@ -60,6 +69,9 @@ public static class ConflictSegmentRenderer
         if (!_initialized) Initialize();
         if (!_initialized) return false;
 
+        var colourChanged = false;
+        var drawn = false;
+
         lock (_lock)
         {
             var key = GetConflictKey(conflict);
@@ -67,7 +79,9 @@ public static class ConflictSegmentRenderer
             {
                 RemoveLatcFromMmi(_drawnConflicts[key]);
                 _drawnConflicts.Remove(key);
-                return false;
+                _drawnConflictStatuses.Remove(key);
+                colourChanged = ApplyLatcSeverityColorOverride();
+                drawn = false;
             }
             else
             {
@@ -76,10 +90,18 @@ public static class ConflictSegmentRenderer
                 {
                     AddLatcToMmi(latc);
                     _drawnConflicts[key] = latc;
+                    _drawnConflictStatuses[key] = conflict.ConflictStatus;
                 }
-                return true;
+
+                colourChanged = ApplyLatcSeverityColorOverride();
+                drawn = true;
             }
         }
+
+        if (colourChanged)
+            MMI.RequestRedraw(false, true);
+
+        return drawn;
     }
 
     /// <summary>
@@ -89,6 +111,8 @@ public static class ConflictSegmentRenderer
     {
         if (!_initialized) return;
 
+        var colourChanged = false;
+
         lock (_lock)
         {
             var key = GetConflictKey(conflict);
@@ -96,8 +120,13 @@ public static class ConflictSegmentRenderer
             {
                 RemoveLatcFromMmi(latc);
                 _drawnConflicts.Remove(key);
+                _drawnConflictStatuses.Remove(key);
+                colourChanged = ApplyLatcSeverityColorOverride();
             }
         }
+
+        if (colourChanged)
+            MMI.RequestRedraw(false, true);
     }
 
     /// <summary>
@@ -258,17 +287,74 @@ public static class ConflictSegmentRenderer
     /// </summary>
     public static void ClearAll()
     {
+        var colourChanged = false;
+
         lock (_lock)
         {
             foreach (var latc in _drawnConflicts.Values)
                 RemoveLatcFromMmi(latc);
             _drawnConflicts.Clear();
+            _drawnConflictStatuses.Clear();
+            colourChanged = ApplyLatcSeverityColorOverride();
         }
+
+        if (colourChanged)
+            MMI.RequestRedraw(false, true);
     }
 
     public static void Dispose()
     {
         ClearAll();
         _initialized = false;
+    }
+
+    private static bool ApplyLatcSeverityColorOverride()
+    {
+        if (_drawnConflictStatuses.Count == 0)
+        {
+            if (!_latcColorOverrideActive || !_originalLatcColor.HasValue)
+                return false;
+
+            var restored = TrySetColourIdentity(Colours.Identities.StaticTools, _originalLatcColor.Value, captureOriginal: false);
+            if (restored)
+                _latcColorOverrideActive = false;
+            return restored;
+        }
+
+        var hasActual = _drawnConflictStatuses.Values.Any(s => s == ConflictStatus.Actual);
+        var targetColor = hasActual ? ActualConflictColor : NonActualConflictColor;
+
+        var changed = TrySetColourIdentity(Colours.Identities.StaticTools, targetColor, captureOriginal: true);
+        if (changed)
+            _latcColorOverrideActive = true;
+        return changed;
+    }
+
+    private static bool TrySetColourIdentity(Colours.Identities identity, Color color, bool captureOriginal)
+    {
+        try
+        {
+            var coloursType = typeof(Colours);
+            var allColoursField = coloursType.GetField("allColours", BindingFlags.NonPublic | BindingFlags.Static);
+            var updateColourMethod = coloursType.GetMethod("UpdateColour", BindingFlags.NonPublic | BindingFlags.Static);
+
+            if (allColoursField?.GetValue(null) is not System.Collections.IDictionary allColours || updateColourMethod == null)
+                return false;
+
+            if (captureOriginal && !_originalLatcColor.HasValue && allColours.Contains(identity))
+            {
+                if (allColours[identity] is Color original)
+                    _originalLatcColor = original;
+            }
+
+            allColours[identity] = color;
+            updateColourMethod.Invoke(null, new object[] { identity, Colours.ToolBrightness });
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Errors.Add(new Exception($"ConflictSegmentRenderer.TrySetColourIdentity: {ex.Message}"));
+            return false;
+        }
     }
 }

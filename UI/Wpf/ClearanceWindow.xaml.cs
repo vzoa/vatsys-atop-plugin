@@ -5,12 +5,13 @@ using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
+using vatsys;
 
 namespace AtopPlugin.UI.Wpf;
 
 public partial class ClearanceWindow : Window
 {
-    private static readonly FontFamily MonoFont = new("Consolas");
+    private static readonly FontFamily MonoFont = ResolveVatSysFont();
     private static readonly SolidColorBrush ParamLabelBrush = Brushes.Gray;
     private static readonly SolidColorBrush DownlinkBrush =
         new(Color.FromRgb(0xFF, 0x66, 0x00));
@@ -22,9 +23,22 @@ public partial class ClearanceWindow : Window
     private ToggleButton? _selectedShortcutButton;
     private List<ClearanceViewModel.TemplateDisplayItem> _currentTemplates = new();
 
+    private static FontFamily ResolveVatSysFont()
+    {
+        try
+        {
+            var name = MMI.eurofont_xsml?.FontFamily?.Name;
+            if (!string.IsNullOrEmpty(name))
+                return new FontFamily(name);
+        }
+        catch { }
+        return new FontFamily("Consolas");
+    }
+
     public ClearanceWindow()
     {
         InitializeComponent();
+        FontFamily = MonoFont;
         _vm = new ClearanceViewModel();
         _vm.RequestClose += () => Hide();
         _vm.PropertyChanged += Vm_PropertyChanged;
@@ -41,6 +55,7 @@ public partial class ClearanceWindow : Window
         RefreshShortcuts();
         RefreshTemplates();
         RefreshConstruction();
+        RefreshResponse();
 
         var matchTab = CategoryPanel.Children.OfType<ToggleButton>()
             .FirstOrDefault(tb => tb.Content as string == _vm.SelectedCategory);
@@ -81,7 +96,11 @@ public partial class ClearanceWindow : Window
 
     private void CategoryTab_Click(object sender, RoutedEventArgs e)
     {
-        if (sender is ToggleButton tb) SelectCategoryButton(tb);
+        if (sender is ToggleButton tb)
+        {
+            SelectCategoryButton(tb);
+            ShowCategoryDropdown(tb);
+        }
     }
 
     private void SelectCategoryButton(ToggleButton button)
@@ -95,6 +114,77 @@ public partial class ClearanceWindow : Window
 
         RefreshShortcuts();
         RefreshTemplates();
+    }
+
+    // -------------------------------------------------------------------------
+    // Category dropdown menu
+    // -------------------------------------------------------------------------
+    private void ShowCategoryDropdown(ToggleButton button)
+    {
+        var catName = button.Tag as string;
+        if (catName == null) return;
+
+        var grouped = _vm.GetGroupedTemplates(catName);
+        if (grouped.Count == 0) return;
+
+        var menu = new ContextMenu
+        {
+            FontFamily = MonoFont,
+            FontSize = 11
+        };
+
+        foreach (var (groupName, templates) in grouped)
+        {
+            if (grouped.Count == 1)
+            {
+                // Single group — flat list
+                foreach (var tmpl in templates)
+                {
+                    var mi = new MenuItem
+                    {
+                        Header = $"{tmpl.MessageId}  {tmpl.Template.Template}",
+                        Tag = tmpl
+                    };
+                    mi.Click += DropdownMessage_Click;
+                    menu.Items.Add(mi);
+                }
+            }
+            else
+            {
+                // Sub-menu per group
+                var groupItem = new MenuItem
+                {
+                    Header = groupName,
+                    FontWeight = FontWeights.Bold
+                };
+                foreach (var tmpl in templates)
+                {
+                    var mi = new MenuItem
+                    {
+                        Header = $"{tmpl.MessageId}  {tmpl.Template.Template}",
+                        Tag = tmpl,
+                        FontWeight = FontWeights.Normal
+                    };
+                    mi.Click += DropdownMessage_Click;
+                    groupItem.Items.Add(mi);
+                }
+                menu.Items.Add(groupItem);
+            }
+        }
+
+        menu.PlacementTarget = button;
+        menu.Placement = PlacementMode.Bottom;
+        menu.IsOpen = true;
+    }
+
+    private void DropdownMessage_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is MenuItem mi && mi.Tag is ClearanceViewModel.TemplateDisplayItem tmpl)
+        {
+            _vm.AddTemplateToConstruction(tmpl);
+            RefreshConstruction();
+            RefreshResponse();
+        }
     }
 
     // -------------------------------------------------------------------------
@@ -235,20 +325,34 @@ public partial class ClearanceWindow : Window
             }
         }
 
-        // EOS marker (boxed)
-        sp.Children.Add(new Border
+        // EOS button (clickable — adds template to construction per spec)
+        var eosIndex = index;
+        var eosButton = new Border
         {
             BorderThickness = new Thickness(1),
             BorderBrush = Brushes.Black,
+            Background = Brushes.LightGray,
             Margin = new Thickness(4, 0, 0, 0),
             Padding = new Thickness(3, 0, 3, 0),
             VerticalAlignment = VerticalAlignment.Center,
+            Cursor = Cursors.Hand,
             Child = new TextBlock
             {
                 Text = "EOS",
                 FontFamily = MonoFont, FontSize = 10
             }
-        });
+        };
+        eosButton.MouseLeftButtonDown += (_, e) =>
+        {
+            e.Handled = true;
+            if (eosIndex < _currentTemplates.Count)
+            {
+                _vm.AddTemplateToConstruction(_currentTemplates[eosIndex]);
+                RefreshConstruction();
+                RefreshResponse();
+            }
+        };
+        sp.Children.Add(eosButton);
 
         row.Child = sp;
         row.MouseLeftButtonDown += TemplateRow_Click;
@@ -412,6 +516,35 @@ public partial class ClearanceWindow : Window
     }
 
     // -------------------------------------------------------------------------
+    // Response / feedback display area
+    // -------------------------------------------------------------------------
+    private void RefreshResponse()
+    {
+        if (string.IsNullOrEmpty(_vm.ResponseText))
+        {
+            ResponsePanel.Visibility = Visibility.Collapsed;
+        }
+        else
+        {
+            ResponsePanel.Visibility = Visibility.Visible;
+            ResponseText.Text = _vm.ResponseText;
+
+            // Color code: green for ATOP no-conflict response, red for conflict, default for info
+            if (_vm.ResponseText == "No Procedural Conflicts Found")
+                ResponseText.Foreground = new SolidColorBrush(Color.FromRgb(0x00, 0x80, 0x00));
+            else if (_vm.ConflictDetected)
+                ResponseText.Foreground = new SolidColorBrush(Color.FromRgb(0xCC, 0x00, 0x00));
+            else
+                ResponseText.Foreground = Brushes.Black;
+        }
+
+        // Enable/disable OVRD button based on state
+        OvrdButton.IsEnabled = _vm.ConflictDetected && !_vm.OverrideActive;
+        // Enable/disable PRB button
+        PrbButton.IsEnabled = _vm.ConstructionLines.Count > 0 && !_vm.IsProbed;
+    }
+
+    // -------------------------------------------------------------------------
     // ViewModel property change handler
     // -------------------------------------------------------------------------
     private void Vm_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
@@ -430,6 +563,12 @@ public partial class ClearanceWindow : Window
             case nameof(ClearanceViewModel.VisibleTemplates):
                 RefreshTemplates();
                 break;
+            case nameof(ClearanceViewModel.ResponseText):
+            case nameof(ClearanceViewModel.ConflictDetected):
+            case nameof(ClearanceViewModel.OverrideActive):
+            case nameof(ClearanceViewModel.IsProbed):
+                RefreshResponse();
+                break;
         }
     }
 
@@ -440,25 +579,36 @@ public partial class ClearanceWindow : Window
     {
         _vm.SendCommand.Execute(null);
         RefreshConstruction();
+        RefreshResponse();
     }
 
     private void Cancel_Click(object sender, RoutedEventArgs e)
     {
         _vm.CancelCommand.Execute(null);
         RefreshConstruction();
+        RefreshResponse();
+    }
+
+    private void Probe_Click(object sender, RoutedEventArgs e)
+    {
+        _vm.ProbeCommand.Execute(null);
+        RefreshResponse();
     }
 
     private void Unable_Click(object sender, RoutedEventArgs e)
     {
         _vm.UnableCommand.Execute(null);
+        RefreshConstruction();
+        RefreshResponse();
     }
 
     private void Insert_Click(object sender, RoutedEventArgs e)
     {
         if (_vm.SelectedTemplateIndex >= 0 && _vm.SelectedTemplateIndex < _currentTemplates.Count)
         {
-            _vm.AddTemplateToConstruction(_currentTemplates[_vm.SelectedTemplateIndex]);
+            _vm.InsertTemplateAtSelection(_currentTemplates[_vm.SelectedTemplateIndex]);
             RefreshConstruction();
+            RefreshResponse();
         }
     }
 
@@ -466,6 +616,27 @@ public partial class ClearanceWindow : Window
     {
         _vm.DeleteConstructionLineCommand.Execute(null);
         RefreshConstruction();
+        RefreshResponse();
+    }
+
+    private void Ovrd_Click(object sender, RoutedEventArgs e)
+    {
+        _vm.OverrideCommand.Execute(null);
+        RefreshResponse();
+    }
+
+    private void Coord_Click(object sender, RoutedEventArgs e)
+    {
+        // Per spec: COORD opens the Coordination window pre-filled for this ACID.
+        // vatSys doesn't expose a public coord window API — open the FP window as fallback.
+        try
+        {
+            var fdr = vatsys.FDP2.GetFDRs.FirstOrDefault(f =>
+                string.Equals(f.Callsign, _vm.Callsign, System.StringComparison.OrdinalIgnoreCase));
+            if (fdr != null)
+                MMI.OpenFPWindow(fdr);
+        }
+        catch { }
     }
 
     private void Close_Click(object sender, RoutedEventArgs e) => Hide();

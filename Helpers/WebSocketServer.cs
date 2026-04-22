@@ -25,6 +25,9 @@ namespace AtopPlugin.Helpers
         // Event for conflict results received from webapp
         public event Action<List<WebAppConflictResult>> ConflictResultsReceived;
 
+        // Event for virtual probe results (clearance probing without creating real FDRs)
+        public event Action<string, List<WebAppConflictResult>> ProbeVirtualResultsReceived;
+
         // Reflection cache for Network methods
         private static readonly Type NetworkType = typeof(Network);
         private static readonly FieldInfo NetworkInstanceField = NetworkType.GetField("Instance", BindingFlags.NonPublic | BindingFlags.Static);
@@ -142,6 +145,10 @@ namespace AtopPlugin.Helpers
                 {
                     HandleConflictResults(request);
                 }
+                else if (request?.Type == "ProbeVirtualResults")
+                {
+                    HandleProbeVirtualResults(request);
+                }
                 else if (request?.Type == "RequestInhibitionAreas")
                 {
                     await BroadcastInhibitionAreasAsync();
@@ -176,6 +183,33 @@ namespace AtopPlugin.Helpers
             }).ToList();
             
             ConflictResultsReceived?.Invoke(conflicts);
+        }
+
+        private void HandleProbeVirtualResults(WebSocketRequest request)
+        {
+            var callsign = request.Callsign;
+            if (string.IsNullOrEmpty(callsign)) return;
+
+            var conflicts = (request.Conflicts ?? new List<WebAppConflictResult>())
+                .Select(c => new WebAppConflictResult
+                {
+                    IntruderCallsign = c.IntruderCallsign,
+                    ActiveCallsign = c.ActiveCallsign,
+                    Status = c.Status,
+                    ConflictType = c.ConflictType,
+                    EarliestLos = c.EarliestLos,
+                    LatestLos = c.LatestLos,
+                    LateralSep = c.LateralSep,
+                    VerticalSep = c.VerticalSep,
+                    VerticalAct = c.VerticalAct,
+                    TrkAngle = c.TrkAngle,
+                    StartLat = c.StartLat,
+                    StartLon = c.StartLon,
+                    EndLat = c.EndLat,
+                    EndLon = c.EndLon
+                }).ToList();
+
+            ProbeVirtualResultsReceived?.Invoke(callsign, conflicts);
         }
 
         private async Task HandleFdrUpdate(WebSocketRequest request)
@@ -472,6 +506,47 @@ namespace AtopPlugin.Helpers
             {
                 Type = "ProbeRequest",
                 Callsign = callsign,
+                Timestamp = DateTime.UtcNow
+            };
+
+            await BroadcastAsync(data);
+        }
+
+        /// <summary>
+        /// Sends a virtual FDR probe request to the conflict worker via the webapp.
+        /// The worker temporarily replaces the real FDR with the proposed changes,
+        /// runs conflict detection, returns results, and restores the original.
+        /// No real FDR is created in vatSys — no visible artifacts.
+        /// </summary>
+        public async Task ProbeVirtualFDRAsync(FDP2.FDR fdr, int proposedCflFl)
+        {
+            if (_connectedClients.Count == 0) return;
+
+            var calcData = FlightDataCalculator.GetCalculatedFlightData(fdr);
+
+            var data = new
+            {
+                Type = "ProbeVirtualFDR",
+                Callsign = fdr.Callsign,
+                VirtualFDR = new
+                {
+                    State = fdr.State.ToString().Replace("STATE_", ""),
+                    CFL = proposedCflFl,
+                    RFL = fdr.RFL / 100,
+                    Route = fdr.Route,
+                    RouteWaypoints = GetRouteWaypoints(fdr),
+                    ATD = fdr.ATD != DateTime.MaxValue ? fdr.ATD.ToString("o") : (string)null,
+                    DepAirport = fdr.DepAirport,
+                    DesAirport = fdr.DesAirport,
+                    AircraftType = fdr.AircraftType,
+                    GroundSpeed = fdr.PredictedPosition?.Groundspeed,
+                    TAS = fdr.TAS,
+                    rnp4 = calcData.Rnp4,
+                    rnp10 = calcData.Rnp10,
+                    hasDatalink = calcData.Cpdlc,
+                    rvsmApproved = fdr.RVSM,
+                    isJet = fdr.PerformanceData?.IsJet ?? false
+                },
                 Timestamp = DateTime.UtcNow
             };
 

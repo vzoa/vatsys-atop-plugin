@@ -9,7 +9,6 @@
         AllowsTransparency="False"
         ResizeMode="CanResizeWithGrip"
         Background="#C0C0C0"
-        FontFamily="Consolas"
         FontSize="12">
 
     <Window.Resources>
@@ -20,6 +19,7 @@
         </ResourceDictionary>
     </Window.Resources>
 
+    <Border BorderBrush="#5F9EA0" BorderThickness="5">
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="28"/>    <!-- Row 0: Title bar -->
@@ -28,8 +28,9 @@
             <RowDefinition Height="28"/>    <!-- Row 3: Sub-category tabs -->
             <RowDefinition Height="*"/>     <!-- Row 4: Template list (with inline fields + EOS) -->
             <RowDefinition Height="Auto"/>  <!-- Row 5: Construction area + INS/DEL -->
-            <RowDefinition Height="Auto"/>  <!-- Row 6: Downlink display -->
-            <RowDefinition Height="36"/>    <!-- Row 7: Action buttons -->
+            <RowDefinition Height="Auto"/>  <!-- Row 6: Response/feedback display -->
+            <RowDefinition Height="Auto"/>  <!-- Row 7: Downlink display -->
+            <RowDefinition Height="36"/>    <!-- Row 8: Action buttons -->
         </Grid.RowDefinitions>
 
         <!-- Row 0: Title bar -->
@@ -115,8 +116,21 @@
             </Grid>
         </Border>
 
-        <!-- Row 6: Downlink request display (at bottom per spec) -->
-        <Border x:Name="DownlinkPanel" Grid.Row="6"
+        <!-- Row 6: Response / feedback display area -->
+        <Border x:Name="ResponsePanel" Grid.Row="6"
+                Style="{StaticResource SunkenBorder}"
+                Margin="4,0,4,2" Padding="4,2"
+                MinHeight="24" MaxHeight="60"
+                Visibility="Collapsed">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <TextBlock x:Name="ResponseText"
+                           TextWrapping="Wrap"
+                           Foreground="#CC0000"/>
+            </ScrollViewer>
+        </Border>
+
+        <!-- Row 7: Downlink request display (at bottom per spec) -->
+        <Border x:Name="DownlinkPanel" Grid.Row="7"
                 Style="{StaticResource SunkenBorder}"
                 Margin="4,0,4,2" Padding="4,2"
                 MaxHeight="60"
@@ -126,10 +140,10 @@
             </ScrollViewer>
         </Border>
 
-        <!-- Row 7: Action buttons — labels per spec Figure 9-1 -->
-        <Border Grid.Row="7" Margin="4,0,4,4">
+        <!-- Row 8: Action buttons — labels per spec Figure 9-1 -->
+        <Border Grid.Row="8" Margin="4,0,4,4">
             <UniformGrid Rows="1" VerticalAlignment="Center">
-                <Button Content="PRB"   Style="{StaticResource MotifActionButton}" IsEnabled="False"/>
+                <Button x:Name="PrbButton" Content="PRB"   Style="{StaticResource MotifActionButton}" Click="Probe_Click"/>
                 <Button Content="CAN"   Style="{StaticResource MotifActionButton}" Click="Cancel_Click"/>
                 <Button Content="TPRB"  Style="{StaticResource MotifActionButton}" IsEnabled="False"/>
                 <Button Content="SND"   Style="{StaticResource MotifActionButton}" Click="Send_Click"/>
@@ -137,8 +151,8 @@
                 <Button Content="VHF"   Style="{StaticResource MotifActionButton}" IsEnabled="False"/>
                 <Button Content="SAVE"  Style="{StaticResource MotifActionButton}" IsEnabled="False"/>
                 <Button Content="EALT"  Style="{StaticResource MotifActionButton}" IsEnabled="False"/>
-                <Button Content="OVRD"  Style="{StaticResource MotifActionButton}" IsEnabled="False"/>
-                <Button Content="COORD" Style="{StaticResource MotifActionButton}" IsEnabled="False"/>
+                <Button x:Name="OvrdButton" Content="OVRD"  Style="{StaticResource MotifActionButton}" IsEnabled="False" Click="Ovrd_Click"/>
+                <Button Content="COORD" Style="{StaticResource MotifActionButton}" Click="Coord_Click"/>
                 <Button Content="ACPT"  Style="{StaticResource MotifActionButton}" IsEnabled="False"/>
                 <Button Content="REJ"   Style="{StaticResource MotifActionButton}" IsEnabled="False"/>
                 <Button Content="HLP"   Style="{StaticResource MotifActionButton}" IsEnabled="False"/>
@@ -146,4 +160,5 @@
             </UniformGrid>
         </Border>
     </Grid>
+    </Border>
 </Window>

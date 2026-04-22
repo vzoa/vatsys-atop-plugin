@@ -53,6 +53,12 @@ self.onmessage = function(e) {
             const conflicts = probeAllConflicts();
             self.postMessage({ type: 'conflictResults', data: conflicts });
             break;
+        case 'probeVirtualFDR':
+            // Probe with a temporary modified FDR without persisting it.
+            // 'data' has { originalCallsign, virtualFDR } where virtualFDR
+            // is the same shape as a normal FDR but with proposed changes (e.g. CFL).
+            probeVirtualFDR(data);
+            break;
         case 'setConfig':
             Object.assign(CONFIG, data);
             console.log('[ConflictWorker] Config updated:', CONFIG);
@@ -823,6 +829,53 @@ function determineConflictType(trackAngle) {
     
     // Crossing direction: 45° ≤ |θ| ≤ 135°
     return 'Crossing';
+}
+
+/**
+ * Probe with a temporary virtual FDR. Temporarily replaces the original
+ * callsign's data in the store, runs the full conflict probe, then
+ * restores the original data. Returns results tagged as 'probeVirtualResults'.
+ */
+function probeVirtualFDR(data) {
+    const { originalCallsign, virtualFDR } = data;
+    console.log(`[ConflictWorker] probeVirtualFDR for ${originalCallsign} | proposed CFL=${virtualFDR.cfl}`);
+
+    // Save the original FDR so we can restore it
+    const originalFdr = fdrs.get(originalCallsign);
+
+    // Temporarily inject the virtual FDR under the same callsign
+    const parsed = parseRoute(virtualFDR.route, virtualFDR.routeWaypoints);
+    fdrs.set(originalCallsign, {
+        ...virtualFDR,
+        callsign: originalCallsign,
+        parsedRoute: parsed,
+        updatedAt: Date.now()
+    });
+
+    // Run full conflict detection
+    const results = probeAllConflicts();
+
+    // Filter to only conflicts involving this callsign
+    const relevant = (results.all || []).filter(
+        c => c.intruderCallsign === originalCallsign || c.activeCallsign === originalCallsign
+    );
+
+    // Restore the original FDR (or remove if it didn't exist)
+    if (originalFdr) {
+        fdrs.set(originalCallsign, originalFdr);
+    } else {
+        fdrs.delete(originalCallsign);
+    }
+
+    console.log(`[ConflictWorker] probeVirtualFDR done: ${relevant.length} conflict(s) for ${originalCallsign}`);
+
+    self.postMessage({
+        type: 'probeVirtualResults',
+        data: {
+            callsign: originalCallsign,
+            conflicts: groupConflicts(relevant)
+        }
+    });
 }
 
 function groupConflicts(conflicts) {

@@ -78,6 +78,7 @@ public static class StripConstants
     public const string StripItemMntFlag = "AURORA_MNT_FLAG";
     public const string StripItemDistFlag = "AURORA_DIST_FLAG";
     public const string StripItemRvsmFlag = "AURORA_RVSM_FLAG";
+    public const string StripItemLevel = "AURORA_STRIP_LEVEL";
     public const string StripItemVmi = "AURORA_STRIP_VMI";
     public const string StripItemComplex = "AURORA_STRIP_COMPLEX";
     public const string StripItemClearedLevel = "AURORA_CLEARED_LEVEL";

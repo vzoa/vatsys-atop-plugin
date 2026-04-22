@@ -1,4 +1,5 @@
 using System;
+using AtopPlugin.Display;
 using vatsys;
 
 namespace AtopPlugin.State;
@@ -9,6 +10,8 @@ public static class DisconnectHandler
     {
         try
         {
+            ProbeRouteRenderer.ClearAll();
+            DynamicSectorBoundaryRenderer.Reset();
             AtopPluginStateManager.Reset();
         }
         catch (Exception ex)

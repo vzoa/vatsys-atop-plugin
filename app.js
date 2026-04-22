@@ -238,6 +238,10 @@ function connectWebSocket() {
                     // C# plugin requests a conflict probe
                     handleProbeRequest(data);
                     break;
+                case 'ProbeVirtualFDR':
+                    // C# plugin requests a virtual FDR probe (no real FDR created)
+                    handleProbeVirtualFDR(data);
+                    break;
                 case 'InhibitionAreas':
                     handleInhibitionAreas(data);
                     break;
@@ -575,6 +579,9 @@ function initConflictWorker() {
                 case 'conflictResults':
                     handleWorkerConflictResults(data);
                     break;
+                case 'probeVirtualResults':
+                    handleProbeVirtualResults(data);
+                    break;
             }
         };
         
@@ -806,6 +813,73 @@ function handleFDRRemove(data) {
 function requestConflictProbe() {
     if (conflictWorker) {
         conflictWorker.postMessage({ type: 'requestProbe' });
+    }
+}
+
+// Handle virtual FDR probe request from C# plugin
+function handleProbeVirtualFDR(data) {
+    if (!conflictWorker) {
+        console.warn('[ProbeVirtualFDR] No conflict worker available!');
+        return;
+    }
+
+    console.log(`[ProbeVirtualFDR] Probing virtual FDR for ${data.Callsign} with CFL=${data.VirtualFDR?.CFL}`);
+
+    conflictWorker.postMessage({
+        type: 'probeVirtualFDR',
+        data: {
+            originalCallsign: data.Callsign,
+            virtualFDR: {
+                callsign: data.Callsign,
+                state: data.VirtualFDR.State,
+                cfl: data.VirtualFDR.CFL,
+                rfl: data.VirtualFDR.RFL,
+                route: data.VirtualFDR.Route,
+                routeWaypoints: data.VirtualFDR.RouteWaypoints || [],
+                atd: data.VirtualFDR.ATD,
+                depAirport: data.VirtualFDR.DepAirport,
+                desAirport: data.VirtualFDR.DesAirport,
+                aircraftType: data.VirtualFDR.AircraftType,
+                groundSpeed: data.VirtualFDR.GroundSpeed,
+                tas: data.VirtualFDR.TAS,
+                rnp4: data.VirtualFDR.rnp4,
+                rnp10: data.VirtualFDR.rnp10,
+                hasDatalink: data.VirtualFDR.hasDatalink,
+                rvsmApproved: data.VirtualFDR.rvsmApproved,
+                isJet: data.VirtualFDR.isJet
+            }
+        }
+    });
+}
+
+// Handle virtual probe results from worker — relay back to C# plugin
+function handleProbeVirtualResults(data) {
+    console.log(`[ProbeVirtualResults] ${data.callsign}: ${data.conflicts.all?.length || 0} conflict(s)`);
+
+    if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({
+            Type: 'ProbeVirtualResults',
+            Callsign: data.callsign,
+            Conflicts: (data.conflicts.all || []).map(c => ({
+                IntruderCallsign: c.intruderCallsign,
+                ActiveCallsign: c.activeCallsign,
+                Status: c.status,
+                ConflictType: c.conflictType,
+                EarliestLos: c.earliestLos,
+                LatestLos: c.latestLos,
+                LateralSep: c.latSep,
+                VerticalSep: c.verticalSep,
+                VerticalAct: c.verticalAct,
+                TrkAngle: c.trkAngle,
+                StartLat: c.startLat,
+                StartLon: c.startLon,
+                EndLat: c.endLat,
+                EndLon: c.endLon
+            })),
+            ActualCount: data.conflicts.actual?.length || 0,
+            ImminentCount: data.conflicts.imminent?.length || 0,
+            AdvisoryCount: data.conflicts.advisory?.length || 0
+        }));
     }
 }
 

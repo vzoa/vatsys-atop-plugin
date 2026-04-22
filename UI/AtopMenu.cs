@@ -139,4 +139,24 @@ public static class AtopMenu
             }
         });
     }
+
+    public static void OpenAltitudeWindow(FDP2.FDR fdr, Track track, bool openedFromCommIcon = false,
+        int? replyDownlinkMessageId = null)
+    {
+        if (fdr == null || track == null) return;
+
+        MMI.InvokeOnGUI(() =>
+        {
+            try
+            {
+                var window = AltitudeWindow.GetInstance(fdr, track, openedFromCommIcon, replyDownlinkMessageId);
+                window.Show();
+                window.Activate();
+            }
+            catch (Exception ex)
+            {
+                Errors.Add(new Exception($"AtopMenu.OpenAltitudeWindow: {ex.Message}", ex));
+            }
+        });
+    }
 }

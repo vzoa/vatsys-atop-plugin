@@ -666,6 +666,7 @@ public static class CpdlcPluginBridge
                         MessageId = (int?)_downlinkMessageIdProp?.GetValue(msg) ?? 0,
                         Content = _downlinkContentProp?.GetValue(msg) as string ?? "",
                         Received = _downlinkReceivedProp?.GetValue(msg) is DateTimeOffset dto ? dto : DateTimeOffset.MinValue,
+                        ResponseType = _downlinkResponseTypeProp?.GetValue(msg) is object rt ? (int?)Convert.ToInt32(rt) : null,
                         IsClosed = msgClosed,
                         IsAcknowledged = msgAcked
                     });
@@ -678,6 +679,69 @@ public static class CpdlcPluginBridge
         }
 
         return results;
+    }
+
+    /// <summary>
+    /// Returns true if the CPDLC plugin has a WILCO downlink response for a callsign
+    /// received at or after the given UTC timestamp.
+    /// </summary>
+    public static bool HasWilcoReadbackSince(string callsign, DateTimeOffset sinceUtc)
+    {
+        if (!IsAvailable || string.IsNullOrWhiteSpace(callsign)) return false;
+
+        try
+        {
+            var sp = _serviceProviderProp?.GetValue(_cpdlcPlugin) as IServiceProvider;
+            if (sp == null || _dialogueStoreType == null || _dialogueAllMethod == null || _downlinkMessageType == null)
+                return false;
+
+            var dialogueStore = sp.GetService(_dialogueStoreType);
+            if (dialogueStore == null) return false;
+
+            var task = _dialogueAllMethod.Invoke(dialogueStore, new object[] { CancellationToken.None });
+            var awaiter = task!.GetType().GetMethod("GetAwaiter")!.Invoke(task, null);
+            var dialogues = awaiter!.GetType().GetMethod("GetResult")!.Invoke(awaiter, null) as Array;
+            if (dialogues == null) return false;
+
+            foreach (var dialogue in dialogues)
+            {
+                var dlgCallsign = _dialogueCallsignProp?.GetValue(dialogue) as string;
+                if (!string.Equals(dlgCallsign, callsign, StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                var messages = _dialogueMessagesProp?.GetValue(dialogue) as IEnumerable;
+                if (messages == null) continue;
+
+                foreach (var msg in messages)
+                {
+                    if (!_downlinkMessageType.IsInstanceOfType(msg))
+                        continue;
+
+                    var received = _downlinkReceivedProp?.GetValue(msg) is DateTimeOffset dto
+                        ? dto
+                        : DateTimeOffset.MinValue;
+                    if (received < sinceUtc)
+                        continue;
+
+                    var response = _downlinkResponseTypeProp?.GetValue(msg);
+                    if (response == null)
+                        continue;
+
+                    var responseName = response.ToString();
+                    if (!string.IsNullOrEmpty(responseName)
+                        && responseName.IndexOf("WILCO", StringComparison.OrdinalIgnoreCase) >= 0)
+                    {
+                        return true;
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Errors.Add(new Exception($"CpdlcPluginBridge.HasWilcoReadbackSince: {ex.Message}", ex));
+        }
+
+        return false;
     }
 
     /// <summary>

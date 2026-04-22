@@ -23,6 +23,7 @@ public class AtopPlugin : ILabelPlugin, IStripPlugin
         LocalWebServer.Start(); // Serve webapp and auto-open browser
         ConflictSegmentRenderer.Initialize(); // Initialize conflict segment rendering
         LabelDragOverrideHandler.Initialize(); // Allow unclamped label leader lengths
+        DynamicSectorBoundaryRenderer.Initialize(); // Keep OSEC boundaries aligned to controlled sector volumes
     }
 
     public string Name => "ATOP Plugin";
@@ -59,6 +60,8 @@ public class AtopPlugin : ILabelPlugin, IStripPlugin
     {
         try
         {
+            ProbeRouteRenderer.EvaluateCpdlcReadback(updated.Callsign);
+
             _ = AtopPluginStateManager.ProcessFdrUpdate(updated);
             _ = AtopPluginStateManager.ProcessDisplayUpdate(updated);
 
