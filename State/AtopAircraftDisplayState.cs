@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Linq;
 using AtopPlugin.Conflict;
+using AtopPlugin.Helpers;
 using AtopPlugin.Logic;
 using AtopPlugin.Models;
 using vatsys;
@@ -85,9 +86,13 @@ public class AtopAircraftDisplayState
 
     private static string GetAdsFlag(AtopAircraftState atopAircraftState)
     {
+        if (!HasActiveDatalinkConnection(atopAircraftState))
+            return Symbols.Empty;
+
         return atopAircraftState.CalculatedFlightData switch
         {
             { Adsc: true, Cpdlc: true, Rnp4: true } => Symbols.D30,
+            { Adsc: true, Cpdlc: true, Rnp20: true } => Symbols.D20,
             { Adsc: true, Cpdlc: true, Rnp10: true } => Symbols.D50,
             _ => Symbols.Empty
         };
@@ -95,12 +100,34 @@ public class AtopAircraftDisplayState
 
     private static string GetLateralFlag(AtopAircraftState atopAircraftState)
     {
+        if (!HasActiveDatalinkConnection(atopAircraftState))
+            return Symbols.Empty;
+
         return atopAircraftState.CalculatedFlightData switch
         {
             { Adsc: true, Cpdlc: true, Rnp4: true } => Symbols.L23,
             { Adsc: true, Cpdlc: true, Rnp10: true } => Symbols.L50,
             _ => Symbols.Empty
         };
+    }
+
+    private static bool HasActiveDatalinkConnection(AtopAircraftState atopAircraftState)
+    {
+        var fdr = atopAircraftState.Fdr;
+        var calculated = atopAircraftState.CalculatedFlightData;
+
+        if (!calculated.Adsc || !calculated.Cpdlc)
+            return false;
+
+        if (!fdr.IsConnected())
+            return false;
+
+        if (!CpdlcPluginBridge.IsAvailable)
+            return false;
+
+        var state = CpdlcPluginBridge.GetConnectionState(fdr.Callsign);
+        return state is CpdlcPluginBridge.CpdlcConnectionState.CurrentDataAuthority
+            or CpdlcPluginBridge.CpdlcConnectionState.NextDataAuthority;
     }
 
     private static bool GetRestrictionsIndicatorToggled(AtopAircraftState atopAircraftState)

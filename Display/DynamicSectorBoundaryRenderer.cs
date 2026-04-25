@@ -98,10 +98,14 @@ public static class DynamicSectorBoundaryRenderer
 
     private static List<DisplayMaps.Map.Line> BuildBoundaryLines()
     {
-        var distinctBoundaries = new Dictionary<string, List<Coordinate>>();
+        var lines = new List<DisplayMaps.Map.Line>();
 
+        // Build the exterior outline for each sector independently so that OC1, OC2, OC4, etc.
+        // each get their own outer boundary rather than being merged into one combined union.
         foreach (var sector in MMI.SectorsControlled.OrderBy(s => s.Name))
         {
+            var distinctBoundaries = new Dictionary<string, List<Coordinate>>();
+
             foreach (var volume in sector.Volumes
                          .Where(v => v != null)
                          .OrderBy(v => v.LowerLevel)
@@ -114,55 +118,58 @@ public static class DynamicSectorBoundaryRenderer
                 if (!distinctBoundaries.ContainsKey(key))
                     distinctBoundaries.Add(key, boundary);
             }
-        }
 
-        var edgeCounts = new Dictionary<string, EdgeData>(StringComparer.Ordinal);
-        foreach (var boundary in distinctBoundaries.Values)
-        {
-            for (var index = 0; index < boundary.Count; index++)
+            if (distinctBoundaries.Count == 0) continue;
+
+            // Edges shared between two volumes of the same sector cancel out;
+            // only the exterior (count == 1) edges remain.
+            var edgeCounts = new Dictionary<string, EdgeData>(StringComparer.Ordinal);
+            foreach (var boundary in distinctBoundaries.Values)
             {
-                var start = boundary[index];
-                var end = boundary[(index + 1) % boundary.Count];
-                var startKey = GetPointKey(start);
-                var endKey = GetPointKey(end);
-
-                if (startKey == endKey) continue;
-
-                var edgeKey = GetEdgeKey(startKey, endKey);
-                if (edgeCounts.TryGetValue(edgeKey, out var edge))
+                for (var index = 0; index < boundary.Count; index++)
                 {
-                    edge.Count++;
-                }
-                else
-                {
-                    edgeCounts.Add(edgeKey, new EdgeData(startKey, endKey, start, end));
+                    var start = boundary[index];
+                    var end = boundary[(index + 1) % boundary.Count];
+                    var startKey = GetPointKey(start);
+                    var endKey = GetPointKey(end);
+
+                    if (startKey == endKey) continue;
+
+                    var edgeKey = GetEdgeKey(startKey, endKey);
+                    if (edgeCounts.TryGetValue(edgeKey, out var edge))
+                    {
+                        edge.Count++;
+                    }
+                    else
+                    {
+                        edgeCounts.Add(edgeKey, new EdgeData(startKey, endKey, start, end));
+                    }
                 }
             }
-        }
 
-        var remainingEdges = edgeCounts.Values.Where(edge => edge.Count == 1).ToList();
-        if (remainingEdges.Count == 0) return new List<DisplayMaps.Map.Line>();
+            var remainingEdges = edgeCounts.Values.Where(edge => edge.Count == 1).ToList();
+            if (remainingEdges.Count == 0) continue;
 
-        var adjacency = new Dictionary<string, List<EdgeData>>(StringComparer.Ordinal);
-        foreach (var edge in remainingEdges)
-        {
-            AddAdjacency(adjacency, edge.StartKey, edge);
-            AddAdjacency(adjacency, edge.EndKey, edge);
-        }
-
-        var lines = new List<DisplayMaps.Map.Line>();
-        foreach (var loop in BuildLoops(remainingEdges, adjacency))
-        {
-            var line = new DisplayMaps.Map.Line
+            var adjacency = new Dictionary<string, List<EdgeData>>(StringComparer.Ordinal);
+            foreach (var edge in remainingEdges)
             {
-                Name = "OSEC",
-                Pattern = DisplayMaps.Map.Patterns.Solid,
-                Width = 1f
-            };
+                AddAdjacency(adjacency, edge.StartKey, edge);
+                AddAdjacency(adjacency, edge.EndKey, edge);
+            }
 
-            AddBoundary(line, loop);
-            if (line.Points.Count > 1)
-                lines.Add(line);
+            foreach (var loop in BuildLoops(remainingEdges, adjacency))
+            {
+                var line = new DisplayMaps.Map.Line
+                {
+                    Name = "OSEC",
+                    Pattern = DisplayMaps.Map.Patterns.Solid,
+                    Width = 1f
+                };
+
+                AddBoundary(line, loop);
+                if (line.Points.Count > 1)
+                    lines.Add(line);
+            }
         }
 
         return lines;

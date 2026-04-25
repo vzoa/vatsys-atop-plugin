@@ -16,7 +16,9 @@ public static class LabelItemRenderer
         RDP.RadarTrack _)
     {
         var renderedItem = RenderLabelItemDelegate(itemType, track, fdr);
-        return renderedItem != null ? ExcludeConflictColor(fdr!, track, renderedItem) : null;
+        if (renderedItem == null) return null;
+        if (fdr == null) return renderedItem;
+        return ExcludeConflictColor(fdr, track, renderedItem);
     }
 
     private static CustomLabelItem ExcludeConflictColor(FDP2.FDR fdr, Track track, CustomLabelItem customLabelItem)
@@ -32,6 +34,11 @@ public static class LabelItemRenderer
 
     private static CustomLabelItem? RenderLabelItemDelegate(string itemType, Track track, FDP2.FDR? fdr)
     {
+        // Legacy item-based selection border workaround is disabled.
+        // Selected label boxing is handled via SelectedLabelBoxBridge and vatSys native label box rendering.
+        if (itemType == LabelConstants.LabelItemSelectHori || itemType == LabelConstants.LabelItemSelectVert)
+            return null;
+
         if (fdr?.GetAtopState() == null || fdr.GetDisplayState() == null) return null;
 
         var atopState = fdr.GetAtopState()!;
@@ -39,13 +46,8 @@ public static class LabelItemRenderer
 
         return itemType switch
         {
-            LabelConstants.LabelItemSelectHori => track.IsSelected()
-                ? new CustomLabelItem { Text = Symbols.Empty, Border = BorderFlags.Top | BorderFlags.Bottom }
-                : null,
-
-            LabelConstants.LabelItemSelectVert => track.IsSelected()
-                ? new CustomLabelItem { Text = Symbols.Empty, Border = BorderFlags.Left | BorderFlags.Right }
-                : null,
+            LabelConstants.LabelItemSelectHori => null,
+            LabelConstants.LabelItemSelectVert => null,
 
             LabelConstants.LabelItemCommIcon => atopState.DownlinkIndicator || CpdlcPluginBridge.HasOpenDownlinks(fdr.Callsign)
                 ? new CustomLabelItem { Text = Symbols.CommDownlink, Border = BorderFlags.All, OnMouseClick = HandleCommIconClick }
@@ -53,17 +55,22 @@ public static class LabelItemRenderer
 
             LabelConstants.LabelItemAdsbCpdlc => RenderAdsbCpdlcLabelItem(fdr, displayState),
 
-            LabelConstants.LabelItemAdsFlags => new CustomLabelItem { Text = displayState.AdsFlag },
+            LabelConstants.LabelItemAdsFlags => new CustomLabelItem
+            {
+                Text = displayState.AdsFlag,
+                OnMouseClick = ConsumeClick
+            },
 
             LabelConstants.LabelItemMntFlags => displayState.IsMntFlagToggled
-                ? new CustomLabelItem { Text = Symbols.MntFlag }
+                ? new CustomLabelItem { Text = Symbols.MntFlag, OnMouseClick = ConsumeClick }
                 : null,
 
             LabelConstants.LabelItemScc => atopState.HighestSccFlag != null
                 ? new CustomLabelItem
                 {
                     Text = atopState.HighestSccFlag!.Value, ForeColourIdentity = Colours.Identities.Custom,
-                    CustomForeColour = CustomColors.SpecialConditionCode
+                    CustomForeColour = CustomColors.SpecialConditionCode,
+                    OnMouseClick = ConsumeClick
                 }
                 : null,
 
@@ -134,14 +141,14 @@ public static class LabelItemRenderer
                 : new CustomLabelItem { Text = Symbols.UntoggledFlag, OnMouseClick = RadarFlagToggleHandler.Handle },
 
             LabelConstants.LabelItemInhibitInd => fdr.State == FDP2.FDR.FDRStates.STATE_INHIBITED
-                ? new CustomLabelItem { Text = Symbols.Inhibited }
+                ? new CustomLabelItem { Text = Symbols.Inhibited, OnMouseClick = ConsumeClick }
                 : null,
 
-            LabelConstants.LabelItemFiledSpeed => new CustomLabelItem { Text = displayState.FiledSpeed },
+            LabelConstants.LabelItemFiledSpeed => new CustomLabelItem { Text = displayState.FiledSpeed, OnMouseClick = ConsumeClick },
 
-            LabelConstants.LabelItem3DigitGroundspeed => new CustomLabelItem { Text = displayState.GroundSpeed },
+            LabelConstants.LabelItem3DigitGroundspeed => new CustomLabelItem { Text = displayState.GroundSpeed, OnMouseClick = ConsumeClick },
 
-            LabelConstants.LabelItemDestination => new CustomLabelItem { Text = fdr.DesAirport },
+            LabelConstants.LabelItemDestination => new CustomLabelItem { Text = fdr.DesAirport, OnMouseClick = ConsumeClick },
 
             _ => LabelItemRegistry.GetLabelItem(itemType)?.Render(fdr, displayState, atopState)
         };
@@ -173,6 +180,11 @@ public static class LabelItemRenderer
         {
             Errors.Add(new Exception($"CommIconClick: {ex.Message}", ex));
         }
+    }
+
+    private static void ConsumeClick(CustomLabelItemMouseClickEventArgs e)
+    {
+        e.Handled = true;
     }
 
     private static bool IsAltitudeRequestDownlink(AtopDownlinkInfo? downlink)

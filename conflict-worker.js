@@ -480,26 +480,30 @@ function getVerticalMinima(fdr1, fdr2) {
     return 2000;
 }
 
+function isPbcs(fdr) {
+    // PBCS requires: RNP4 capability, RSP180 filed (SUR/), P2 filed (PBN/),
+    // and CPDLC actively logged on (CDA) — equipment alone is not sufficient.
+    return fdr.rnp4 === true &&
+           fdr.rsp180 === true &&
+           fdr.p2Filed === true &&
+           fdr.cpdlcLoggedOn === true;
+}
+
 function getLateralMinima(fdr1, fdr2) {
-    // Per NAS-MD-4714 Section 6.2.4.2 - Lateral Separation Standards
-    // Check RNP capabilities from aircraft data
+    // Per NAS-MD-4714 / ICAO Doc 9869 PBCS lateral separation standards
     const rnp4_1 = fdr1.rnp4 === true;
     const rnp4_2 = fdr2.rnp4 === true;
     const rnp10_1 = fdr1.rnp10 === true;
     const rnp10_2 = fdr2.rnp10 === true;
-    
-    // RNP4 both aircraft - 23nm
-    if (rnp4_1 && rnp4_2) {
+
+    // PBCS (RNP4 + RSP180 + P2 + CPDLC logged on) both aircraft — 23nm
+    if (isPbcs(fdr1) && isPbcs(fdr2)) {
         return 23;
     }
-    
-    // RNP10 both aircraft - 50nm
-    if (rnp10_1 && rnp10_2) {
-        return 50;
-    }
-    
-    // Mixed RNP4/RNP10 - 50nm
-    if ((rnp4_1 && rnp10_2) || (rnp10_1 && rnp4_2)) {
+
+    // RNP4 or RNP10 both aircraft (non-PBCS) — 50nm
+    // RNP4 alone does not reduce lateral from 50nm; only PBCS achieves 23nm
+    if ((rnp4_1 || rnp10_1) && (rnp4_2 || rnp10_2)) {
         return 50;
     }
     
@@ -576,7 +580,7 @@ function calculateTrackAngle(fdr1, fdr2) {
 }
 
 function getLongitudinalDistanceMinima(fdr1, fdr2) {
-    // Per NAS-MD-4714 Section 6.2.4.4/6.2.4.5 - Longitudinal Distance Separation
+    // Per NAS-MD-4714 / ICAO Doc 9869 PBCS longitudinal separation standards
     const rnp4_1 = fdr1.rnp4 === true;
     const rnp4_2 = fdr2.rnp4 === true;
     const rnp10_1 = fdr1.rnp10 === true;
@@ -585,8 +589,13 @@ function getLongitudinalDistanceMinima(fdr1, fdr2) {
     const hasDatalink2 = fdr2.hasDatalink === true;
     const hasDme1 = fdr1.hasDme === true;
     const hasDme2 = fdr2.hasDme === true;
-    
-    // RNP4 both aircraft with ADS-C - 30nm
+
+    // PBCS (RNP4 + RSP180 + P2 + CPDLC logged on) both aircraft — 20nm
+    if (isPbcs(fdr1) && isPbcs(fdr2)) {
+        return 20;
+    }
+
+    // RNP4 both aircraft (non-PBCS) — 30nm
     if (rnp4_1 && rnp4_2) {
         return 30;
     }
@@ -873,7 +882,15 @@ function probeVirtualFDR(data) {
         type: 'probeVirtualResults',
         data: {
             callsign: originalCallsign,
-            conflicts: groupConflicts(relevant)
+            conflicts: groupConflicts(relevant),
+            proposedProfile: {
+                routeWaypoints: parsed.map(wp => ({
+                    name: wp.name,
+                    lat: wp.lat,
+                    lon: wp.lon,
+                    eto: wp.eto instanceof Date ? wp.eto.toISOString() : null
+                }))
+            }
         }
     });
 }

@@ -232,34 +232,49 @@ namespace PACOTSPlugin
             return await SendNotamRequestAsync($"/notams?latitude=30&longitude=-160&radius=100");
         }
 
-        private async Task<NmsNotamResponse> SendNotamRequestAsync(string endpoint)
+        private async Task<NmsNotamResponse> SendNotamRequestAsync(string endpoint, int maxRetries = 3)
         {
             var token = await GetBearerTokenAsync();
-            
-            var request = new HttpRequestMessage(HttpMethod.Get, $"{ApiBaseUrl}{endpoint}");
-            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
-            request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-            // Required header for NMS-API - use GEOJSON for easier parsing
-            request.Headers.Add("nmsResponseFormat", "GEOJSON");
+            int attempt = 0;
 
-            var response = await _httpClient.SendAsync(request);
-            
-            if (!response.IsSuccessStatusCode)
+            while (true)
             {
-                var errorContent = await response.Content.ReadAsStringAsync();
-                throw new NotamApiException($"Failed to retrieve NOTAMs. Status: {response.StatusCode}, Error: {errorContent}");
-            }
+                var request = new HttpRequestMessage(HttpMethod.Get, $"{ApiBaseUrl}{endpoint}");
+                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+                request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+                // Required header for NMS-API - use GEOJSON for easier parsing
+                request.Headers.Add("nmsResponseFormat", "GEOJSON");
 
-            var content = await response.Content.ReadAsStringAsync();
-            
-            try
-            {
-                var nmsResponse = JsonConvert.DeserializeObject<NmsNotamResponse>(content);
-                return nmsResponse ?? new NmsNotamResponse();
-            }
-            catch (JsonReaderException ex)
-            {
-                throw new NotamApiException($"Failed to parse NOTAM response: {ex.Message}. Content: {content.Substring(0, Math.Min(500, content.Length))}");
+                var response = await _httpClient.SendAsync(request);
+
+                if ((int)response.StatusCode == 429 && attempt < maxRetries)
+                {
+                    attempt++;
+                    // Respect Retry-After if present, otherwise back off exponentially (2s, 4s, 8s)
+                    int delaySec = 2 * (int)Math.Pow(2, attempt - 1);
+                    if (response.Headers.RetryAfter?.Delta != null)
+                        delaySec = (int)response.Headers.RetryAfter.Delta.Value.TotalSeconds + 1;
+                    await Task.Delay(TimeSpan.FromSeconds(delaySec));
+                    continue;
+                }
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    var errorContent = await response.Content.ReadAsStringAsync();
+                    throw new NotamApiException($"Failed to retrieve NOTAMs. Status: {response.StatusCode}, Error: {errorContent}");
+                }
+
+                var content = await response.Content.ReadAsStringAsync();
+
+                try
+                {
+                    var nmsResponse = JsonConvert.DeserializeObject<NmsNotamResponse>(content);
+                    return nmsResponse ?? new NmsNotamResponse();
+                }
+                catch (JsonReaderException ex)
+                {
+                    throw new NotamApiException($"Failed to parse NOTAM response: {ex.Message}. Content: {content.Substring(0, Math.Min(500, content.Length))}");
+                }
             }
         }
 

@@ -19,7 +19,7 @@ public static class SccFlagCalculator
             EmergencyCode => SccFlag.Emg,
             RadioFailureCode => SccFlag.Rcf,
             MilitaryInterceptCode => SccFlag.Mti,
-            _ => calculatedFlightData is { Rnp4: false, Rnp10: false } ? SccFlag.Rnp : null
+            _ => calculatedFlightData is { Rnp4: false, Rnp10: false, Rnp20: false } ? SccFlag.Rnp : null
         };
     }
 }

@@ -876,6 +876,14 @@ function handleProbeVirtualResults(data) {
                 EndLat: c.endLat,
                 EndLon: c.endLon
             })),
+            ProposedProfile: {
+                RouteWaypoints: (data.proposedProfile?.routeWaypoints || []).map(wp => ({
+                    Name: wp.name,
+                    Lat: wp.lat,
+                    Lon: wp.lon,
+                    Eto: wp.eto
+                }))
+            },
             ActualCount: data.conflicts.actual?.length || 0,
             ImminentCount: data.conflicts.imminent?.length || 0,
             AdvisoryCount: data.conflicts.advisory?.length || 0

@@ -12,6 +12,20 @@ namespace AtopPlugin.Display;
 
 public static class StripItemRenderer
 {
+    private static readonly CustomColour WhiteText = new(255, 255, 255);
+
+    private sealed class StripRoutePoint
+    {
+        public Segment? Segment { get; set; }
+        public Coordinate LatLong { get; set; } = new Coordinate();
+        public string Name { get; set; } = "";
+        public string? FullName { get; set; }
+        public Airspace2.Intersection.Types? IntersectionType { get; set; }
+        public DateTime Eto { get; set; }
+        public bool IsZPoint { get; set; }
+        public bool IsSynthetic { get; set; }
+    }
+
     public static CustomStripItem? RenderStripItem(string itemType, Track track, FDP2.FDR? fdr,
         RDP.RadarTrack radarTrack)
     {
@@ -120,7 +134,7 @@ public static class StripItemRenderer
 
     private static CustomStripItem RenderPointStripItem(FDP2.FDR fdr, int pointIndex)
     {
-        var filtered = GetSectorFilteredRoute(fdr);
+        var filtered = GetDisplayRoute(fdr);
 
         if (pointIndex < 0 || pointIndex >= filtered.Count)
             return new CustomStripItem { Text = "" };
@@ -129,31 +143,39 @@ public static class StripItemRenderer
         CustomStripItem item;
 
         // ZPOINTs are computed sector boundary crossings — always show as lat/lon
-        if (segment.Type == Segment.SegmentTypes.ZPOINT)
+        if (segment.IsZPoint)
         {
-            item = new CustomStripItem { Text = FormatLat(segment.Intersection.LatLong) };
+            item = new CustomStripItem { Text = FormatLat(segment.LatLong) };
         }
         else
         {
-            var text = segment.Intersection.Name;
+            var text = segment.Name;
 
-            // Unknown intersection (no match in airspace data) — show as lat
-            if (Airspace2.GetIntersection(text, segment.Intersection.LatLong) == null)
-                text = FormatLat(segment.Intersection.LatLong);
-            else if (segment.Intersection.Type == Airspace2.Intersection.Types.Unknown &&
-                     !string.IsNullOrEmpty(segment.Intersection.FullName))
-                text = segment.Intersection.FullName;
+            if (segment.IsSynthetic)
+            {
+                if (string.IsNullOrWhiteSpace(text))
+                    text = FormatLat(segment.LatLong);
+            }
+            else
+            {
+                // Unknown intersection (no match in airspace data) — show as lat
+                if (Airspace2.GetIntersection(text, segment.LatLong) == null)
+                    text = FormatLat(segment.LatLong);
+                else if (segment.IntersectionType == Airspace2.Intersection.Types.Unknown &&
+                         !string.IsNullOrEmpty(segment.FullName))
+                    text = segment.FullName;
+            }
 
             item = new CustomStripItem { Text = text };
         }
 
-        ApplyPointColors(item, fdr, segment);
+        ApplyPointColors(item, fdr, segment.Segment);
         return item;
     }
 
     private static CustomStripItem RenderPointLonStripItem(FDP2.FDR fdr, int pointIndex)
     {
-        var filtered = GetSectorFilteredRoute(fdr);
+        var filtered = GetDisplayRoute(fdr);
 
         if (pointIndex < 0 || pointIndex >= filtered.Count)
             return new CustomStripItem { Text = "" };
@@ -161,26 +183,28 @@ public static class StripItemRenderer
         var segment = filtered[pointIndex];
         CustomStripItem item;
 
-        if (segment.Type == Segment.SegmentTypes.ZPOINT)
-            item = new CustomStripItem { Text = FormatLon(segment.Intersection.LatLong) };
-        else if (Airspace2.GetIntersection(segment.Intersection.Name, segment.Intersection.LatLong) == null)
-            item = new CustomStripItem { Text = FormatLon(segment.Intersection.LatLong) };
+        if (segment.IsZPoint)
+            item = new CustomStripItem { Text = FormatLon(segment.LatLong) };
+        else if (segment.IsSynthetic)
+            item = new CustomStripItem { Text = string.IsNullOrWhiteSpace(segment.Name) ? FormatLon(segment.LatLong) : "" };
+        else if (Airspace2.GetIntersection(segment.Name, segment.LatLong) == null)
+            item = new CustomStripItem { Text = FormatLon(segment.LatLong) };
         else
             item = new CustomStripItem { Text = "" };
 
-        ApplyPointColors(item, fdr, segment);
+        ApplyPointColors(item, fdr, segment.Segment);
         return item;
     }
 
     private static CustomStripItem RenderEtopStripItem(FDP2.FDR fdr, int pointIndex)
     {
-        var filtered = GetSectorFilteredRoute(fdr);
+        var filtered = GetDisplayRoute(fdr);
 
         if (pointIndex < 0 || pointIndex >= filtered.Count)
             return new CustomStripItem { Text = "" };
 
         var segment = filtered[pointIndex];
-        var eto = segment.ETO;
+        var eto = segment.Eto;
 
         CustomStripItem item;
         if (eto == DateTime.MaxValue || eto == default)
@@ -188,8 +212,40 @@ public static class StripItemRenderer
         else
             item = new CustomStripItem { Text = eto.ToString("HHmm") };
 
-        ApplyPointColors(item, fdr, segment);
+        ApplyPointColors(item, fdr, segment.Segment);
         return item;
+    }
+
+    private static List<StripRoutePoint> GetDisplayRoute(FDP2.FDR fdr)
+    {
+        if (ProposedProfileBridge.TryGetProposedRoute(fdr.Callsign, out var proposedRoute))
+        {
+            return proposedRoute
+                .Select(wp => new StripRoutePoint
+                {
+                    Segment = null,
+                    Name = wp.Name,
+                    LatLong = new Coordinate { Latitude = wp.Latitude, Longitude = wp.Longitude },
+                    Eto = wp.EtoUtc ?? default,
+                    IsZPoint = false,
+                    IsSynthetic = true
+                })
+                .ToList();
+        }
+
+        return GetSectorFilteredRoute(fdr)
+            .Select(seg => new StripRoutePoint
+            {
+                Segment = seg,
+                Name = seg.Intersection.Name,
+                FullName = seg.Intersection.FullName,
+                IntersectionType = seg.Intersection.Type,
+                LatLong = seg.Intersection.LatLong,
+                Eto = seg.ETO,
+                IsZPoint = seg.Type == Segment.SegmentTypes.ZPOINT,
+                IsSynthetic = false
+            })
+            .ToList();
     }
 
     /// <summary>
@@ -376,13 +432,34 @@ public static class StripItemRenderer
         return $"{fdr.Callsign}_{segment.Intersection.Name}_{segment.ETO:HHmmss}";
     }
 
-    private static void ApplyPointColors(CustomStripItem item, FDP2.FDR fdr, Segment segment)
+    private static void ApplyPointColors(CustomStripItem item, FDP2.FDR fdr, Segment? segment)
     {
+        var visualState = ProposedProfileBridge.GetVisualState(fdr.Callsign);
+
+        item.ForeColourIdentity = Colours.Identities.Custom;
+
+        if (visualState == StripProfileVisualState.Probing)
+        {
+            item.CustomForeColour = CustomColors.Probe;
+            return;
+        }
+
+        if (visualState == StripProfileVisualState.SentPendingReadback)
+        {
+            item.CustomForeColour = WhiteText;
+            return;
+        }
+
+        if (segment == null)
+        {
+            item.CustomForeColour = CustomColors.Black;
+            return;
+        }
+
         bool overflown = IsSegmentOverflown(fdr, segment);
         bool overdue = IsSegmentOverdue(segment);
         string key = GetOverdueKey(fdr, segment);
 
-        item.ForeColourIdentity = Colours.Identities.Custom;
 
         if (overdue)
         {

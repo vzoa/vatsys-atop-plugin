@@ -8,6 +8,7 @@ namespace AtopPlugin.Logic;
 public static class FlightDataCalculator
 {
     private const string Rnp10Pbn = "A1";
+    private const string Rnp20Pbn = "A2";
     private const string Rnp4Pbn = "L1";
 
     private const string Rsp180Sur = "RSP180";
@@ -33,6 +34,7 @@ public static class FlightDataCalculator
         return new CalculatedFlightData(
             isPbn && pbn.Contains(Rnp4Pbn),
             isPbn && pbn.Contains(Rnp10Pbn),
+            isPbn && pbn.Contains(Rnp20Pbn),
             CpdlcEquip.Any(cpdlcVal => fdr.AircraftEquip.Contains(cpdlcVal)),
             fdr.AircraftSurvEquip.Contains(AdscSurvEquip),
             sur.Contains(Rsp180Sur) && fdr.AircraftSurvEquip.Contains(Rcp240SurvEquip)

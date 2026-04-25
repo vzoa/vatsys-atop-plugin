@@ -4,13 +4,13 @@ using System.ComponentModel;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
-using System.Windows.Input;
 using AtopPlugin.Conflict;
 using AtopPlugin.Helpers;
 using AtopPlugin.Models;
 using vatsys;
+using static vatsys.FDP2.FDR.ExtractedRoute;
 
-namespace AtopPlugin.UI.Wpf;
+namespace AtopPlugin.UI;
 
 /// <summary>
 /// ViewModel for the ATOP Clearance window.
@@ -25,21 +25,238 @@ public class ClearanceViewModel : INotifyPropertyChanged
     public event PropertyChangedEventHandler? PropertyChanged;
 
     // -------------------------------------------------------------------------
-    // Category → Group name mapping
+    // Built-in MOPS message templates (NASP-4508K) — used when CPDLC plugin is
+    // not loaded.  ResponseType: 0=NoResponse 1=WilcoUnable 2=AffirmNeg 3=Roger
     // -------------------------------------------------------------------------
-    private static readonly Dictionary<string, string[]> CategoryGroupPatterns = new()
+    private static AtopUplinkTemplate BT(int id, string tpl, int rt = 0, params string[] ps) =>
+        new() { Id = id, Template = tpl, ResponseType = rt,
+                Parameters = ps.Select(n => new AtopUplinkParameter { Name = n, Type = "FreeText" }).ToArray() };
+
+    private static readonly Dictionary<int, AtopUplinkTemplate> _builtIn = new()
     {
-        ["Urgent"]  = new[] { "Urgent", "Emergency" },
-        ["Rpt"]     = new[] { "Report" },
-        ["Negot"]   = new[] { "Negotiat", "Request" },
-        ["Rspn"]    = new[] { "Response", "Acknowledge", "Affirm", "Roger", "Unable", "Standby" },
-        ["Misc"]    = Array.Empty<string>(), // catch-all
-        ["Vert"]    = new[] { "Climb", "Descend", "Level", "Altitude", "Block", "Cruise", "Expect" },
-        ["Route"]   = new[] { "Route", "Direct", "Proceed", "Offset", "Deviat", "Track", "Cleared" },
-        ["Speed"]   = new[] { "Speed", "Mach" },
-        ["X-ing"]   = new[] { "Cross" },
-        ["Comm"]    = new[] { "Contact", "Monitor", "Frequency", "Squawk" },
-        ["Pre-Fmt"] = new[] { "Pre-Formatted", "PreFormatted", "Permanent" }
+        [0]   = BT(0,   "UNABLE"),
+        [1]   = BT(1,   "STANDBY"),
+        [2]   = BT(2,   "REQUEST DEFERRED"),
+        [3]   = BT(3,   "ROGER"),
+        [4]   = BT(4,   "AFFIRM"),
+        [5]   = BT(5,   "NEGATIVE"),
+        [6]   = BT(6,   "EXPECT [lev]", 3, "lev"),
+        [7]   = BT(7,   "EXPECT CLIMB AT [time]", 3, "time"),
+        [8]   = BT(8,   "EXPECT CLIMB AT [pos]", 3, "pos"),
+        [9]   = BT(9,   "EXPECT DESCENT AT [time]", 3, "time"),
+        [10]  = BT(10,  "EXPECT DESCENT AT [pos]", 3, "pos"),
+        [13]  = BT(13,  "AT [time] EXPECT CLIMB TO [lev]", 3, "time", "lev"),
+        [14]  = BT(14,  "AT [pos] EXPECT CLIMB TO [lev]", 3, "pos", "lev"),
+        [15]  = BT(15,  "AT [time] EXPECT DESCENT TO [lev]", 3, "time", "lev"),
+        [16]  = BT(16,  "AT [pos] EXPECT DESCENT TO [lev]", 3, "pos", "lev"),
+        [19]  = BT(19,  "MAINTAIN [lev]", 1, "lev"),
+        [20]  = BT(20,  "CLIMB TO [lev]", 1, "lev"),
+        [21]  = BT(21,  "AT [time] CLIMB TO [lev]", 1, "time", "lev"),
+        [22]  = BT(22,  "AT [pos] CLIMB TO [lev]", 1, "pos", "lev"),
+        [23]  = BT(23,  "DESCENT TO [lev]", 1, "lev"),
+        [24]  = BT(24,  "AT [time] DESCEND TO [lev]", 1, "time", "lev"),
+        [25]  = BT(25,  "AT [pos] DESCEND TO [lev]", 1, "pos", "lev"),
+        [26]  = BT(26,  "CLIMB TO REACH [lev] BY [time]", 1, "lev", "time"),
+        [27]  = BT(27,  "CLIMB TO REACH [lev] BY [pos]", 1, "lev", "pos"),
+        [28]  = BT(28,  "DESCEND TO REACH [lev] BY [time]", 1, "lev", "time"),
+        [29]  = BT(29,  "DESCEND TO REACH [lev] BY [pos]", 1, "lev", "pos"),
+        [30]  = BT(30,  "MAINTAIN BLOCK [lev] TO [lev2]", 1, "lev", "lev2"),
+        [31]  = BT(31,  "CLIMB TO AND MAINTAIN BLOCK [lev] TO [lev2]", 1, "lev", "lev2"),
+        [32]  = BT(32,  "DESCEND TO AND MAINTAIN BLOCK [lev] TO [lev2]", 1, "lev", "lev2"),
+        [33]  = BT(33,  "CRUISE [lev]", 1, "lev"),
+        [34]  = BT(34,  "CRUISE CLIMB TO [lev]", 1, "lev"),
+        [36]  = BT(36,  "EXPEDITE CLIMB TO [lev]", 1, "lev"),
+        [37]  = BT(37,  "EXPEDITE DESCENT TO [lev]", 1, "lev"),
+        [38]  = BT(38,  "IMMEDIATELY CLIMB TO [lev]", 1, "lev"),
+        [39]  = BT(39,  "IMMEDIATELY DESCEND TO [lev]", 1, "lev"),
+        [40]  = BT(40,  "IMMEDIATELY STOP CLIMB AT [lev]", 1, "lev"),
+        [41]  = BT(41,  "IMMEDIATELY STOP DESCENT AT [lev]", 1, "lev"),
+        [42]  = BT(42,  "EXPECT TO CROSS [pos] AT [lev]", 3, "pos", "lev"),
+        [43]  = BT(43,  "EXPECT TO CROSS [pos] AT OR ABOVE [lev]", 3, "pos", "lev"),
+        [44]  = BT(44,  "EXPECT TO CROSS [pos] AT OR BELOW [lev]", 3, "pos", "lev"),
+        [45]  = BT(45,  "EXPECT TO CROSS [pos] AT AND MAINTAIN [lev]", 3, "pos", "lev"),
+        [46]  = BT(46,  "CROSS [pos] AT [lev]", 1, "pos", "lev"),
+        [47]  = BT(47,  "CROSS [pos] AT OR ABOVE [lev]", 1, "pos", "lev"),
+        [48]  = BT(48,  "CROSS [pos] AT OR BELOW [lev]", 1, "pos", "lev"),
+        [49]  = BT(49,  "CROSS [pos] AT AND MAINTAIN [lev]", 1, "pos", "lev"),
+        [50]  = BT(50,  "CROSS [pos] BETWEEN [lev] AND [lev2]", 1, "pos", "lev", "lev2"),
+        [51]  = BT(51,  "CROSS [pos] AT [time]", 1, "pos", "time"),
+        [52]  = BT(52,  "CROSS [pos] AT OR BEFORE [time]", 1, "pos", "time"),
+        [53]  = BT(53,  "CROSS [pos] AT OR AFTER [time]", 1, "pos", "time"),
+        [54]  = BT(54,  "CROSS [pos] BETWEEN [time] AND [time2]", 1, "pos", "time", "time2"),
+        [55]  = BT(55,  "CROSS [pos] AT [spd]", 1, "pos", "spd"),
+        [56]  = BT(56,  "CROSS [pos] AT OR LESS THAN [spd]", 1, "pos", "spd"),
+        [57]  = BT(57,  "CROSS [pos] AT OR GREATER THAN [spd]", 1, "pos", "spd"),
+        [58]  = BT(58,  "CROSS [pos] AT [time] AT [lev]", 1, "pos", "time", "lev"),
+        [59]  = BT(59,  "CROSS [pos] AT OR BEFORE [time] AT [lev]", 1, "pos", "time", "lev"),
+        [60]  = BT(60,  "CROSS [pos] AT OR AFTER [time] AND [lev]", 1, "pos", "time", "lev"),
+        [61]  = BT(61,  "CROSS [pos] AT AND MAINTAIN [lev] AT [spd]", 1, "pos", "lev", "spd"),
+        [64]  = BT(64,  "OFFSET [doff] [dir] OF ROUTE", 1, "doff", "dir"),
+        [65]  = BT(65,  "AT [pos] OFFSET [doff] [dir] OF ROUTE", 1, "pos", "doff", "dir"),
+        [66]  = BT(66,  "AT [time] OFFSET [doff] [dir] OF ROUTE", 1, "time", "doff", "dir"),
+        [67]  = BT(67,  "PROCEED BACK ON ROUTE", 1),
+        [68]  = BT(68,  "REJOIN ROUTE BY [pos]", 1, "pos"),
+        [69]  = BT(69,  "REJOIN ROUTE BY [time]", 1, "time"),
+        [70]  = BT(70,  "EXPECT BACK ON ROUTE BY [pos]", 3, "pos"),
+        [71]  = BT(71,  "EXPECT BACK ON ROUTE BY [time]", 3, "time"),
+        [73]  = BT(73,  "AT [time] CLEARED [rc] ALT [lev] FREQ [freq] SSR [code]", 1, "time", "rc", "lev", "freq", "code"),
+        [74]  = BT(74,  "PROCEED DIRECT TO [pos]", 1, "pos"),
+        [76]  = BT(76,  "AT [time] PROCEED DIRECT TO [pos]", 1, "time", "pos"),
+        [77]  = BT(77,  "AT [pos] PROCEED DIRECT TO [pos2]", 1, "pos", "pos2"),
+        [79]  = BT(79,  "CLEARED TO [pos] VIA [rc]", 1, "pos", "rc"),
+        [80]  = BT(80,  "CLEARED [rc]", 1, "rc"),
+        [82]  = BT(82,  "CLEARED TO DEVIATE UP TO [doff] [dir] OF ROUTE", 1, "doff", "dir"),
+        [83]  = BT(83,  "AT [pos] CLEARED [rc]", 1, "pos", "rc"),
+        [85]  = BT(85,  "EXPECT [rc]", 3, "rc"),
+        [86]  = BT(86,  "AT [pos] EXPECT [rc]", 3, "pos", "rc"),
+        [87]  = BT(87,  "EXPECT DIRECT TO [pos]", 3, "pos"),
+        [88]  = BT(88,  "AT [pos] EXPECT DIRECT TO [pos2]", 3, "pos", "pos2"),
+        [89]  = BT(89,  "AT [time] EXPECT DIRECT TO [pos]", 3, "time", "pos"),
+        [90]  = BT(90,  "AT [lev] EXPECT DIRECT TO [pos]", 3, "lev", "pos"),
+        [93]  = BT(93,  "EXPECT FURTHER CLEARANCE AT [time]", 3, "time"),
+        [98]  = BT(98,  "IMMEDIATELY TURN [dir] HEADING [deg]", 1, "dir", "deg"),
+        [99]  = BT(99,  "EXPECT [proc name]", 3, "proc name"),
+        [100] = BT(100, "AT [time] EXPECT [spd]", 3, "time", "spd"),
+        [101] = BT(101, "AT [pos] EXPECT [spd]", 3, "pos", "spd"),
+        [102] = BT(102, "AT [lev] EXPECT [spd]", 3, "lev", "spd"),
+        [103] = BT(103, "AT [time] EXPECT [spd] TO [spd2]", 3, "time", "spd", "spd2"),
+        [104] = BT(104, "AT [pos] EXPECT [spd] TO [spd2]", 3, "pos", "spd", "spd2"),
+        [105] = BT(105, "AT [lev] EXPECT [spd] TO [spd2]", 3, "lev", "spd", "spd2"),
+        [106] = BT(106, "MAINTAIN [spd]", 1, "spd"),
+        [108] = BT(108, "MAINTAIN [spd] OR GREATER", 1, "spd"),
+        [109] = BT(109, "MAINTAIN [spd] OR LESS", 1, "spd"),
+        [111] = BT(111, "INCREASE SPEED TO [spd]", 1, "spd"),
+        [112] = BT(112, "INCREASE SPEED TO [spd] OR GREATER", 1, "spd"),
+        [113] = BT(113, "REDUCE SPEED TO [spd]", 1, "spd"),
+        [114] = BT(114, "REDUCE SPEED TO [spd] OR LESS", 1, "spd"),
+        [115] = BT(115, "DO NOT EXCEED [spd]", 1, "spd"),
+        [117] = BT(117, "CONTACT [unit name] [freq]", 1, "unit name", "freq"),
+        [118] = BT(118, "AT [pos] CONTACT [unit name] [freq]", 1, "pos", "unit name", "freq"),
+        [119] = BT(119, "AT [time] CONTACT [unit name] [freq]", 1, "time", "unit name", "freq"),
+        [120] = BT(120, "MONITOR [unit name] [freq]", 1, "unit name", "freq"),
+        [121] = BT(121, "AT [pos] MONITOR [unit name] [freq]", 1, "pos", "unit name", "freq"),
+        [122] = BT(122, "AT [time] MONITOR [unit name] [freq]", 1, "time", "unit name", "freq"),
+        [123] = BT(123, "SQUAWK [code]", 1, "code"),
+        [124] = BT(124, "STOP SQUAWK", 1),
+        [125] = BT(125, "SQUAWK ALTITUDE", 1),
+        [126] = BT(126, "STOP ALTITUDE SQUAWK", 1),
+        [127] = BT(127, "REPORT BACK ON ROUTE", 1),
+        [128] = BT(128, "REPORT LEAVING [lev]", 3, "lev"),
+        [129] = BT(129, "REPORT LEVEL [lev]", 3, "lev"),
+        [130] = BT(130, "REPORT PASSING [pos]", 3, "pos"),
+        [131] = BT(131, "REPORT REMAINING FUEL AND SOULS ON BOARD"),
+        [132] = BT(132, "CONFIRM POSITION"),
+        [133] = BT(133, "CONFIRM ALTITUDE"),
+        [134] = BT(134, "CONFIRM SPEED"),
+        [135] = BT(135, "CONFIRM ASSIGNED ALTITUDE"),
+        [136] = BT(136, "CONFIRM ASSIGNED SPEED"),
+        [137] = BT(137, "CONFIRM ASSIGNED ROUTE"),
+        [138] = BT(138, "CONFIRM TIME OVER REPORTED WAYPOINT"),
+        [139] = BT(139, "CONFIRM REPORTED WAYPOINT"),
+        [140] = BT(140, "CONFIRM NEXT WAYPOINT"),
+        [141] = BT(141, "CONFIRM NEXT WAYPOINT ETA"),
+        [142] = BT(142, "CONFIRM ENSUING WAYPOINT"),
+        [143] = BT(143, "CONFIRM REQUEST"),
+        [144] = BT(144, "CONFIRM SQUAWK"),
+        [145] = BT(145, "CONFIRM HEADING"),
+        [147] = BT(147, "REQUEST POSITION REPORT"),
+        [148] = BT(148, "WHEN CAN YOU ACCEPT [lev]", 0, "lev"),
+        [149] = BT(149, "CAN YOU ACCEPT [lev] AT [pos]", 2, "lev", "pos"),
+        [150] = BT(150, "CAN YOU ACCEPT [lev] AT [time]", 2, "lev", "time"),
+        [151] = BT(151, "WHEN CAN YOU ACCEPT [spd]", 0, "spd"),
+        [152] = BT(152, "WHEN CAN YOU ACCEPT [dir] [doff] OFFSET", 0, "dir", "doff"),
+        [153] = BT(153, "ALTIMETER [altim]", 3, "altim"),
+        [154] = BT(154, "RADAR SERVICE TERMINATED"),
+        [155] = BT(155, "RADAR CONTACT [pos]", 0, "pos"),
+        [156] = BT(156, "RADAR CONTACT LOST"),
+        [157] = BT(157, "CHECK STUCK MICROPHONE ON [freq]", 0, "freq"),
+        [158] = BT(158, "ATIS [atis]", 3, "atis"),
+        [160] = BT(160, "NEXT DATA AUTHORITY [icao]", 0, "icao"),
+        [164] = BT(164, "WHEN READY"),
+        [165] = BT(165, "THEN"),
+        [166] = BT(166, "DUE TO TRAFFIC"),
+        [167] = BT(167, "DUE TO AIRSPACE RESTRICTION"),
+        [168] = BT(168, "DISREGARD"),
+        [169] = BT(169, "[freetext]", 3, "freetext"),
+        [170] = BT(170, "(EMERGENCY) [freetext]", 0, "freetext"),
+        [171] = BT(171, "CLIMB AT [vert] MINIMUM", 1, "vert"),
+        [172] = BT(172, "CLIMB AT [vert] MAXIMUM", 1, "vert"),
+        [173] = BT(173, "DESCEND AT [vert] MINIMUM", 1, "vert"),
+        [174] = BT(174, "DESCEND AT [vert] MAXIMUM", 1, "vert"),
+        [175] = BT(175, "REPORT REACHING [lev]", 0, "lev"),
+        [176] = BT(176, "MAINTAIN OWN SEPARATION AND VMC", 1),
+        [177] = BT(177, "AT PILOTS DISCRETION"),
+        [179] = BT(179, "SQUAWK IDENT", 1),
+        [180] = BT(180, "REPORT REACHING BLOCK [lev] TO [lev2]", 0, "lev", "lev2"),
+        [181] = BT(181, "REPORT DISTANCE [to/from] [pos]", 0, "to/from", "pos"),
+        [182] = BT(182, "CONFIRM ATIS CODE"),
+        [192] = BT(192, "NO REPORTED IFR TRAFFIC"),
+        [197] = BT(197, "REPORT RADIAL AND DISTANCE FROM [pos]", 0, "pos"),
+    };
+
+    // -------------------------------------------------------------------------
+    // MOPS-driven menu structure per NASP-4508K pages 282-288
+    // Key: category, Value: (SubGroup name or null for direct items, message IDs[])[]
+    // -------------------------------------------------------------------------
+    private static readonly Dictionary<string, (string? SubGroup, int[] MessageIds)[]> MopsMenuStructure = new()
+    {
+        ["Urgent"] = new[]
+        {
+            ((string?)null, new[] { 5, 38, 40, 39, 41, 98, 132, 133, 131, 170 })
+        },
+        ["Rpt"] = new[]
+        {
+            ("Report",       new[] { 130, 181, 197 }),
+            ("Confirm",      new[] { 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 182 }),
+            ((string?)null,  new[] { 128, 129, 175, 180, 147, 131 })
+        },
+        ["Negot"] = new[]
+        {
+            ((string?)null, new[] { 148, 151, 152, 149, 150 })
+        },
+        ["Rspn"] = new[]
+        {
+            ((string?)null, new[] { 0, 1, 2, 3, 4, 5, 169 })
+        },
+        ["Misc"] = new[]
+        {
+            ("Free Text",    new[] { 169, 170 }),
+            ("Radar",        new[] { 155, 156, 154 }),
+            ((string?)null,  new[] { 164, 165, 166, 167, 168, 176, 177, 192, 153, 157, 158 })
+        },
+        ["Vert"] = new[]
+        {
+            ("Climb",        new[] { 20, 31, 21, 22, 26, 27, 36, 38, 40, 171, 172 }),
+            ("Descend",      new[] { 23, 32, 24, 25, 28, 29, 37, 39, 41, 173, 174 }),
+            ("Expect",       new[] { 6, 7, 8, 9, 10, 13, 14, 15, 16 }),
+            ("Cruise",       new[] { 33, 34 }),
+            ((string?)null,  new[] { 19, 30 })
+        },
+        ["Route"] = new[]
+        {
+            ("ATC Clrc",     new[] { 73, 79, 80, 83, 74, 76, 77 }),
+            ("Lateral",      new[] { 64, 65, 66, 67, 68, 69, 70, 71, 82, 127 }),
+            ("Expect",       new[] { 85, 86, 87, 88, 89, 90, 93, 99 })
+        },
+        ["Speed"] = new[]
+        {
+            ("Maintain",     new[] { 106, 108, 109 }),
+            ("Increase",     new[] { 111, 112 }),
+            ("Reduce",       new[] { 113, 114 }),
+            ("Expect",       new[] { 100, 101, 102, 103, 104, 105 }),
+            ((string?)null,  new[] { 115 })
+        },
+        ["X-ing"] = new[]
+        {
+            ("Level",        new[] { 42, 43, 44, 45, 46, 47, 48, 49, 50 }),
+            ("Time",         new[] { 51, 52, 53, 54, 149, 150, 151, 152 }),
+            ("Speed",        new[] { 55, 56, 57 }),
+            ("Combined",     new[] { 58, 59, 60, 61 })
+        },
+        ["Comm"] = new[]
+        {
+            ((string?)null, new[] { 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 179, 160 })
+        }
     };
 
     public static readonly string[] CategoryNames =
@@ -57,9 +274,6 @@ public class ClearanceViewModel : INotifyPropertyChanged
     private string? _selectedSubCategory;
     private readonly Dictionary<int, AtopUplinkTemplate> _masterLookup = new();
     private AtopUplinkMessagesConfig? _config;
-
-    // Category → list of groups
-    private readonly Dictionary<string, List<AtopMessageGroup>> _categoryGroups = new();
 
     // Construction area: list of message lines the controller is composing
     private readonly List<ConstructionLine> _constructionLines = new();
@@ -141,8 +355,8 @@ public class ClearanceViewModel : INotifyPropertyChanged
             if (_selectedCategory == "Pre-Fmt")
                 return new[] { "Permanent" };
 
-            if (_categoryGroups.TryGetValue(_selectedCategory, out var groups))
-                return groups.Select(g => g.Name).ToArray();
+            if (MopsMenuStructure.TryGetValue(_selectedCategory, out var groups))
+                return groups.Where(g => g.SubGroup != null).Select(g => g.SubGroup!).ToArray();
 
             return Array.Empty<string>();
         }
@@ -152,43 +366,51 @@ public class ClearanceViewModel : INotifyPropertyChanged
     {
         get
         {
-            if (_config == null) return Array.Empty<TemplateDisplayItem>();
-
-            AtopMessageReference[] refs;
-
             if (_selectedCategory == "Pre-Fmt")
             {
-                refs = _config.PermanentMessages;
-            }
-            else if (_selectedSubCategory != null
-                     && _categoryGroups.TryGetValue(_selectedCategory, out var groups))
-            {
-                var group = groups.FirstOrDefault(g => g.Name == _selectedSubCategory);
-                refs = group?.Messages ?? Array.Empty<AtopMessageReference>();
-            }
-            else
-            {
-                refs = Array.Empty<AtopMessageReference>();
+                if (_config == null) return Array.Empty<TemplateDisplayItem>();
+                var permanentItems = new List<TemplateDisplayItem>();
+                foreach (var r in _config.PermanentMessages ?? Array.Empty<AtopMessageReference>())
+                {
+                    var master = ResolveTemplate(r.MessageId);
+                    if (master != null)
+                        permanentItems.Add(BuildDisplayItem(master, r));
+                }
+                return permanentItems;
             }
 
-            var items = new List<TemplateDisplayItem>();
-            foreach (var r in refs)
+            if (_selectedSubCategory != null && MopsMenuStructure.TryGetValue(_selectedCategory, out var groups))
             {
-                if (_masterLookup.TryGetValue(r.MessageId, out var master))
+                var group = groups.FirstOrDefault(g => g.SubGroup == _selectedSubCategory);
+                if (group != default)
                 {
-                    var display = new TemplateDisplayItem
+                    var items = new List<TemplateDisplayItem>();
+                    foreach (var id in group.MessageIds)
                     {
-                        MessageId = master.Id,
-                        Template = master,
-                        Reference = r,
-                        Segments = ParseTemplateSegments(master, r)
-                    };
-                    items.Add(display);
+                        var master = ResolveTemplate(id);
+                        if (master != null)
+                            items.Add(BuildDisplayItem(master, new AtopMessageReference { MessageId = id }));
+                    }
+                    return items;
                 }
             }
-            return items;
+
+            return Array.Empty<TemplateDisplayItem>();
         }
     }
+
+    private AtopUplinkTemplate? ResolveTemplate(int id) =>
+        _masterLookup.TryGetValue(id, out var t) ? t :
+        _builtIn.TryGetValue(id, out var b) ? b : null;
+
+    private TemplateDisplayItem BuildDisplayItem(AtopUplinkTemplate master, AtopMessageReference reference) =>
+        new()
+        {
+            MessageId = master.Id,
+            Template = master,
+            Reference = reference,
+            Segments = ParseTemplateSegments(master, reference)
+        };
 
     public IReadOnlyList<ConstructionLine> ConstructionLines => _constructionLines;
 
@@ -207,6 +429,11 @@ public class ClearanceViewModel : INotifyPropertyChanged
     }
 
     public bool IsReplyMode => _replyToDownlinkId.HasValue;
+
+    public IReadOnlyList<TemplateDisplayItem> AutomatedResponseTemplates =>
+        IsReplyMode && _openDownlinks.Count > 0
+            ? ComputeAutomatedResponses(_openDownlinks[0])
+            : Array.Empty<TemplateDisplayItem>();
 
     public string ResponseText
     {
@@ -238,43 +465,47 @@ public class ClearanceViewModel : INotifyPropertyChanged
         private set { _isSent = value; OnPropertyChanged(); }
     }
 
-    // -------------------------------------------------------------------------
-    // Commands
-    // -------------------------------------------------------------------------
-    public ICommand SelectTemplateCommand { get; }
-    public ICommand InsertConstructionLineCommand { get; }
-    public ICommand DeleteConstructionLineCommand { get; }
-    public ICommand SendCommand { get; }
-    public ICommand CancelCommand { get; }
-    public ICommand UnableCommand { get; }
-    public ICommand CloseCommand { get; }
-    public ICommand OverrideCommand { get; }
-    public ICommand ProbeCommand { get; }
-
-    public event Action? RequestClose;
+    public bool HasActiveProbeState =>
+        !string.IsNullOrWhiteSpace(_callsign)
+        && ProposedProfileBridge.GetVisualState(_callsign) != StripProfileVisualState.None;
 
     // -------------------------------------------------------------------------
     // Constructor
     // -------------------------------------------------------------------------
     public ClearanceViewModel()
     {
-        SelectTemplateCommand = new RelayCommand<TemplateDisplayItem>(AddTemplateToConstruction);
-        InsertConstructionLineCommand = new RelayCommand(InsertConstructionLine, () => _selectedTemplateIndex >= 0);
-        DeleteConstructionLineCommand = new RelayCommand(DeleteSelectedConstructionLine, () => _selectedConstructionIndex >= 0);
-        SendCommand = new RelayCommand(ExecuteSend, () => _constructionLines.Count > 0);
-        CancelCommand = new RelayCommand(ExecuteCancel);
-        UnableCommand = new RelayCommand(ExecuteUnable, () => _replyToDownlinkId.HasValue);
-        CloseCommand = new RelayCommand(() => RequestClose?.Invoke());
-        OverrideCommand = new RelayCommand(ExecuteOverride, () => _conflictDetected && !_overrideActive);
-        ProbeCommand = new RelayCommand(ExecuteProbe, () => _constructionLines.Count > 0 && !_isProbed);
-
-        // Subscribe to virtual probe results from conflict worker
         ConflictProbe.VirtualProbeResultsReceived += OnVirtualProbeResults;
     }
 
     // -------------------------------------------------------------------------
     // Initialization
     // -------------------------------------------------------------------------
+    private static string BuildRouteWithEstimates(FDP2.FDR? fdr)
+    {
+        if (fdr?.ParsedRoute == null) return fdr?.Route ?? "";
+        var segments = fdr.ParsedRoute.ToList();
+        if (segments.Count == 0) return fdr.Route ?? "";
+
+        var parts = new List<string>();
+        foreach (var seg in segments)
+        {
+            var name = seg.Intersection?.Name;
+            if (string.IsNullOrWhiteSpace(name)) continue;
+
+            // Skip Z-points (oceanic system waypoints starting with Z) and
+            // coordinate waypoints (lat/lon format — always start with a digit).
+            if (name[0] == 'Z' || char.IsDigit(name[0])) continue;
+
+            var eto = seg.ETO;
+            if (eto == DateTime.MaxValue || eto == default)
+                parts.Add($"{name}/");
+            else
+                parts.Add($"{name} {eto:HHmm}/");
+        }
+
+        return parts.Count > 0 ? string.Join(" ", parts) : fdr.Route ?? "";
+    }
+
     public void Load(string callsign)
     {
         Callsign = callsign;
@@ -287,11 +518,12 @@ public class ClearanceViewModel : INotifyPropertyChanged
         _overrideActive = false;
         _isSent = false;
         ResponseText = "";
+        OnPropertyChanged(nameof(HasActiveProbeState));
 
-        // Load route from FDP2
+        // Load route from FDP2 — format as "FIX/HHMM FIX/HHMM ..." using parsed route estimates.
         var fdr = FDP2.GetFDRs.FirstOrDefault(f =>
             string.Equals(f.Callsign, callsign, StringComparison.OrdinalIgnoreCase));
-        Route = fdr?.ParsedRoute?.ToString() ?? fdr?.Route ?? "";
+        Route = BuildRouteWithEstimates(fdr);
 
         // Load message config from CPDLCPlugin
         _config = CpdlcPluginBridge.GetUplinkMessagesConfig();
@@ -300,8 +532,6 @@ public class ClearanceViewModel : INotifyPropertyChanged
             _masterLookup.Clear();
             foreach (var m in _config.MasterMessages)
                 _masterLookup[m.Id] = m;
-
-            BuildCategoryGroups();
         }
 
         // Load open downlinks
@@ -309,9 +539,10 @@ public class ClearanceViewModel : INotifyPropertyChanged
         _openDownlinks.AddRange(CpdlcPluginBridge.GetOpenDownlinkDetails(callsign));
         OnPropertyChanged(nameof(OpenDownlinks));
 
-        // Auto-select first downlink as reply target if any
-        if (_openDownlinks.Count > 0)
-            ReplyToDownlinkId = _openDownlinks[0].MessageId;
+        // Never auto-enter reply mode on a fresh open — caller must explicitly set ReplyToDownlinkId
+        // when the window is opened specifically to respond to an incoming CPDLC request.
+        ReplyToDownlinkId = null;
+        OnPropertyChanged(nameof(AutomatedResponseTemplates));
 
         // Refresh everything
         _selectedTemplateIndex = -1;
@@ -319,83 +550,93 @@ public class ClearanceViewModel : INotifyPropertyChanged
         SelectedSubCategory = SubCategories.FirstOrDefault();
     }
 
-    private void BuildCategoryGroups()
+    // -------------------------------------------------------------------------
+    // Automated Response Area — pre-filled reply templates derived from the
+    // first open downlink's content (ATOP spec Figure 9-4).
+    // -------------------------------------------------------------------------
+    private IReadOnlyList<TemplateDisplayItem> ComputeAutomatedResponses(AtopDownlinkInfo downlink)
     {
-        _categoryGroups.Clear();
-        if (_config == null) return;
+        var result = new List<TemplateDisplayItem>();
+        var content = downlink.Content ?? "";
 
-        var assignedGroups = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-        foreach (var catName in CategoryNames)
+        // Block level pattern: e.g. "F330B350" or "330B350"
+        var blockMatch = Regex.Match(content, @"[Ff]?(\d{3})B(\d{3})");
+        if (blockMatch.Success &&
+            int.TryParse(blockMatch.Groups[1].Value, out int lev1) &&
+            int.TryParse(blockMatch.Groups[2].Value, out int lev2))
         {
-            if (catName == "Pre-Fmt" || catName == "Misc") continue;
-
-            var patterns = CategoryGroupPatterns[catName];
-            var matching = _config.Groups
-                .Where(g => patterns.Any(p => g.Name.IndexOf(p, StringComparison.OrdinalIgnoreCase) >= 0))
-                .ToList();
-
-            foreach (var g in matching)
-                assignedGroups.Add(g.Name);
-
-            _categoryGroups[catName] = matching;
+            var fill = new Dictionary<string, string> { ["lev"] = lev1.ToString(), ["lev2"] = lev2.ToString() };
+            AddAutoTemplate(result, 30, fill);  // MAINTAIN BLOCK [lev] TO [lev2]
+            AddAutoTemplate(result, 31, fill);  // CLIMB TO AND MAINTAIN BLOCK [lev] TO [lev2]
+            AddAutoTemplate(result, 32, fill);  // DESCEND TO AND MAINTAIN BLOCK [lev] TO [lev2]
+            AddAutoTemplate(result, 0,  null);  // UNABLE
+            return result;
         }
 
-        // Misc = everything not assigned
-        _categoryGroups["Misc"] = _config.Groups
-            .Where(g => !assignedGroups.Contains(g.Name))
-            .ToList();
+        // Single FL pattern: FL390, F390
+        var flMatch = Regex.Match(content, @"[Ff][Ll]?(\d{3})");
+        if (flMatch.Success && int.TryParse(flMatch.Groups[1].Value, out int fl))
+        {
+            var fill = new Dictionary<string, string> { ["lev"] = fl.ToString() };
+            AddAutoTemplate(result, 19, fill);  // MAINTAIN [lev]
+            AddAutoTemplate(result, 20, fill);  // CLIMB TO [lev]
+            AddAutoTemplate(result, 23, fill);  // DESCENT TO [lev]
+            AddAutoTemplate(result, 0,  null);  // UNABLE
+            return result;
+        }
+
+        // Generic: standard CPDLC response templates
+        AddAutoTemplate(result, 3, null);  // ROGER
+        AddAutoTemplate(result, 4, null);  // AFFIRM
+        AddAutoTemplate(result, 0, null);  // UNABLE
+        AddAutoTemplate(result, 5, null);  // NEGATIVE
+        AddAutoTemplate(result, 1, null);  // STANDBY
+        return result;
+    }
+
+    private void AddAutoTemplate(List<TemplateDisplayItem> result, int messageId, Dictionary<string, string>? defaults)
+    {
+        var template = ResolveTemplate(messageId);
+        if (template == null) return;
+        result.Add(BuildDisplayItem(template, new AtopMessageReference { MessageId = messageId, DefaultParameters = defaults }));
     }
 
     // -------------------------------------------------------------------------
-    // Grouped templates for dropdown menu (does not mutate state)
+    // Grouped templates for category dropdown menus (MOPS structure per NASP-4508K p.282-288)
+    // Returns (subgroup name or null for direct items, template list) per group
     // -------------------------------------------------------------------------
-    public IReadOnlyList<(string GroupName, IReadOnlyList<TemplateDisplayItem> Templates)> GetGroupedTemplates(string category)
+    public IReadOnlyList<(string? GroupName, IReadOnlyList<TemplateDisplayItem> Templates)> GetGroupedTemplates(string category)
     {
-        var result = new List<(string, IReadOnlyList<TemplateDisplayItem>)>();
-        if (_config == null) return result;
+        var result = new List<(string?, IReadOnlyList<TemplateDisplayItem>)>();
 
         if (category == "Pre-Fmt")
         {
+            if (_config == null) return result;
             var items = new List<TemplateDisplayItem>();
             foreach (var r in _config.PermanentMessages ?? Array.Empty<AtopMessageReference>())
             {
-                if (_masterLookup.TryGetValue(r.MessageId, out var master))
-                {
-                    items.Add(new TemplateDisplayItem
-                    {
-                        MessageId = master.Id,
-                        Template = master,
-                        Reference = r,
-                        Segments = ParseTemplateSegments(master, r)
-                    });
-                }
+                var master = ResolveTemplate(r.MessageId);
+                if (master != null)
+                    items.Add(BuildDisplayItem(master, r));
             }
             if (items.Count > 0)
                 result.Add(("Permanent", items));
             return result;
         }
 
-        if (_categoryGroups.TryGetValue(category, out var groups))
+        if (MopsMenuStructure.TryGetValue(category, out var groups))
         {
-            foreach (var group in groups)
+            foreach (var (subGroup, messageIds) in groups)
             {
                 var items = new List<TemplateDisplayItem>();
-                foreach (var r in group.Messages)
+                foreach (var id in messageIds)
                 {
-                    if (_masterLookup.TryGetValue(r.MessageId, out var master))
-                    {
-                        items.Add(new TemplateDisplayItem
-                        {
-                            MessageId = master.Id,
-                            Template = master,
-                            Reference = r,
-                            Segments = ParseTemplateSegments(master, r)
-                        });
-                    }
+                    var master = ResolveTemplate(id);
+                    if (master != null)
+                        items.Add(BuildDisplayItem(master, new AtopMessageReference { MessageId = id }));
                 }
                 if (items.Count > 0)
-                    result.Add((group.Name, items));
+                    result.Add((subGroup, items));
             }
         }
 
@@ -608,7 +849,7 @@ public class ClearanceViewModel : INotifyPropertyChanged
     /// <summary>
     /// DEL button: removes the selected construction line.
     /// </summary>
-    private void DeleteSelectedConstructionLine()
+    public void DeleteSelectedConstructionLine()
     {
         if (_selectedConstructionIndex >= 0 && _selectedConstructionIndex < _constructionLines.Count)
         {
@@ -661,12 +902,15 @@ public class ClearanceViewModel : INotifyPropertyChanged
     /// <summary>
     /// CAN button per spec: cancels the probed proposed profile and clears construction.
     /// </summary>
-    private void ExecuteCancel()
+    public void ExecuteCancel()
     {
+        ProposedProfileBridge.Clear(_callsign);
         ClearConstruction();
         _replyToDownlinkId = null;
         OnPropertyChanged(nameof(ReplyToDownlinkId));
         OnPropertyChanged(nameof(IsReplyMode));
+        OnPropertyChanged(nameof(AutomatedResponseTemplates));
+        OnPropertyChanged(nameof(HasActiveProbeState));
     }
 
     // -------------------------------------------------------------------------
@@ -706,7 +950,7 @@ public class ClearanceViewModel : INotifyPropertyChanged
         return true;
     }
 
-    private void ExecuteSend()
+    public void ExecuteSend()
     {
         if (_constructionLines.Count == 0) return;
 
@@ -741,11 +985,34 @@ public class ClearanceViewModel : INotifyPropertyChanged
         OnPropertyChanged(nameof(IsReplyMode));
     }
 
+    public void ExecuteSendHf()
+    {
+        if (_constructionLines.Count == 0) return;
+        if (!ValidateConstruction()) return;
+
+        // Build human-readable clearance text — no CPDLC @param@ wrappers.
+        var parts = new List<string>();
+        foreach (var line in _constructionLines)
+        {
+            var text = line.Template.Template;
+            foreach (var kvp in line.ParameterValues)
+                text = text.Replace($"[{kvp.Key}]", kvp.Value);
+            parts.Add(text);
+        }
+
+        Network.SendRadioMessage($"{_callsign} {string.Join(". ", parts)}");
+        ResponseText = "Message sent (HF).";
+        IsSent = true;
+        _replyToDownlinkId = null;
+        OnPropertyChanged(nameof(ReplyToDownlinkId));
+        OnPropertyChanged(nameof(IsReplyMode));
+    }
+
     /// <summary>
     /// UNABL button per spec: Cancels probe, places "UNABLE" + "DUE TO TRAFFIC" in construction,
     /// then sends. Controller may add free text before sending.
     /// </summary>
-    private void ExecuteUnable()
+    public void ExecuteUnable()
     {
         if (!_replyToDownlinkId.HasValue) return;
 
@@ -789,11 +1056,44 @@ public class ClearanceViewModel : INotifyPropertyChanged
     /// <summary>
     /// OVRD button per spec: overrides conflict detection to allow sending.
     /// </summary>
-    private void ExecuteOverride()
+    public void ExecuteOverride()
     {
         if (!_conflictDetected) return;
         OverrideActive = true;
         ResponseText = "Override active. Select SND to send despite conflict.";
+    }
+
+    public void ExecuteVhf()
+    {
+        if (_constructionLines.Count == 0) return;
+        if (!ValidateConstruction()) return;
+
+        int? proposedCfl = ExtractProposedAltitude();
+        if (proposedCfl == null)
+        {
+            var fdr0 = FDP2.GetFDRs.FirstOrDefault(f =>
+                string.Equals(f.Callsign, _callsign, StringComparison.OrdinalIgnoreCase));
+            proposedCfl = fdr0 != null && fdr0.CFLUpper != -1 ? fdr0.CFLUpper / 100 : fdr0?.RFL / 100;
+        }
+
+        if (proposedCfl == null || proposedCfl <= 0)
+        {
+            ResponseText = "Cannot determine proposed altitude.";
+            return;
+        }
+
+        var fdr = FDP2.GetFDRs.FirstOrDefault(f =>
+            string.Equals(f.Callsign, _callsign, StringComparison.OrdinalIgnoreCase));
+        if (fdr == null)
+        {
+            ResponseText = "Flight not found.";
+            return;
+        }
+
+        FDP2.SetCFL(fdr, proposedCfl.Value.ToString());
+        IsProbed = true;
+        ResponseText = "Probing...";
+        ConflictProbe.RequestVirtualProbe(_callsign, proposedCfl.Value);
     }
 
     /// <summary>
@@ -802,10 +1102,15 @@ public class ClearanceViewModel : INotifyPropertyChanged
     /// The conflict worker temporarily injects it, runs detection, and returns results
     /// without creating any real FDR or visible artifacts in vatSys.
     /// </summary>
-    private void ExecuteProbe()
+    public void ExecuteProbe()
     {
         if (_constructionLines.Count == 0) return;
         if (!ValidateConstruction()) return;
+        if (HasActiveProbeState)
+        {
+            ResponseText = "Probe already active.";
+            return;
+        }
 
         // Try to extract a proposed CFL from the construction lines.
         // Look for altitude parameters in segments (e.g. [alt], [altitude], [level], [fl]).
@@ -825,8 +1130,23 @@ public class ClearanceViewModel : INotifyPropertyChanged
             return;
         }
 
+        var probeTargetExists = FDP2.GetFDRs.Any(f =>
+            string.Equals(f.Callsign, _callsign, StringComparison.OrdinalIgnoreCase));
+        if (!probeTargetExists)
+        {
+            ResponseText = "Flight not found for probe.";
+            return;
+        }
+
+        if (!ProposedProfileBridge.TryBeginProbe(_callsign))
+        {
+            ResponseText = "Probe already active.";
+            return;
+        }
+
         IsProbed = true;
         ResponseText = "Probing...";
+        OnPropertyChanged(nameof(HasActiveProbeState));
         ConflictProbe.RequestVirtualProbe(_callsign, proposedCfl.Value);
     }
 
@@ -895,6 +1215,8 @@ public class ClearanceViewModel : INotifyPropertyChanged
 
             ResponseText = string.Format(ConflictWithCountsMessageTemplate, aircraftCount, airspaceCount);
         }
+
+        OnPropertyChanged(nameof(HasActiveProbeState));
     }
 
     // -------------------------------------------------------------------------
@@ -956,59 +1278,4 @@ public class ClearanceViewModel : INotifyPropertyChanged
         }
     }
 
-    // -------------------------------------------------------------------------
-    // Simple ICommand implementation
-    // -------------------------------------------------------------------------
-    private class RelayCommand : ICommand
-    {
-        private readonly Action _execute;
-        private readonly Func<bool>? _canExecute;
-
-        public RelayCommand(Action execute, Func<bool>? canExecute = null)
-        {
-            _execute = execute;
-            _canExecute = canExecute;
-        }
-
-        public event EventHandler? CanExecuteChanged
-        {
-            add => CommandManager.RequerySuggested += value;
-            remove => CommandManager.RequerySuggested -= value;
-        }
-
-        public bool CanExecute(object? parameter) => _canExecute?.Invoke() ?? true;
-        public void Execute(object? parameter) => _execute();
-    }
-
-    private class RelayCommand<T> : ICommand
-    {
-        private readonly Action<T?> _execute;
-        private readonly Func<T?, bool>? _canExecute;
-
-        public RelayCommand(Action<T?> execute, Func<T?, bool>? canExecute = null)
-        {
-            _execute = execute;
-            _canExecute = canExecute;
-        }
-
-        public event EventHandler? CanExecuteChanged
-        {
-            add => CommandManager.RequerySuggested += value;
-            remove => CommandManager.RequerySuggested -= value;
-        }
-
-        public bool CanExecute(object? parameter) => _canExecute?.Invoke(parameter is T t ? t : default) ?? true;
-
-        public void Execute(object? parameter)
-        {
-            if (parameter is T t)
-                _execute(t);
-            else if (parameter is string s && typeof(T) == typeof(string))
-                _execute((T)(object)s);
-            else if (parameter is int i && typeof(T) == typeof(int))
-                _execute((T)(object)i);
-            else
-                _execute(default);
-        }
-    }
 }

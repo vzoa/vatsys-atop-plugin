@@ -79,11 +79,6 @@
     <Reference Include="System.Core" />
     <Reference Include="System.Drawing" />
     <Reference Include="System.Windows.Forms" />
-    <Reference Include="PresentationCore" />
-    <Reference Include="PresentationFramework" />
-    <Reference Include="WindowsBase" />
-    <Reference Include="System.Xaml" />
-    <Reference Include="WindowsFormsIntegration" />
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
     <Reference Include="Microsoft.CSharp" />
@@ -139,8 +134,11 @@
     <Compile Include="Display\TrackColorRenderer.cs" />
     <Compile Include="Extensions.cs" />
     <Compile Include="Helpers\CpdlcPluginBridge.cs" />
+    <Compile Include="Helpers\CursorManager.cs" />
     <Compile Include="Helpers\LabelDragOverrideHandler.cs" />
     <Compile Include="Helpers\LocalWebServer.cs" />
+    <Compile Include="Helpers\ProposedProfileBridge.cs" />
+    <Compile Include="Helpers\SelectedLabelBoxBridge.cs" />
     <Compile Include="Helpers\WebSocketServer.cs" />
     <Compile Include="Logic\AltitudeCalculator.cs" />
     <Compile Include="Logic\FlightDataCalculator.cs" />
@@ -189,15 +187,13 @@
     <Compile Include="UI\AnnotationWindow.Designer.cs">
       <DependentUpon>AnnotationWindow.cs</DependentUpon>
     </Compile>
+    <Compile Include="UI\ClearanceWindowClassic.cs" />
     <Compile Include="UI\SettingsWindow.cs">
       <SubType>designer</SubType>
     </Compile>
     <Compile Include="UI\SettingsWindow.Designer.cs" />
     <Compile Include="UI\TempActivationMessagePopup.cs" />
-    <Compile Include="UI\Wpf\ClearanceViewModel.cs" />
-    <Compile Include="UI\Wpf\ClearanceWindow.xaml.cs">
-      <DependentUpon>ClearanceWindow.xaml</DependentUpon>
-    </Compile>
+    <Compile Include="UI\ClearanceViewModel.cs" />
     <Compile Include="Version.cs" />
     <Compile Include="PACOTS\Fix.cs" />
     <Compile Include="PACOTS\NotamService.cs" />
@@ -211,16 +207,6 @@
       <DependentUpon>TDMWindow.cs</DependentUpon>
     </Compile>
     <Compile Include="PACOTS\Plugin.cs" />
-  </ItemGroup>
-  <ItemGroup>
-    <Page Include="UI\Wpf\AtopTheme.xaml">
-      <Generator>MSBuild:Compile</Generator>
-      <SubType>Designer</SubType>
-    </Page>
-    <Page Include="UI\Wpf\ClearanceWindow.xaml">
-      <Generator>MSBuild:Compile</Generator>
-      <SubType>Designer</SubType>
-    </Page>
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="UI\AltitudeWindow.resx">

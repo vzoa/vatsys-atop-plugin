@@ -1,11 +1,9 @@
 using System;
 using System.Threading;
 using System.Windows.Forms;
-using System.Windows.Interop;
 using AtopPlugin.Conflict;
 using AtopPlugin.Display;
 using AtopPlugin.State;
-using AtopPlugin.UI.Wpf;
 using vatsys;
 using vatsys.Plugin;
 using vatsys_atop_plugin.UI;
@@ -21,7 +19,7 @@ public static class AtopMenu
     private static readonly ConflictSummaryWindow ConflictSummaryWindow = new();
     //private static readonly AltitudeWindow AltitudeWindow = new();
 
-    private static ClearanceWindow? _clearanceWindow;
+    private static ClearanceWindowClassic? _clearanceWindow;
 
     static AtopMenu()
     {
@@ -117,19 +115,7 @@ public static class AtopMenu
             try
             {
                 if (_clearanceWindow == null)
-                {
-                    _clearanceWindow = new ClearanceWindow();
-
-                    // Set WinForms parent for modeless keyboard interop
-                    var mainForm = System.Windows.Forms.Application.OpenForms["MainForm"];
-                    if (mainForm != null)
-                    {
-                        var helper = new WindowInteropHelper(_clearanceWindow);
-                        helper.Owner = mainForm.Handle;
-                    }
-
-                    System.Windows.Forms.Integration.ElementHost.EnableModelessKeyboardInterop(_clearanceWindow);
-                }
+                    _clearanceWindow = new ClearanceWindowClassic();
 
                 _clearanceWindow.ShowForCallsign(callsign);
             }

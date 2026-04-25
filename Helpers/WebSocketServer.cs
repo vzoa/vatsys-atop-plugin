@@ -10,6 +10,7 @@ using System.Reflection;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Globalization;
 using vatsys;
 
 namespace AtopPlugin.Helpers
@@ -190,6 +191,18 @@ namespace AtopPlugin.Helpers
             var callsign = request.Callsign;
             if (string.IsNullOrEmpty(callsign)) return;
 
+            ProposedProfileBridge.CompleteProbe(
+                callsign,
+                (request.ProposedProfile?.RouteWaypoints ?? new List<WebSocketRouteWaypoint>())
+                    .Select(wp => new ProposedRouteWaypoint
+                    {
+                        Name = wp.Name ?? "",
+                        Latitude = wp.Lat ?? 0,
+                        Longitude = wp.Lon ?? 0,
+                        EtoUtc = TryParseUtc(wp.Eto)
+                    })
+            );
+
             var conflicts = (request.Conflicts ?? new List<WebAppConflictResult>())
                 .Select(c => new WebAppConflictResult
                 {
@@ -210,6 +223,18 @@ namespace AtopPlugin.Helpers
                 }).ToList();
 
             ProbeVirtualResultsReceived?.Invoke(callsign, conflicts);
+        }
+
+        private static DateTime? TryParseUtc(string input)
+        {
+            if (string.IsNullOrWhiteSpace(input))
+                return null;
+
+            if (!DateTimeOffset.TryParse(input, CultureInfo.InvariantCulture,
+                    DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out var dto))
+                return null;
+
+            return dto.UtcDateTime;
         }
 
         private async Task HandleFdrUpdate(WebSocketRequest request)
@@ -721,6 +746,20 @@ namespace AtopPlugin.Helpers
         public int? SSRCode { get; set; }
         public string CFL { get; set; }
         public List<WebAppConflictResult> Conflicts { get; set; }
+        public WebSocketProposedProfile ProposedProfile { get; set; }
+    }
+
+    public class WebSocketProposedProfile
+    {
+        public List<WebSocketRouteWaypoint> RouteWaypoints { get; set; }
+    }
+
+    public class WebSocketRouteWaypoint
+    {
+        public string Name { get; set; }
+        public double? Lat { get; set; }
+        public double? Lon { get; set; }
+        public string Eto { get; set; }
     }
 
     public class WebAppConflictResult

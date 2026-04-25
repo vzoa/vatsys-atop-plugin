@@ -17,6 +17,7 @@ public class AtopPlugin : ILabelPlugin, IStripPlugin
     {
         RegisterEventHandlers();
         AtopMenu.Initialize();
+        SelectedLabelBoxBridge.Initialize();
         TempActivationMessagePopup.PopUpActivationMessageIfFirstTime();
         AtopPluginStateManager.Initialize(); // Initialize state manager to subscribe to webapp conflicts
         AtopWebSocketServer.Instance.Start();
@@ -61,6 +62,7 @@ public class AtopPlugin : ILabelPlugin, IStripPlugin
         try
         {
             ProbeRouteRenderer.EvaluateCpdlcReadback(updated.Callsign);
+            ProposedProfileBridge.EvaluateCpdlcReadback(updated.Callsign);
 
             _ = AtopPluginStateManager.ProcessFdrUpdate(updated);
             _ = AtopPluginStateManager.ProcessDisplayUpdate(updated);
@@ -129,6 +131,7 @@ public class AtopPlugin : ILabelPlugin, IStripPlugin
     {
         Network.PrivateMessagesChanged += PrivateMessagesChangedHandler.Handle;
         Network.Disconnected += DisconnectHandler.Handle;
+        Network.Disconnected += (_, _) => SelectedLabelBoxBridge.Shutdown();
 
         // changes to cleared flight level do not register an FDR update
         // we need to create custom handlers to be able to update the label/strip

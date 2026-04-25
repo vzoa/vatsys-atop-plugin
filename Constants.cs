@@ -38,8 +38,9 @@ public static class Symbols
     public const string CpdlcNoAdsb = "⧆";
     public const string CpdlcAndAdsb = "✱"; //*
 
+    public const string D20 = "5";
     public const string D30 = "3";
-    public const string D50 = "D";
+    public const string D50 = "2";
     public const string T10 = "M";
     public const string Mnt = "R";
     public const string Rvsm = "W";
