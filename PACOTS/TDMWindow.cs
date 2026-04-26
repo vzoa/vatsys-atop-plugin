@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Windows.Forms;
+using AtopPlugin.Helpers;
 using vatsys;
 using NATPlugin;
 
@@ -12,6 +13,7 @@ namespace PACOTSPlugin
         public TDMWindow()
         {
             InitializeComponent();
+            MeartsUiFonts.Apply(this);
 
             BackColor = Colours.GetColour(Colours.Identities.WindowBackground);
             ForeColor = Colours.GetColour(Colours.Identities.InteractiveText);

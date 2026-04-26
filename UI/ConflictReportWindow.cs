@@ -13,6 +13,7 @@ using System.Net.Http;
 using System.Diagnostics;
 using AtopPlugin.Models;
 using AtopPlugin.Display;
+using AtopPlugin.Helpers;
 
 
 
@@ -34,6 +35,7 @@ namespace AtopPlugin.UI
         public ConflictReportWindow(ConflictData SelectedConflict)
         {
             InitializeComponent();
+            MeartsUiFonts.Apply(this);
             this.SelectedConflict = SelectedConflict;
 
             _intruderCallsign = SelectedConflict.Intruder?.Callsign;

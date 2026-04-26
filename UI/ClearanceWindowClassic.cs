@@ -142,6 +142,7 @@ public class ClearanceWindowClassic : BaseForm
         RefreshResponse();
         RefreshDownlinks();
         RefreshAutoResponses();
+        MeartsUiFonts.Apply(this);
     }
 
     protected override void Dispose(bool disposing)
@@ -154,8 +155,12 @@ public class ClearanceWindowClassic : BaseForm
 
     public void ShowForCallsign(string callsign, int? replyDownlinkId = null)
     {
-        _vm.Load(callsign);
-        _callsignLabel.Text = callsign;
+        var sourceFdr = FDP2.GetFDRs.FirstOrDefault(f =>
+            string.Equals(f.Callsign, callsign, StringComparison.OrdinalIgnoreCase));
+        var resolvedCallsign = sourceFdr?.Callsign ?? callsign;
+
+        _vm.Load(resolvedCallsign);
+        _callsignLabel.Text = (resolvedCallsign ?? string.Empty).ToUpperInvariant();
         _routeLabel.Text = _vm.Route;
 
         // Set reply mode only when explicitly provided (opens from CPDLC comm icon).
@@ -200,16 +205,7 @@ public class ClearanceWindowClassic : BaseForm
 
     private static Font ResolveMonoFont()
     {
-        try
-        {
-            if (MMI.eurofont_sml != null)
-                return new Font(MMI.eurofont_sml.FontFamily, 12f, FontStyle.Bold, GraphicsUnit.Point);
-        }
-        catch
-        {
-        }
-
-        return new Font("Consolas", 11f, FontStyle.Bold, GraphicsUnit.Point);
+        return MeartsUiFonts.GetFont(12f, FontStyle.Bold, GraphicsUnit.Point);
     }
 
     private Control BuildHeaderRow()
@@ -961,7 +957,7 @@ public class ClearanceWindowClassic : BaseForm
             switch (e.PropertyName)
             {
                 case nameof(ClearanceViewModel.Callsign):
-                    _callsignLabel.Text = _vm.Callsign;
+                    _callsignLabel.Text = (_vm.Callsign ?? string.Empty).ToUpperInvariant();
                     break;
                 case nameof(ClearanceViewModel.Route):
                     _routeLabel.Text = _vm.Route;

@@ -135,6 +135,7 @@
     <Compile Include="Extensions.cs" />
     <Compile Include="Helpers\CpdlcPluginBridge.cs" />
     <Compile Include="Helpers\CursorManager.cs" />
+    <Compile Include="Helpers\MeartsUiFonts.cs" />
     <Compile Include="Helpers\LabelDragOverrideHandler.cs" />
     <Compile Include="Helpers\LocalWebServer.cs" />
     <Compile Include="Helpers\ProposedProfileBridge.cs" />
@@ -209,6 +210,12 @@
     <Compile Include="PACOTS\Plugin.cs" />
   </ItemGroup>
   <ItemGroup>
+    <EmbeddedResource Include="UI\MEARTS Fonts\converted\lma11B15.otb">
+      <LogicalName>AtopPlugin.Fonts.lma11B15.otb</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="UI\MEARTS Fonts\converted\lma11M15.otb">
+      <LogicalName>AtopPlugin.Fonts.lma11M15.otb</LogicalName>
+    </EmbeddedResource>
     <EmbeddedResource Include="UI\AltitudeWindow.resx">
       <DependentUpon>AltitudeWindow.cs</DependentUpon>
       <SubType>Designer</SubType>

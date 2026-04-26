@@ -1,5 +1,18 @@
 /* Motif/X-Windows Style Theme - Matching ATOP Reference */
-@import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
+
+@font-face {
+    font-family: 'MEARTS Body';
+    src: url('webfonts/mearts/lma11M15.woff2') format('woff2'),
+         url('webfonts/mearts/lma11M15.woff') format('woff');
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'MEARTS Title';
+    src: url('webfonts/mearts/lma11B15.woff2') format('woff2'),
+         url('webfonts/mearts/lma11B15.woff') format('woff');
+    font-display: swap;
+}
 
 :root {
     /* Colors matched exactly to reference image */
@@ -13,7 +26,7 @@
     --motif-ok: #00c000;
     --motif-teal: #008080;            /* Teal for borders and button bar */
     --motif-desktop-bg: #000000;      /* Black desktop */
-    --motif-font: 'VT323', monospace; /* Bitmap-style font */
+    --motif-font: 'MEARTS Body', monospace; /* Bitmap-style font */
 }
 
 * {
@@ -894,4 +907,291 @@ body {
 .sq-queue-item.selected {
     background: #000000;
     color: #ffff00;
+}
+
+/* ==================================================
+   Motif Authenticity Override Pass (X11/CDE inspired)
+   ================================================== */
+
+:root {
+    --motif-bg: #bdb8a6;
+    --motif-light: #e7e2cf;
+    --motif-midlight: #d4cfbd;
+    --motif-dark: #6d6858;
+    --motif-deep: #2e2b22;
+    --motif-input-bg: #d7d2c0;
+    --motif-desktop-bg: #111111;
+    --motif-active-title: #2f6f7a;
+    --motif-inactive-title: #a7a79b;
+    --motif-focus: #ffff55;
+    --motif-font: "MEARTS Body", "Lucida Sans Typewriter", "Liberation Mono", "Courier New", monospace;
+    --motif-title-font: "MEARTS Title", "Helvetica", "Arial", sans-serif;
+    --motif-title-active-top: #65a5b0;
+    --motif-title-active-bottom: #2f6f7a;
+    --motif-title-inactive-top: #d7d7cc;
+    --motif-title-inactive-bottom: #a7a79b;
+    --motif-menu-top: #cec8b6;
+    --motif-menu-bottom: #b8b29f;
+    --motif-menu-item-padding-y: 1px;
+    --motif-menu-item-padding-x: 7px;
+    --motif-window-shadow-x: 6px;
+    --motif-window-shadow-y: 6px;
+    --motif-title-height: 28px;
+}
+
+/* Optional variants: set on <html> or <body>
+   data-motif-variant="hpux" | "sgi" to switch palettes. */
+[data-motif-variant="hpux"] {
+    --motif-bg: #c4c1b2;
+    --motif-light: #ece7d9;
+    --motif-midlight: #d6d1c2;
+    --motif-dark: #6f6a5b;
+    --motif-deep: #242017;
+    --motif-input-bg: #ddd7c9;
+    --motif-title-active-top: #7e94b1;
+    --motif-title-active-bottom: #526987;
+    --motif-title-inactive-top: #ddddcf;
+    --motif-title-inactive-bottom: #b0b0a2;
+}
+
+[data-motif-variant="sgi"] {
+    --motif-bg: #b8b3a1;
+    --motif-light: #e8e3d2;
+    --motif-midlight: #ccc7b5;
+    --motif-dark: #676253;
+    --motif-deep: #211e16;
+    --motif-input-bg: #d3cebd;
+    --motif-title-active-top: #6c8e93;
+    --motif-title-active-bottom: #3e6066;
+    --motif-title-inactive-top: #d0d0c2;
+    --motif-title-inactive-bottom: #9e9e90;
+}
+
+body {
+    background:
+        radial-gradient(circle at 18% 15%, rgba(255, 255, 255, 0.05), transparent 30%),
+        radial-gradient(circle at 76% 22%, rgba(255, 255, 255, 0.035), transparent 28%),
+        linear-gradient(180deg, #1a1a1a, #0f0f0f 60%, #090909);
+    color: var(--motif-text);
+    letter-spacing: 0.2px;
+}
+
+.motif-window {
+    border: 2px solid;
+    border-color: var(--motif-light) var(--motif-deep) var(--motif-deep) var(--motif-light);
+    box-shadow:
+        0 0 0 1px #8d8a7b,
+        0 0 0 2px var(--motif-midlight),
+        4px 5px 0 rgba(0, 0, 0, 0.45);
+}
+
+.motif-window:not(.active) {
+    filter: saturate(0.82) brightness(0.96);
+}
+
+.motif-window.active {
+    box-shadow:
+        0 0 0 1px #9fa4a0,
+        0 0 0 2px #7ea8ac,
+        var(--motif-window-shadow-x) var(--motif-window-shadow-y) 0 rgba(0, 0, 0, 0.5);
+}
+
+.motif-titlebar {
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.2), transparent 28%),
+        repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.03) 0, rgba(255, 255, 255, 0.03) 1px, transparent 1px, transparent 3px),
+        linear-gradient(180deg, var(--motif-title-inactive-top) 0%, var(--motif-title-inactive-bottom) 100%);
+    border-bottom: 1px solid #4d4a3f;
+    min-height: var(--motif-title-height);
+    padding: 4px 10px;
+}
+
+.motif-window.active .motif-titlebar {
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.16), transparent 30%),
+        repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.04) 0, rgba(255, 255, 255, 0.04) 1px, transparent 1px, transparent 3px),
+        linear-gradient(180deg, var(--motif-title-active-top) 0%, var(--motif-title-active-bottom) 100%);
+    color: #ffffff;
+}
+
+.motif-title {
+    font-family: var(--motif-title-font);
+    font-weight: 700;
+    font-size: 14px;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    text-shadow: 0 1px 0 rgba(0, 0, 0, 0.22);
+}
+
+.motif-btn,
+.fp-btn,
+.fp-menu-item,
+.sq-menu-item,
+.conflict-menu-item {
+    border: 2px solid;
+    border-color: var(--motif-light) var(--motif-dark) var(--motif-dark) var(--motif-light);
+    background: linear-gradient(180deg, var(--motif-midlight), var(--motif-bg));
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.32);
+}
+
+.motif-btn:hover,
+.fp-btn:hover,
+.fp-menu-item:hover,
+.sq-menu-item:hover,
+.conflict-menu-item:hover {
+    background: linear-gradient(180deg, #ede8d8, #c6c1ae);
+    color: #000000;
+}
+
+.motif-btn:active,
+.fp-btn:active,
+.fp-menu-item:active,
+.sq-menu-item:active,
+.conflict-menu-item:active {
+    border-color: var(--motif-dark) var(--motif-light) var(--motif-light) var(--motif-dark);
+    background: linear-gradient(180deg, #98937f, #bdb8a6);
+    box-shadow: inset 1px 1px 1px rgba(0, 0, 0, 0.35);
+    color: #101010;
+}
+
+.motif-input,
+.motif-select,
+.fp-input,
+.fp-textarea,
+.fp-list-area,
+.fp-message-area,
+.conflict-list-area,
+.sq-queue-area {
+    border: 2px solid;
+    border-color: var(--motif-dark) var(--motif-light) var(--motif-light) var(--motif-dark);
+    background: var(--motif-input-bg);
+    box-shadow: inset 1px 1px 0 rgba(0, 0, 0, 0.1);
+}
+
+.motif-input:focus,
+.motif-select:focus,
+.fp-input:focus,
+.fp-textarea:focus,
+.fp-list-item.selected,
+.sq-queue-item.selected,
+.conflict-row.selected {
+    outline: 1px dotted #000000;
+    outline-offset: -3px;
+    box-shadow: inset 0 0 0 1px var(--motif-focus);
+}
+
+.motif-statusbar,
+.fp-button-bar,
+.conflict-header,
+.sq-status-area,
+.fp-menubar,
+.sq-menubar,
+.conflict-menubar {
+    background: linear-gradient(180deg, var(--motif-menu-top), var(--motif-menu-bottom));
+}
+
+.fp-menubar,
+.sq-menubar,
+.conflict-menubar {
+    min-height: 24px;
+    align-items: center;
+    border-top: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.fp-menu-item,
+.sq-menu-item,
+.conflict-menu-item {
+    padding: var(--motif-menu-item-padding-y) var(--motif-menu-item-padding-x);
+    line-height: 1.2;
+    letter-spacing: 0.25px;
+    text-transform: none;
+}
+
+.fp-menu-item u,
+.sq-menu-item u,
+.conflict-menu-item u {
+    text-underline-offset: 1px;
+    text-decoration-thickness: 1px;
+}
+
+.motif-content,
+.fp-content {
+    background: linear-gradient(180deg, var(--motif-bg), #b6b19f 65%, #b2ad9b);
+}
+
+.fp-label,
+.sq-status-label,
+.conflict-header,
+.motif-label {
+    letter-spacing: 0.3px;
+}
+
+.fp-row {
+    gap: 6px;
+    margin-bottom: 5px;
+}
+
+.motif-statusbar {
+    border-top: 2px solid;
+    border-color: var(--motif-dark) var(--motif-light) var(--motif-light) var(--motif-dark);
+}
+
+/* Browser scrollbars with old-toolkit feel */
+* {
+    scrollbar-color: #9d9988 #c9c3b0;
+    scrollbar-width: auto;
+}
+
+::-webkit-scrollbar {
+    width: 15px;
+    height: 15px;
+}
+
+::-webkit-scrollbar-track {
+    background: #c9c3b0;
+    border: 1px solid #7a7566;
+}
+
+::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, #e1dccb, #b8b29f);
+    border: 2px solid;
+    border-color: var(--motif-light) var(--motif-dark) var(--motif-dark) var(--motif-light);
+}
+
+::-webkit-scrollbar-corner {
+    background: #b8b29f;
+}
+
+/* Keep desktop windows visible on small screens by stacking and shrinking */
+@media (max-width: 1200px) {
+    body {
+        padding: 10px;
+    }
+
+    .motif-window {
+        position: relative !important;
+        left: auto !important;
+        top: auto !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        margin: 0 0 12px 0;
+    }
+
+    #sector-queue-window {
+        height: min(56vh, 420px);
+    }
+
+    #flightplan-window {
+        width: 100% !important;
+    }
+
+    .fp-row {
+        flex-wrap: wrap;
+    }
+
+    .fp-label {
+        min-width: 64px;
+        text-align: left;
+    }
 }

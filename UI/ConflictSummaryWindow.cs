@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Windows.Forms;
 using AtopPlugin.Conflict;
+using AtopPlugin.Helpers;
 using AtopPlugin.State;
 using vatsys;
 using static AtopPlugin.Conflict.ConflictProbe;
@@ -14,6 +15,7 @@ public partial class ConflictSummaryWindow : BaseForm
     public ConflictSummaryWindow()
     {
         InitializeComponent();
+        MeartsUiFonts.Apply(this);
         ConflictsUpdated += OnConflictsUpdated;
         conflictListView.MouseClick += ConflictListView_MouseClick;
         conflictListView.View = View.Details;

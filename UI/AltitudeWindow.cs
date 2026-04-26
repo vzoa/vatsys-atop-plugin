@@ -121,6 +121,8 @@ namespace vatsys_atop_plugin.UI
                 button.ForeColor = interactive;
                 button.Font = MMI.eurofont_sml ?? button.Font;
             }
+
+            MeartsUiFonts.Apply(this);
         }
 
         public static AltitudeWindow GetInstance(FDP2.FDR sourcefdr, Track dataBlock, bool openedFromCommIcon = false, int? replyDownlinkMessageId = null)
