@@ -19,7 +19,6 @@ namespace vatsys_atop_plugin.UI
         public AnnotationWindow(FDP2.FDR sourcefdr)
         {
             InitializeComponent();
-            MeartsUiFonts.Apply(this);
             this.source = (object)sourcefdr;
             this.Text = ((FDP2.FDR)this.source).Callsign.ToUpper() + " - " + ((FDP2.FDR)this.source).AircraftType;
             StartPosition = FormStartPosition.Manual;

@@ -171,7 +171,7 @@ public static class LabelItemRenderer
                 if (IsAltitudeRequestDownlink(downlink))
                     AtopMenu.OpenAltitudeWindow(fdr, e.Track, openedFromCommIcon: true, replyDownlinkMessageId: downlink!.MessageId);
                 else
-                    AtopMenu.OpenClearanceWindow(callsign);
+                    AtopMenu.OpenClearanceWindow(fdr);
             }
 
             e.Handled = true;

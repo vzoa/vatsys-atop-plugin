@@ -19,8 +19,8 @@ namespace AtopPlugin.UI;
 /// </summary>
 public class ClearanceViewModel : INotifyPropertyChanged
 {
-    private const string NoProceduralConflictsFoundMessage = "No Procedural Conflicts Found";
-    private const string ConflictWithCountsMessageTemplate = "Conflict with {0} number of aircraft and {1} number of airspaces";
+    private const string NoProceduralConflictsFoundMessage = "No procedural conflict found for flight plan";
+    private const string ConflictWithCountsMessageTemplate = "Conflict with {0} aircraft, {1} airspace.";
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -321,7 +321,9 @@ public class ClearanceViewModel : INotifyPropertyChanged
             _selectedTemplateIndex = -1;
             OnPropertyChanged();
             OnPropertyChanged(nameof(SubCategories));
-            SelectedSubCategory = SubCategories.FirstOrDefault();
+            // Do not auto-select a subgroup; keep template list empty
+            // until the controller explicitly picks a shortcut button.
+            SelectedSubCategory = null;
         }
     }
 
@@ -506,8 +508,9 @@ public class ClearanceViewModel : INotifyPropertyChanged
         return parts.Count > 0 ? string.Join(" ", parts) : fdr.Route ?? "";
     }
 
-    public void Load(string callsign)
+    public void Load(FDP2.FDR fdr)
     {
+        var callsign = fdr.Callsign;
         Callsign = callsign;
 
         // Reset state
@@ -520,9 +523,7 @@ public class ClearanceViewModel : INotifyPropertyChanged
         ResponseText = "";
         OnPropertyChanged(nameof(HasActiveProbeState));
 
-        // Load route from FDP2 — format as "FIX/HHMM FIX/HHMM ..." using parsed route estimates.
-        var fdr = FDP2.GetFDRs.FirstOrDefault(f =>
-            string.Equals(f.Callsign, callsign, StringComparison.OrdinalIgnoreCase));
+        // Load route directly from the FDR we already have.
         Route = BuildRouteWithEstimates(fdr);
 
         // Load message config from CPDLCPlugin
@@ -547,7 +548,8 @@ public class ClearanceViewModel : INotifyPropertyChanged
         // Refresh everything
         _selectedTemplateIndex = -1;
         OnPropertyChanged(nameof(SubCategories));
-        SelectedSubCategory = SubCategories.FirstOrDefault();
+        // Keep templates empty on open until the user picks a shortcut.
+        SelectedSubCategory = null;
     }
 
     // -------------------------------------------------------------------------
@@ -705,6 +707,18 @@ public class ClearanceViewModel : INotifyPropertyChanged
     // -------------------------------------------------------------------------
     // Template selection → construction
     // -------------------------------------------------------------------------
+    /// <summary>
+    /// Looks up a template by message ID and adds it to the construction area.
+    /// Used by the quick-action shortcut buttons.
+    /// </summary>
+    public void AddTemplateByMessageId(int messageId, Dictionary<string, string>? defaults = null)
+    {
+        var template = ResolveTemplate(messageId);
+        if (template == null) return;
+        var item = BuildDisplayItem(template, new AtopMessageReference { MessageId = messageId, DefaultParameters = defaults });
+        AddTemplateToConstruction(item);
+    }
+
     public void AddTemplateToConstruction(TemplateDisplayItem? item)
     {
         if (item == null) return;
@@ -956,6 +970,14 @@ public class ClearanceViewModel : INotifyPropertyChanged
 
         if (!ValidateConstruction()) return;
 
+        var connState = CpdlcPluginBridge.GetConnectionState(_callsign);
+        if (connState == CpdlcPluginBridge.CpdlcConnectionState.NotConnected ||
+            connState == CpdlcPluginBridge.CpdlcConnectionState.Unknown)
+        {
+            ExecuteSendHf();
+            return;
+        }
+
         // Build the final content string — lines separated by ". "
         // Wrap parameter values in @value@ per CPDLC protocol
         var parts = new List<string>();
@@ -1092,7 +1114,7 @@ public class ClearanceViewModel : INotifyPropertyChanged
 
         FDP2.SetCFL(fdr, proposedCfl.Value.ToString());
         IsProbed = true;
-        ResponseText = "Probing...";
+        ResponseText = BuildProbeHeaderText();
         ConflictProbe.RequestVirtualProbe(_callsign, proposedCfl.Value);
     }
 
@@ -1145,9 +1167,24 @@ public class ClearanceViewModel : INotifyPropertyChanged
         }
 
         IsProbed = true;
-        ResponseText = "Probing...";
+        ResponseText = BuildProbeHeaderText();
         OnPropertyChanged(nameof(HasActiveProbeState));
         ConflictProbe.RequestVirtualProbe(_callsign, proposedCfl.Value);
+    }
+
+    private string BuildProbeHeaderText()
+    {
+        var parts = new List<string>();
+        foreach (var line in _constructionLines)
+        {
+            var text = line.Template.Template;
+            foreach (var kvp in line.ParameterValues)
+                text = text.Replace($"[{kvp.Key}]", kvp.Value);
+            parts.Add(text);
+        }
+
+        var probeText = parts.Count > 0 ? string.Join(". ", parts) : "";
+        return string.IsNullOrWhiteSpace(probeText) ? "Probing..." : $"Probing : {probeText}";
     }
 
     /// <summary>
@@ -1195,25 +1232,27 @@ public class ClearanceViewModel : INotifyPropertyChanged
         if (totalConflicts == 0)
         {
             ConflictDetected = false;
-            ResponseText = NoProceduralConflictsFoundMessage;
+            ResponseText =
+                BuildProbeHeaderText() + Environment.NewLine +
+                $"[{callsign.ToUpperInvariant()}]: {NoProceduralConflictsFoundMessage}";
         }
         else
         {
             ConflictDetected = true;
 
-            // ATOP page 291 format: aircraft count + airspace count.
-            // The current worker returns aircraft conflicts but no airspace details.
-            var aircraftCount = conflicts.ActualConflicts
-                .Concat(conflicts.ImminentConflicts)
-                .Concat(conflicts.AdvisoryConflicts)
-                .Select(c => c.Intruder?.Callsign == callsign ? c.Active?.Callsign : c.Intruder?.Callsign)
-                .Where(cs => cs != null)
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .Count();
+            // Use the actual number of conflict events reported by the worker.
+            var conflictCount = totalConflicts;
 
             var airspaceCount = 0;
+            var severity = conflicts.ImminentConflicts.Count > 0
+                ? "IMMINENT"
+                : conflicts.ActualConflicts.Count > 0
+                    ? "ACTUAL"
+                    : "ADVISORY";
 
-            ResponseText = string.Format(ConflictWithCountsMessageTemplate, aircraftCount, airspaceCount);
+            ResponseText =
+                BuildProbeHeaderText() + Environment.NewLine +
+                $"[{callsign.ToUpperInvariant()}]: {string.Format(ConflictWithCountsMessageTemplate, conflictCount, airspaceCount)} {severity}";
         }
 
         OnPropertyChanged(nameof(HasActiveProbeState));

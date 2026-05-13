@@ -36,7 +36,12 @@ public static class MeartsUiFonts
         if (root == null)
             throw new ArgumentNullException(nameof(root));
 
-        ApplyToControl(root);
+        // vatSys paints BaseForm title bars using the form Font. Applying a private
+        // embedded font to the window itself can crash GDI during non-client paint,
+        // so only apply MEARTS fonts to child controls.
+        if (root.TopLevelControl != root)
+            ApplyToControl(root);
+
         foreach (Control child in root.Controls)
             Apply(child);
 

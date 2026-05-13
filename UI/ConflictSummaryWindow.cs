@@ -15,7 +15,6 @@ public partial class ConflictSummaryWindow : BaseForm
     public ConflictSummaryWindow()
     {
         InitializeComponent();
-        MeartsUiFonts.Apply(this);
         ConflictsUpdated += OnConflictsUpdated;
         conflictListView.MouseClick += ConflictListView_MouseClick;
         conflictListView.View = View.Details;

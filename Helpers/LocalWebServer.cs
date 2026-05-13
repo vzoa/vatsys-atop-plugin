@@ -123,6 +123,10 @@ namespace AtopPlugin.Helpers
                 case ".css": return "text/css";
                 case ".js": return "application/javascript";
                 case ".json": return "application/json";
+                case ".woff": return "font/woff";
+                case ".woff2": return "font/woff2";
+                case ".ttf": return "font/ttf";
+                case ".otf": return "font/otf";
                 case ".png": return "image/png";
                 case ".svg": return "image/svg+xml";
                 case ".ico": return "image/x-icon";

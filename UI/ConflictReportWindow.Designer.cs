@@ -403,8 +403,8 @@ namespace AtopPlugin.UI
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 17F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.AutoScroll = true;
-            this.AutoSize = true;
+            this.AutoScroll = false;
+            this.AutoSize = false;
             this.BackColor = System.Drawing.SystemColors.ActiveBorder;
             this.BackgroundImageLayout = System.Windows.Forms.ImageLayout.None;
             this.ClientSize = new System.Drawing.Size(618, 305);

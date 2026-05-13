@@ -370,6 +370,20 @@ namespace AtopPlugin.Helpers
         {
             if (fdr == null) return;
 
+            var calcData = Logic.FlightDataCalculator.GetCalculatedFlightData(fdr);
+            var cpdlcState = CpdlcPluginBridge.GetConnectionState(fdr.Callsign);
+
+            var afnAtcStatus = cpdlcState switch
+            {
+                CpdlcPluginBridge.CpdlcConnectionState.CurrentDataAuthority => "CONNECTED_CDA",
+                CpdlcPluginBridge.CpdlcConnectionState.NextDataAuthority => "CONNECTED_NOT_CDA",
+                CpdlcPluginBridge.CpdlcConnectionState.NotConnected => "NOT_CONNECTED",
+                _ => "NOT_CONNECTED"
+            };
+
+            var afnAdsStatus = calcData.Adsc ? "CONNECTED" : "NOT_REQUESTED";
+            var afnXfrStatus = cpdlcState == CpdlcPluginBridge.CpdlcConnectionState.NextDataAuthority ? "NDA" : "";
+
             var data = new
             {
                 Type = "FlightPlanUpdate",
@@ -400,6 +414,12 @@ namespace AtopPlugin.Helpers
                 ControllingSector = fdr.ControllingSector?.Name,
                 RunwayString = fdr.RunwayString,
                 SIDSTARString = fdr.SIDSTARString,
+                AfnAtcStatus = afnAtcStatus,
+                AfnAdsStatus = afnAdsStatus,
+                AfnXfrStatus = afnXfrStatus,
+                AfnNextCenter = fdr.ControllingSector?.Name ?? "",
+                AfnHasCpdlc = calcData.Cpdlc,
+                AfnHasAdsc = calcData.Adsc,
                 Timestamp = DateTime.UtcNow
             };
 

@@ -343,6 +343,14 @@ function isPointInPolygon(lat, lon, polygon) {
 }
 
 /**
+ * Same ray-cast test, but accepting a raw polygon array directly (no inhibition
+ * area wrapper). Used by the time-correlation check in calculateAreaOfConflict.
+ */
+function isPointInPolygonDirect(lat, lon, polygon) {
+    return isPointInPolygon(lat, lon, polygon);
+}
+
+/**
  * Clip a conflict segment so only the portion outside inhibition areas remains.
  * Returns the clipped segment, or null if the entire segment is inhibited.
  *
@@ -648,6 +656,29 @@ function createBoundingBox(route) {
     };
 }
 
+/**
+ * Interpolate an FDR's position along its route at a given UTC timestamp.
+ * Returns {lat, lon} or null if the time is outside the route's ETO window.
+ */
+function interpolateFdrPositionAtTime(fdr, timeMs) {
+    const route = fdr.parsedRoute;
+    if (!route || route.length < 2) return null;
+
+    for (let i = 1; i < route.length; i++) {
+        const t0 = route[i - 1].eto ? new Date(route[i - 1].eto).getTime() : null;
+        const t1 = route[i].eto ? new Date(route[i].eto).getTime() : null;
+        if (t0 === null || t1 === null) continue;
+        if (timeMs >= t0 && timeMs <= t1) {
+            const ratio = (t1 > t0) ? (timeMs - t0) / (t1 - t0) : 0;
+            return {
+                lat: route[i - 1].lat + ratio * (route[i].lat - route[i - 1].lat),
+                lon: route[i - 1].lon + ratio * (route[i].lon - route[i - 1].lon)
+            };
+        }
+    }
+    return null;
+}
+
 function calculateAreaOfConflict(fdr1, fdr2, lateralSep) {
     const conflictSegments = [];
     const route1 = fdr1.parsedRoute;
@@ -675,12 +706,35 @@ function calculateAreaOfConflict(fdr1, fdr2, lateralSep) {
                 // Ensure chronological order (intersection order != time order)
                 const earlier = t0 <= t1 ? 0 : 1;
                 const later = 1 - earlier;
-                
+                const segStartTime = Math.min(t0, t1);
+                const segEndTime = Math.max(t0, t1);
+                const segMidTime = (segStartTime + segEndTime) / 2;
+
+                // Time-correlation check: verify fdr1 will actually be near the
+                // conflict zone at the same time fdr2 will be there.
+                // Find fdr1's position at fdr2's entry, mid, and exit times and
+                // check whether fdr1 is inside the protection polygon. If fdr1 is
+                // nowhere near the zone at those times the geographic overlap is a
+                // false positive caused by the static-corridor approach.
+                const checkTimes = [segStartTime, segMidTime, segEndTime];
+                const fdr1PresentInZone = checkTimes.some(t => {
+                    const pos = interpolateFdrPositionAtTime(fdr1, t);
+                    if (!pos) return false;
+                    return isPointInPolygonDirect(pos.lat, pos.lon, polygon);
+                });
+
+                if (!fdr1PresentInZone) {
+                    // fdr1 is not in its own protection corridor at the time
+                    // fdr2 passes through it — not a real-time conflict.
+                    console.log(`[ConflictWorker]   ${fdr1.callsign} vs ${fdr2.callsign}: segment skipped — ${fdr1.callsign} not in zone at fdr2 entry/mid/exit times (time-correlation filter)`);
+                    continue;
+                }
+
                 conflictSegments.push({
                     startLatLon: intersections[earlier],
                     endLatLon: intersections[later],
-                    startTime: Math.min(t0, t1),
-                    endTime: Math.max(t0, t1)
+                    startTime: segStartTime,
+                    endTime: segEndTime
                 });
             }
         }

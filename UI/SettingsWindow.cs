@@ -8,6 +8,5 @@ public partial class SettingsWindow : BaseForm
     public SettingsWindow()
     {
         InitializeComponent();
-        MeartsUiFonts.Apply(this);
     }
 }

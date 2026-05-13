@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AFN Window</title>
+    <link rel="stylesheet" href="motif.css">
+    <style>
+        body { padding: 30px; }
+    </style>
+</head>
+<body>
+
+<!--
+    AFN Window — ATS Facilities Notification
+    Per NASP-4508K, Section 7.1 (PDF pages 198–205)
+
+    Structure:
+      Title Bar
+      Menu Bar  [Initiate Connection ▾] [Terminate Connection ▾]  [Help]
+      Column Headers  ACID | LOGON TIME | REG # | XFR STATUS | CONNECTION STATUS
+      Workspace Area  (0–2 emphasized entries; intruder top, active bottom)
+      ── divider ──
+      Main Entry Area (all logged-on flights, scrollable)
+      Button Bar  [Contact Center] [Edit Clear] [Edit ADS] [Close]
+
+    Each AFN Entry is 2 lines:
+      Row 1: call sign  | logon time | reg #  | TCOM status         | ADS version & status
+      Row 2: (blank)    | (blank)    | (blank)| next center address  | ATC version & status
+-->
+
+<div class="motif-window active" id="afn-window" style="position: relative; left: 0; top: 0;">
+
+    <!-- ── Title Bar ── -->
+    <div class="motif-titlebar">
+        <span class="motif-title">AFN</span>
+    </div>
+
+    <!-- ── Menu Bar ── -->
+    <div class="afn-menubar">
+        <!-- Initiate Connection -->
+        <div class="afn-menu-item afn-menu-dropdown" id="afn-menu-initiate">
+            Initiate Connection
+            <div class="afn-dropdown">
+                <div class="afn-dropdown-item" id="afn-initiate-atc">ATC</div>
+                <div class="afn-dropdown-item" id="afn-initiate-ads">ADS</div>
+            </div>
+        </div>
+
+        <!-- Terminate Connection -->
+        <div class="afn-menu-item afn-menu-dropdown" id="afn-menu-terminate">
+            Terminate Connection
+            <div class="afn-dropdown">
+                <div class="afn-dropdown-item" id="afn-terminate-atc">ATC</div>
+                <div class="afn-dropdown-item" id="afn-terminate-ads">ADS</div>
+                <div class="afn-dropdown-item" id="afn-terminate-datalink">Data Link</div>
+            </div>
+        </div>
+
+        <!-- Help (right-aligned) -->
+        <div class="afn-menu-item afn-menu-right" id="afn-menu-help">Help</div>
+    </div>
+
+    <!-- ── Column Headers ── -->
+    <!--
+        The header row has an extra .afn-col-headers-pad span on the right
+        to account for the scrollbar width in the Main Entry Area, keeping
+        column text aligned between the two sections.
+    -->
+    <div class="afn-col-headers">
+        <span class="afn-col afn-col-acid">ACID</span>
+        <span class="afn-col afn-col-logon">LOGON TIME</span>
+        <span class="afn-col afn-col-reg">REG #</span>
+        <span class="afn-col afn-col-xfr">XFR STATUS</span>
+        <span class="afn-col afn-col-conn">CONNECTION STATUS</span>
+        <span class="afn-col-headers-pad"></span>
+    </div>
+
+    <!-- ── Workspace Area ──
+         Displays AFN entries for aircraft with Selection Emphasis.
+         Single emphasis → 1 entry (highlighted).
+         Conflict emphasis → 2 entries (intruder on top, active on bottom;
+         intruder highlighted by default if it has an AFN entry).
+         If an emphasized aircraft has no AFN entry, a Blank Entry (2 blank lines)
+         is shown in its place.                                               -->
+    <div class="afn-workspace" id="afn-workspace">
+
+        <!-- Workspace Entry 1: intruder (conflict emphasis) — highlighted -->
+        <div class="afn-entry afn-entry-highlighted" id="ws-entry-1"
+             data-acid="UAL836" onclick="afnSelectEntry(this)">
+            <div class="afn-entry-row">
+                <span class="afn-col afn-col-acid">UAL836</span>
+                <span class="afn-col afn-col-logon">1823Z</span>
+                <span class="afn-col afn-col-reg">N78866</span>
+                <span class="afn-col afn-col-xfr afn-xfr-nda">NDA</span>
+                <span class="afn-col afn-col-conn afn-cs-initiating">FAN1/2.0 INITIATING</span>
+            </div>
+            <div class="afn-entry-row">
+                <span class="afn-col afn-col-acid"></span>
+                <span class="afn-col afn-col-logon"></span>
+                <span class="afn-col afn-col-reg"></span>
+                <span class="afn-col afn-col-xfr">KZAK</span>
+                <span class="afn-col afn-col-conn afn-cs-conn-cda">FAN1/2.0 CONNECTED_CDA</span>
+            </div>
+        </div>
+
+        <!-- Workspace Entry 2: active aircraft (conflict emphasis) -->
+        <div class="afn-entry" id="ws-entry-2"
+             data-acid="JAL008" onclick="afnSelectEntry(this)">
+            <div class="afn-entry-row">
+                <span class="afn-col afn-col-acid">JAL008</span>
+                <span class="afn-col afn-col-logon">1705Z</span>
+                <span class="afn-col afn-col-reg">JA8083</span>
+                <span class="afn-col afn-col-xfr afn-xfr-comp">COMP</span>
+                <span class="afn-col afn-col-conn afn-cs-conn-cda">FAN1/2.0 CONNECTED_CDA</span>
+            </div>
+            <div class="afn-entry-row">
+                <span class="afn-col afn-col-acid"></span>
+                <span class="afn-col afn-col-logon"></span>
+                <span class="afn-col afn-col-reg"></span>
+                <span class="afn-col afn-col-xfr">RJJJ</span>
+                <span class="afn-col afn-col-conn afn-cs-conn-cda">FAN1/2.0 CONNECTED_CDA</span>
+            </div>
+        </div>
+
+    </div><!-- /afn-workspace -->
+
+    <!-- Divider between Workspace Area and Main Entry Area -->
+    <div class="afn-area-divider"></div>
+
+    <!-- ── Main Entry Area ──
+         Lists all AFN Entries for logged-on flights controlled by the sector.
+         LMC on an entry selects it → Aircraft Selection Emphasis.
+         Sorted earliest logon time (top) to latest (bottom).           -->
+    <div class="afn-main-area" id="afn-main-area">
+
+        <!-- Entry: UAL836 (already in workspace as emphasis) -->
+        <div class="afn-entry" data-acid="UAL836" onclick="afnSelectEntry(this)">
+            <div class="afn-entry-row">
+                <span class="afn-col afn-col-acid">UAL836</span>
+                <span class="afn-col afn-col-logon">1823Z</span>
+                <span class="afn-col afn-col-reg">N78866</span>
+                <span class="afn-col afn-col-xfr afn-xfr-nda">NDA</span>
+                <span class="afn-col afn-col-conn afn-cs-initiating">FAN1/2.0 INITIATING</span>
+            </div>
+            <div class="afn-entry-row">
+                <span class="afn-col afn-col-acid"></span>
+                <span class="afn-col afn-col-logon"></span>
+                <span class="afn-col afn-col-reg"></span>
+                <span class="afn-col afn-col-xfr">KZAK</span>
+                <span class="afn-col afn-col-conn afn-cs-conn-cda">FAN1/2.0 CONNECTED_CDA</span>
+            </div>
+        </div>
+
+        <!-- Entry: ANA001 -->
+        <div class="afn-entry" data-acid="ANA001" onclick="afnSelectEntry(this)">
+            <div class="afn-entry-row">
+                <span class="afn-col afn-col-acid">ANA001</span>
+                <span class="afn-col afn-col-logon">1705Z</span>
+                <span class="afn-col afn-col-reg">JA8086</span>
+                <span class="afn-col afn-col-xfr afn-xfr-comp">COMP</span>
+                <span class="afn-col afn-col-conn afn-cs-conn-cda">FAN1/2.0 CONNECTED_CDA</span>
+            </div>
+            <div class="afn-entry-row">
+                <span class="afn-col afn-col-acid"></span>
+                <span class="afn-col afn-col-logon"></span>
+                <span class="afn-col afn-col-reg"></span>
+                <span class="afn-col afn-col-xfr">KZAK</span>
+                <span class="afn-col afn-col-conn afn-cs-conn-cda">FAN1/2.0 CONNECTED_CDA</span>
+            </div>
+        </div>
+
+        <!-- Entry: JAL008 -->
+        <div class="afn-entry" data-acid="JAL008" onclick="afnSelectEntry(this)">
+            <div class="afn-entry-row">
+                <span class="afn-col afn-col-acid">JAL008</span>
+                <span class="afn-col afn-col-logon">1748Z</span>
+                <span class="afn-col afn-col-reg">JA8083</span>
+                <span class="afn-col afn-col-xfr afn-xfr-comp">COMP</span>
+                <span class="afn-col afn-col-conn afn-cs-conn-cda">FAN1/2.0 CONNECTED_CDA</span>
+            </div>
+            <div class="afn-entry-row">
+                <span class="afn-col afn-col-acid"></span>
+                <span class="afn-col afn-col-logon"></span>
+                <span class="afn-col afn-col-reg"></span>
+                <span class="afn-col afn-col-xfr">RJJJ</span>
+                <span class="afn-col afn-col-conn afn-cs-conn-cda">FAN1/2.0 CONNECTED_CDA</span>
+            </div>
+        </div>
+
+        <!-- Entry: DAL169 — ATC initiating, ADS connected -->
+        <div class="afn-entry" data-acid="DAL169" onclick="afnSelectEntry(this)">
+            <div class="afn-entry-row">
+                <span class="afn-col afn-col-acid">DAL169</span>
+                <span class="afn-col afn-col-logon">1802Z</span>
+                <span class="afn-col afn-col-reg">N701DN</span>
+                <span class="afn-col afn-col-xfr afn-xfr-cad">CAD</span>
+                <span class="afn-col afn-col-conn afn-cs-connected">FAN1/2.0 CONNECTED</span>
+            </div>
+            <div class="afn-entry-row">
+                <span class="afn-col afn-col-acid"></span>
+                <span class="afn-col afn-col-logon"></span>
+                <span class="afn-col afn-col-reg"></span>
+                <span class="afn-col afn-col-xfr">KZAK</span>
+                <span class="afn-col afn-col-conn afn-cs-initiating">FAN1/2.0 INITIATING</span>
+            </div>
+        </div>
+
+        <!-- Entry: KAL072 — NDA sent, both connecting -->
+        <div class="afn-entry" data-acid="KAL072" onclick="afnSelectEntry(this)">
+            <div class="afn-entry-row">
+                <span class="afn-col afn-col-acid">KAL072</span>
+                <span class="afn-col afn-col-logon">1811Z</span>
+                <span class="afn-col afn-col-reg">HL7402</span>
+                <span class="afn-col afn-col-xfr afn-xfr-nda">NDA</span>
+                <span class="afn-col afn-col-conn afn-cs-conn-cda">FAN1/2.0 CONNECTED_CDA</span>
+            </div>
+            <div class="afn-entry-row">
+                <span class="afn-col afn-col-acid"></span>
+                <span class="afn-col afn-col-logon"></span>
+                <span class="afn-col afn-col-reg"></span>
+                <span class="afn-col afn-col-xfr">RCTP</span>
+                <span class="afn-col afn-col-conn afn-cs-conn-cda">FAN1/2.0 CONNECTED_CDA</span>
+            </div>
+        </div>
+
+        <!-- Entry: SIA015 — RESP received -->
+        <div class="afn-entry" data-acid="SIA015" onclick="afnSelectEntry(this)">
+            <div class="afn-entry-row">
+                <span class="afn-col afn-col-acid">SIA015</span>
+                <span class="afn-col afn-col-logon">1816Z</span>
+                <span class="afn-col afn-col-reg">9V-SKA</span>
+                <span class="afn-col afn-col-xfr afn-xfr-resp">RESP</span>
+                <span class="afn-col afn-col-conn afn-cs-conn-cda">FAN1/2.0 CONNECTED_CDA</span>
+            </div>
+            <div class="afn-entry-row">
+                <span class="afn-col afn-col-acid"></span>
+                <span class="afn-col afn-col-logon"></span>
+                <span class="afn-col afn-col-reg"></span>
+                <span class="afn-col afn-col-xfr">WMFC</span>
+                <span class="afn-col afn-col-conn afn-cs-conn-cda">FAN1/2.0 CONNECTED_CDA</span>
+            </div>
+        </div>
+
+        <!-- Entry: CPA840 — TERMINATING -->
+        <div class="afn-entry" data-acid="CPA840" onclick="afnSelectEntry(this)">
+            <div class="afn-entry-row">
+                <span class="afn-col afn-col-acid">CPA840</span>
+                <span class="afn-col afn-col-logon">1819Z</span>
+                <span class="afn-col afn-col-reg">B-HOP</span>
+                <span class="afn-col afn-col-xfr"></span>
+                <span class="afn-col afn-col-conn afn-cs-terminating">FAN1/2.0 TERMINATING</span>
+            </div>
+            <div class="afn-entry-row">
+                <span class="afn-col afn-col-acid"></span>
+                <span class="afn-col afn-col-logon"></span>
+                <span class="afn-col afn-col-reg"></span>
+                <span class="afn-col afn-col-xfr"></span>
+                <span class="afn-col afn-col-conn afn-cs-terminating">FAN1/2.0 TERMINATING</span>
+            </div>
+        </div>
+
+        <!-- Entry: BAW003 — NOT_SUPPORTED version mismatch -->
+        <div class="afn-entry" data-acid="BAW003" onclick="afnSelectEntry(this)">
+            <div class="afn-entry-row">
+                <span class="afn-col afn-col-acid">BAW003</span>
+                <span class="afn-col afn-col-logon">1821Z</span>
+                <span class="afn-col afn-col-reg">G-CIVB</span>
+                <span class="afn-col afn-col-xfr"></span>
+                <span class="afn-col afn-col-conn afn-cs-not-supported">FAN1/2.0 NOT_SUPPORTED</span>
+            </div>
+            <div class="afn-entry-row">
+                <span class="afn-col afn-col-acid"></span>
+                <span class="afn-col afn-col-logon"></span>
+                <span class="afn-col afn-col-reg"></span>
+                <span class="afn-col afn-col-xfr"></span>
+                <span class="afn-col afn-col-conn afn-cs-not-requested">ATN/1.0 NOT_REQUESTED</span>
+            </div>
+        </div>
+
+    </div><!-- /afn-main-area -->
+
+    <!-- ── Bottom Button Bar ──
+         Contact Center — opens Center Address window for highlighted Workspace entry
+         Edit Clear     — opens Clearance window for highlighted Workspace entry
+         Edit ADS       — opens ADS-C Contract Management window for highlighted entry
+         Close          — removes AFN window from display                         -->
+    <div class="afn-button-bar">
+        <button class="motif-btn" id="afn-btn-contact-center">Contact Center</button>
+        <button class="motif-btn" id="afn-btn-edit-clear">Edit Clear</button>
+        <button class="motif-btn" id="afn-btn-edit-ads">Edit ADS</button>
+        <button class="motif-btn" id="afn-btn-close">Close</button>
+    </div>
+
+</div><!-- /afn-window -->
+
+<script>
+    /**
+     * LMC on a Main Entry Area entry selects it (Aircraft Selection Emphasis).
+     * In the Workspace Area a LMC switches the highlighted (active) entry.
+     * In a real implementation this would fire selection-emphasis events.
+     */
+    function afnSelectEntry(el) {
+        // Remove highlight from all workspace entries
+        document.querySelectorAll('#afn-workspace .afn-entry').forEach(function(e) {
+            e.classList.remove('afn-entry-highlighted');
+        });
+        // If the clicked entry is inside the workspace, highlight it
+        if (el.closest('#afn-workspace')) {
+            el.classList.add('afn-entry-highlighted');
+        }
+        // In a real implementation we would send the ACID to the C# plugin here.
+        // e.g. window.atopBridge?.selectAircraft(el.dataset.acid);
+    }
+
+    // Close button
+    document.getElementById('afn-btn-close').addEventListener('click', function () {
+        document.getElementById('afn-window').style.display = 'none';
+    });
+</script>
+
+</body>
+</html>

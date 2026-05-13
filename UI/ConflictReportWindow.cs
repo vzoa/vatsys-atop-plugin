@@ -35,7 +35,6 @@ namespace AtopPlugin.UI
         public ConflictReportWindow(ConflictData SelectedConflict)
         {
             InitializeComponent();
-            MeartsUiFonts.Apply(this);
             this.SelectedConflict = SelectedConflict;
 
             _intruderCallsign = SelectedConflict.Intruder?.Callsign;

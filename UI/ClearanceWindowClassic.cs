@@ -29,7 +29,7 @@ public class ClearanceWindowClassic : BaseForm
     private readonly Dictionary<MenuButton, string> _shortcutButtons = new();
 
     private readonly Label _callsignLabel = new();
-    private readonly Label _routeLabel = new();
+    private readonly TextBox _routeLabel = new();
     private readonly FlowLayoutPanel _categoryPanel = new();
     private readonly FlowLayoutPanel _shortcutPanel = new();
     private readonly Panel _templateViewport = new();
@@ -62,6 +62,7 @@ public class ClearanceWindowClassic : BaseForm
     private List<ClearanceViewModel.TemplateDisplayItem> _currentTemplates = new();
     private ContextMenuStrip? _activeMenu;
     private bool _syncingScrollbars;
+    private FlowLayoutPanel? _insDelButtons;
 
     public ClearanceWindowClassic()
     {
@@ -73,14 +74,13 @@ public class ClearanceWindowClassic : BaseForm
         MaximumSize = new Size(760, 520);
         Size = new Size(760, 420);
         BackColor = _windowBackground;
-        Font = _monoFont;
 
         _root = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
             BackColor = _windowBackground,
             ColumnCount = 1,
-            RowCount = 9,
+            RowCount = 10,
             Padding = new Padding(6),
             Margin = new Padding(0)
         };
@@ -88,6 +88,7 @@ public class ClearanceWindowClassic : BaseForm
         root.RowStyles.Add(new RowStyle(SizeType.Absolute, 26));
         root.RowStyles.Add(new RowStyle(SizeType.Absolute, 30));
         root.RowStyles.Add(new RowStyle(SizeType.Absolute, 30));
+        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 30));  // quick actions shortcut row
         root.RowStyles.Add(new RowStyle(SizeType.Percent, 54));
         root.RowStyles.Add(new RowStyle(SizeType.Percent, 24));
         root.RowStyles.Add(new RowStyle(SizeType.Absolute, 34));
@@ -98,13 +99,14 @@ public class ClearanceWindowClassic : BaseForm
         root.Controls.Add(BuildHeaderRow(), 0, 0);
         root.Controls.Add(BuildCategoryRow(), 0, 1);
         root.Controls.Add(BuildShortcutRow(), 0, 2);
-        root.Controls.Add(BuildTemplateRow(), 0, 3);
-        root.Controls.Add(BuildConstructionRow(), 0, 4);
-        root.Controls.Add(BuildResponseRow(), 0, 5);
-        root.Controls.Add(BuildDownlinkRow(), 0, 6);
+        root.Controls.Add(BuildQuickActionsRow(), 0, 3);
+        root.Controls.Add(BuildTemplateRow(), 0, 4);
+        root.Controls.Add(BuildConstructionRow(), 0, 5);
+        root.Controls.Add(BuildResponseRow(), 0, 6);
+        root.Controls.Add(BuildDownlinkRow(), 0, 7);
         _autoResponseRowHost = BuildAutoResponseRow();
-        root.Controls.Add(_autoResponseRowHost, 0, 7);
-        root.Controls.Add(BuildActionRow(), 0, 8);
+        root.Controls.Add(_autoResponseRowHost, 0, 8);
+        root.Controls.Add(BuildActionRow(), 0, 9);
 
         Controls.Add(root);
 
@@ -116,7 +118,7 @@ public class ClearanceWindowClassic : BaseForm
         _overrideButton = CreateActionButton("OVRD", OverrideButton_Click);
         _vhfButton = CreateActionButton("VHF", VhfButton_Click);
 
-        var actionHost = (FlowLayoutPanel)root.GetControlFromPosition(0, 8)!;
+        var actionHost = (FlowLayoutPanel)root.GetControlFromPosition(0, 9)!;
         actionHost.Controls.AddRange(new Control[]
         {
             _probeButton,
@@ -142,7 +144,6 @@ public class ClearanceWindowClassic : BaseForm
         RefreshResponse();
         RefreshDownlinks();
         RefreshAutoResponses();
-        MeartsUiFonts.Apply(this);
     }
 
     protected override void Dispose(bool disposing)
@@ -153,14 +154,15 @@ public class ClearanceWindowClassic : BaseForm
         base.Dispose(disposing);
     }
 
-    public void ShowForCallsign(string callsign, int? replyDownlinkId = null)
+    public void ShowForCallsign(FDP2.FDR fdr, int? replyDownlinkId = null)
     {
-        var sourceFdr = FDP2.GetFDRs.FirstOrDefault(f =>
-            string.Equals(f.Callsign, callsign, StringComparison.OrdinalIgnoreCase));
-        var resolvedCallsign = sourceFdr?.Callsign ?? callsign;
-
-        _vm.Load(resolvedCallsign);
-        _callsignLabel.Text = (resolvedCallsign ?? string.Empty).ToUpperInvariant();
+        AtopMenu.AtopDebugLog($"ShowForCallsign ENTRY: fdr.Callsign='{fdr?.Callsign}'");
+        _vm.Load(fdr);
+        AtopMenu.AtopDebugLog($"ShowForCallsign after Load: vm.Callsign='{_vm.Callsign}'");
+        _callsignLabel.Text = fdr.Callsign.ToUpperInvariant();
+        AtopMenu.AtopDebugLog($"ShowForCallsign after set Text: label.Text='{_callsignLabel.Text}'");
+        _callsignLabel.ForeColor = Color.Yellow;
+        _callsignLabel.BackColor = Color.Black;
         _routeLabel.Text = _vm.Route;
 
         // Set reply mode only when explicitly provided (opens from CPDLC comm icon).
@@ -182,9 +184,11 @@ public class ClearanceWindowClassic : BaseForm
         _callsignLabel.Invalidate();
         _routeLabel.Invalidate();
 
+        AtopMenu.AtopDebugLog($"ShowForCallsign PRE-SHOW: label.Text='{_callsignLabel.Text}' label.Visible={_callsignLabel.Visible} label.Parent?.Visible={_callsignLabel.Parent?.Visible}");
         Show(Form.ActiveForm ?? this);
         BringToFront();
         Activate();
+        AtopMenu.AtopDebugLog($"ShowForCallsign POST-SHOW: label.Text='{_callsignLabel.Text}' label.Visible={_callsignLabel.Visible} label.Bounds={_callsignLabel.Bounds} label.ForeColor={_callsignLabel.ForeColor} label.BackColor={_callsignLabel.BackColor} vm.Callsign='{_vm.Callsign}' form.Visible={Visible} form.Size={Size}");
     }
 
     // Crossing Arrow cursor while hovering over or dragging the title bar (ATOP cursor form 4).
@@ -205,7 +209,7 @@ public class ClearanceWindowClassic : BaseForm
 
     private static Font ResolveMonoFont()
     {
-        return MeartsUiFonts.GetFont(12f, FontStyle.Bold, GraphicsUnit.Point);
+        return MMI.eurofont_winsml ?? MMI.eurofont_sml ?? SystemFonts.DefaultFont;
     }
 
     private Control BuildHeaderRow()
@@ -215,10 +219,14 @@ public class ClearanceWindowClassic : BaseForm
             Dock = DockStyle.Fill,
             BackColor = _windowBackground,
             ColumnCount = 2,
+            RowCount = 1,
             Margin = new Padding(0)
         };
-        panel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 112));
+        // Size the callsign column to exactly 7 characters + border + right margin.
+        var callsignColWidth = TextRenderer.MeasureText("MMMMMMM", _monoFont).Width + 12;
+        panel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, callsignColWidth));
         panel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        panel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
         _callsignLabel.BackColor = Color.Black;
         _callsignLabel.ForeColor = Color.Yellow;
@@ -233,7 +241,7 @@ public class ClearanceWindowClassic : BaseForm
         {
             Dock = DockStyle.Fill,
             BackColor = Color.White,
-            Padding = new Padding(4, 6, 4, 4),
+            Padding = new Padding(2, 1, 2, 1),
             Margin = new Padding(0)
         };
         routeBorder.Paint += BorderPanel_Paint;
@@ -242,9 +250,9 @@ public class ClearanceWindowClassic : BaseForm
         _routeLabel.BackColor = Color.White;
         _routeLabel.ForeColor = _interactiveText;
         _routeLabel.Font = _monoFont;
-        _routeLabel.TextAlign = ContentAlignment.MiddleLeft;
-        _routeLabel.AutoEllipsis = true;
-        _routeLabel.AutoSize = false;
+        _routeLabel.ReadOnly = true;
+        _routeLabel.BorderStyle = BorderStyle.None;
+        _routeLabel.ScrollBars = ScrollBars.None;
 
         routeBorder.Controls.Add(_routeLabel);
 
@@ -292,17 +300,18 @@ public class ClearanceWindowClassic : BaseForm
 
         host.Controls.Add(BuildScrollableSection(_constructionViewport, _constructionContent, _constructionScrollBar, ConstructionViewport_MouseWheel, 2), 0, 0);
 
-        var sideButtons = new FlowLayoutPanel
+        _insDelButtons = new FlowLayoutPanel
         {
             Dock = DockStyle.Fill,
             FlowDirection = FlowDirection.TopDown,
             WrapContents = false,
             BackColor = _windowBackground,
-            Margin = new Padding(4, 2, 0, 0)
+            Margin = new Padding(4, 2, 0, 0),
+            Visible = true
         };
-        sideButtons.Controls.Add(CreateActionButton("INS", InsertButton_Click, width: 44));
-        sideButtons.Controls.Add(CreateActionButton("DEL", DeleteButton_Click, width: 44));
-        host.Controls.Add(sideButtons, 2, 0);
+        _insDelButtons.Controls.Add(CreateActionButton("INS", InsertButton_Click, width: 44));
+        _insDelButtons.Controls.Add(CreateActionButton("DEL", DeleteButton_Click, width: 44));
+        host.Controls.Add(_insDelButtons, 2, 0);
 
         return host;
     }
@@ -455,9 +464,6 @@ public class ClearanceWindowClassic : BaseForm
             _shortcutButtons[button] = subCategory;
             _shortcutPanel.Controls.Add(button);
         }
-
-        if (_shortcutButtons.Count > 0)
-            SelectShortcutButton(_shortcutButtons.Keys.First());
     }
 
     private void RefreshTemplates()
@@ -482,6 +488,8 @@ public class ClearanceWindowClassic : BaseForm
             _constructionContent.Controls.Add(BuildConstructionControl(_constructionViewport, _vm.ConstructionLines[index], index));
 
         _constructionContent.ResumeLayout(true);
+        if (_insDelButtons != null)
+            _insDelButtons.Enabled = _vm.ConstructionLines.Count > 0;
         UpdateScrollbars();
     }
 
@@ -499,7 +507,7 @@ public class ClearanceWindowClassic : BaseForm
         bool show = templates.Count > 0;
         if (_root != null)
         {
-            _root.RowStyles[7] = new RowStyle(SizeType.Absolute, show ? 100 : 0);
+            _root.RowStyles[8] = new RowStyle(SizeType.Absolute, show ? 100 : 0);
             Size = new Size(760, show ? 520 : 420);
         }
         if (_autoResponseRowHost != null)
@@ -571,10 +579,13 @@ public class ClearanceWindowClassic : BaseForm
 
     private void RefreshResponse()
     {
-        _responsePanel.Visible = !string.IsNullOrWhiteSpace(_vm.ResponseText);
+        bool hasResponse = !string.IsNullOrWhiteSpace(_vm.ResponseText);
+        _responsePanel.Visible = hasResponse;
+        if (_root != null)
+            _root.RowStyles[6] = new RowStyle(SizeType.Absolute, hasResponse ? 34 : 0);
         _responseLabel.Text = _vm.ResponseText;
 
-        if (_vm.ResponseText == "No Procedural Conflicts Found")
+        if (_vm.ResponseText.IndexOf("No procedural conflict found for flight plan", StringComparison.OrdinalIgnoreCase) >= 0)
             _responseLabel.ForeColor = _okColor;
         else if (_vm.ConflictDetected)
             _responseLabel.ForeColor = _conflictColor;
@@ -1243,5 +1254,381 @@ public class ClearanceWindowClassic : BaseForm
         var maxOffset = Math.Max(0, contentHeight - viewportHeight);
         var offset = maxOffset == 0 ? 0 : (int)Math.Round(maxOffset * (scrollBar.Value / 100d));
         content.Location = new Point(2, 2 - offset);
+    }
+
+    // -------------------------------------------------------------------------
+    // Quick-action shortcut buttons — independent row that directly adds a
+    // CPDLC message template to the construction area without interacting
+    // with the category/shortcut tab rows above.
+    // -------------------------------------------------------------------------
+
+    private Control BuildQuickActionsRow()
+    {
+        // Each entry: (TopLine, BotLine, IconKind, Steps[])
+        // Each step:  (messageId, paramName or null, preFilledValue or null)
+        // Multiple steps per button are added sequentially to the construction area.
+        // Pre-filled values use the parameter name from the template (e.g. "lev", "freetext").
+        // Source: MOPS_CLR_SHORTCUT_BAR — Order_Number 1-16.
+        static (int, string?, string?)[] Msgs(params (int, string?, string?)[] m) => m;
+
+        var shortcuts = new (string Top, string Bot, int Icon, (int MsgId, string? Param, string? Val)[] Steps)[]
+        {
+            // 1  Free_Text_1
+            ("Free",  "Text",  7,  Msgs((169, null, null))),
+            // 2  Climb
+            ("Climb", "",      1,  Msgs((20,  null, null))),
+            // 3  ByTimeC — CLIMB TO REACH [lev] BY [time]
+            ("",      "Time",  6,  Msgs((26,  null, null))),
+            // 4  Climb_Maintain_Unable — freetext "UNABLE…" then CLIMB TO [lev]
+            ("UNA",   "Clmb",  8,  Msgs((169, "freetext", "UNABLE REQUESTED ALTITUDE DUE TO TRAFFIC"), (20, null, null))),
+            // 5  DSCND
+            ("Dscnd", "",      2,  Msgs((23,  null, null))),
+            // 6  ByTimeD — DESCEND TO REACH [lev] BY [time]
+            ("",      "Time",  6,  Msgs((28,  null, null))),
+            // 7  Unable_Due_Traffic — UNABLE + DUE TO TRAFFIC
+            ("UNA",   "TFC",   3,  Msgs((0,   null, null), (166, null, null))),
+            // 8  Unable_Weather_Deviation — UNABLE + DUE TO TRAFFIC + two free-text lines
+            ("UNA",   "WX",    9,  Msgs((0,   null, null), (166, null, null),
+                                        (169, "freetext", "WX DEVIATION NOT AVAILABLE AT CURRENT ALTITUDE OR ROUTE"),
+                                        (169, "freetext", "SAY INTENTIONS"))),
+            // 9  Request_Position_Report
+            ("Rpt",   "Pos",   5,  Msgs((147, null, null))),
+            // 10 Weather_Deviation — CLEARED TO DEVIATE + REPORT BACK ON ROUTE
+            ("WX",    "Dev",   9,  Msgs((82,  null, null), (127, null, null))),
+            // 11 Island_Arrival — AT PILOTS DISCRETION + DESCEND F055 + three free-text lines
+            ("Isl",   "ARR",   4,  Msgs((177, null, null),
+                                        (23,  "lev",      "F055"),
+                                        (169, "freetext", "CRUISE F055"),
+                                        (169, "freetext", "TO THE <NAME> AIRPORT"),
+                                        (169, "freetext", "REPORT ARRIVAL"))),
+            // 12 Island_Departure — clearance message (params filled manually)
+            ("Isl",   "DEP",   4,  Msgs((73,  null, null))),
+            // 13 RBOR — REPORT BACK ON ROUTE
+            ("RBOR",  "",     11,  Msgs((127, null, null))),
+            // 14 When_Can_You_Accept
+            ("WHEN",  "",     12,  Msgs((148, null, null))),
+            // 15 Confirm_ETA
+            ("ETA",   "",     13,  Msgs((141, null, null))),
+            // 16 NDA
+            ("NDA",   "",     14,  Msgs((160, null, null))),
+        };
+
+        var panel = new FlowLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            FlowDirection = FlowDirection.LeftToRight,
+            WrapContents = false,
+            AutoScroll = false,
+            BackColor = _windowBackground,
+            Margin = new Padding(0, 2, 0, 0)
+        };
+
+        foreach (var (top, bot, icon, steps) in shortcuts)
+        {
+            var capturedSteps = steps;
+            var btn = new QuickActionButton(_monoFont, _windowBackground, _interactiveText)
+            {
+                TopLine = top,
+                BotLine = bot,
+                IconKind = icon,
+                Width = 40,
+                Height = 28,
+                Margin = new Padding(1, 0, 1, 0)
+            };
+            btn.Click += (_, _) =>
+            {
+                try
+                {
+                    foreach (var (msgId, param, val) in capturedSteps)
+                    {
+                        var defs = param != null
+                            ? new Dictionary<string, string> { [param] = val! }
+                            : null;
+                        _vm.AddTemplateByMessageId(msgId, defs);
+                    }
+                    RefreshConstruction();
+                    RefreshResponse();
+                }
+                catch (Exception ex) { Errors.Add(new Exception($"QuickAction: {ex.Message}", ex)); }
+            };
+            panel.Controls.Add(btn);
+        }
+
+        return panel;
+    }
+
+    /// <summary>
+    /// Custom-drawn shortcut button. Renders a small GDI+ icon in the upper
+    /// portion and text label(s) below, matching the ATOP reference style.
+    /// IconKind values: 0=none, 1=arrowUp, 2=arrowDown, 3=prohibited(⊘),
+    ///                  4=diamond(◇), 5=delta(Δ), 6=returnArrow(↵)
+    /// </summary>
+    private class QuickActionButton : Control
+    {
+        public string TopLine { get; set; } = "";
+        public string BotLine { get; set; } = "";
+        public int IconKind { get; set; } = 0;
+
+        private readonly Font _font;
+        private readonly Color _bg;
+        private readonly Color _fg;
+        private bool _pressed;
+
+        public QuickActionButton(Font font, Color bg, Color fg)
+        {
+            _font = font;
+            _bg = bg;
+            _fg  = fg;
+            SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint |
+                     ControlStyles.OptimizedDoubleBuffer, true);
+        }
+
+        protected override void OnMouseDown(MouseEventArgs e)
+        {
+            base.OnMouseDown(e);
+            _pressed = true;
+            Invalidate();
+        }
+
+        protected override void OnMouseUp(MouseEventArgs e)
+        {
+            base.OnMouseUp(e);
+            _pressed = false;
+            Invalidate();
+        }
+
+        protected override void OnMouseLeave(EventArgs e)
+        {
+            base.OnMouseLeave(e);
+            _pressed = false;
+            Invalidate();
+        }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            var g = e.Graphics;
+            var r = ClientRectangle;
+
+            // Background + 3D border
+            using (var bg = new SolidBrush(_pressed
+                       ? Colours.GetColour(Colours.Identities.WindowButtonDepressed)
+                       : _bg))
+                g.FillRectangle(bg, r);
+            ControlPaint.DrawBorder3D(g, r, _pressed ? Border3DStyle.Sunken : Border3DStyle.Raised);
+
+            if (!Enabled)
+            {
+                // Greyed-out hatch
+                using var hatch = new System.Drawing.Drawing2D.HatchBrush(
+                    System.Drawing.Drawing2D.HatchStyle.Percent50,
+                    Colours.GetColour(Colours.Identities.NonInteractiveText), _bg);
+                // draw text areas muted — fall through to normal draw with fg overridden
+            }
+
+            var fg = Enabled ? _fg : Colours.GetColour(Colours.Identities.NonInteractiveText);
+
+            // Split button vertically: icon zone top ~40%, text zone bottom 60%
+            int iconH = (int)(r.Height * 0.42f);
+            var iconR = new Rectangle(r.X + 2, r.Y + 2, r.Width - 4, iconH - 2);
+            var botR  = new Rectangle(r.X, r.Y + iconH, r.Width, r.Height - iconH);
+
+            // Draw icon
+            if (IconKind != 0)
+                DrawIcon(g, iconR, IconKind, fg);
+
+            // Text layout: if both lines present split equally;
+            // if only TopLine (and no icon) fill whole button vertically
+            using var sf = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center };
+            using var brush = new SolidBrush(fg);
+
+            if (IconKind == 0 && !string.IsNullOrEmpty(TopLine) && !string.IsNullOrEmpty(BotLine))
+            {
+                // Two text lines, no icon — split vertically
+                var half = r.Height / 2;
+                g.DrawString(TopLine, _font, brush, new RectangleF(r.X, r.Y, r.Width, half), sf);
+                g.DrawString(BotLine, _font, brush, new RectangleF(r.X, r.Y + half, r.Width, half), sf);
+            }
+            else if (IconKind == 0)
+            {
+                // Single text, no icon — center in whole button
+                var text = string.IsNullOrEmpty(BotLine) ? TopLine : BotLine;
+                g.DrawString(text, _font, brush, (RectangleF)r, sf);
+            }
+            else
+            {
+                // Icon drawn above — text in bottom zone
+                var text = string.IsNullOrEmpty(BotLine)
+                    ? (string.IsNullOrEmpty(TopLine) ? "" : TopLine)
+                    : (string.IsNullOrEmpty(TopLine) ? BotLine : TopLine + "\n" + BotLine);
+                sf.LineAlignment = StringAlignment.Center;
+                g.DrawString(text, _font, brush, (RectangleF)botR, sf);
+            }
+        }
+
+        private static void DrawIcon(Graphics g, Rectangle r, int kind, Color fg)
+        {
+            using var pen = new Pen(fg, 1.5f);
+            using var fill = new SolidBrush(fg);
+            float cx = r.X + r.Width / 2f;
+            float cy = r.Y + r.Height / 2f;
+            float hw = r.Width * 0.28f;
+            float hh = r.Height * 0.45f;
+
+            switch (kind)
+            {
+                case 1: // Arrow up ↑
+                    g.DrawLine(pen, cx, r.Y, cx, r.Bottom);
+                    g.DrawLine(pen, cx - hw, r.Y + hh, cx, r.Y);
+                    g.DrawLine(pen, cx + hw, r.Y + hh, cx, r.Y);
+                    break;
+
+                case 2: // Arrow down ↓
+                    g.DrawLine(pen, cx, r.Y, cx, r.Bottom);
+                    g.DrawLine(pen, cx - hw, r.Bottom - hh, cx, r.Bottom);
+                    g.DrawLine(pen, cx + hw, r.Bottom - hh, cx, r.Bottom);
+                    break;
+
+                case 3: // Prohibited ⊘
+                    g.DrawEllipse(pen, r.X + 1, r.Y + 1, r.Width - 2, r.Height - 2);
+                    g.DrawLine(pen, r.X + r.Width * 0.2f, r.Y + r.Height * 0.8f,
+                                    r.X + r.Width * 0.8f, r.Y + r.Height * 0.2f);
+                    break;
+
+                case 4: // Diamond ◇
+                    var pts = new PointF[]
+                    {
+                        new PointF(cx, r.Y),
+                        new PointF(r.Right, cy),
+                        new PointF(cx, r.Bottom),
+                        new PointF(r.X, cy)
+                    };
+                    g.DrawPolygon(pen, pts);
+                    break;
+
+                case 5: // Delta Δ
+                    var tri = new PointF[]
+                    {
+                        new PointF(cx, r.Y),
+                        new PointF(r.Right, r.Bottom),
+                        new PointF(r.X, r.Bottom)
+                    };
+                    g.DrawPolygon(pen, tri);
+                    break;
+
+                case 6: // Return arrow ↵ (hook down then left)
+                    float x0 = r.X + r.Width * 0.15f;
+                    float x1 = r.Right - r.Width * 0.15f;
+                    float yTop = r.Y + r.Height * 0.2f;
+                    float yBot = r.Bottom - r.Height * 0.25f;
+                    float arrH = r.Height * 0.3f;
+                    // Vertical stem
+                    g.DrawLine(pen, x1, yTop, x1, yBot);
+                    // Horizontal return
+                    g.DrawLine(pen, x1, yBot, x0, yBot);
+                    // Arrowhead left
+                    g.DrawLine(pen, x0, yBot, x0 + arrH * 0.6f, yBot - arrH * 0.5f);
+                    g.DrawLine(pen, x0, yBot, x0 + arrH * 0.6f, yBot + arrH * 0.5f);
+                    break;
+
+                case 7: // Pencil ✏ (Free Text)
+                    // Diagonal body, nib at bottom-right, flat cap at top-left
+                    float pLeft  = r.X + r.Width * 0.15f;
+                    float pRight = r.Right - r.Width * 0.15f;
+                    float pTop   = r.Y + r.Height * 0.05f;
+                    float pBot   = r.Bottom - r.Height * 0.05f;
+                    g.DrawLine(pen, pLeft, pBot, pRight, pTop);
+                    // Nib triangle at top-right
+                    float nw = r.Width * 0.22f;
+                    g.DrawLine(pen, pRight, pTop, pRight - nw * 0.8f, pTop + nw);
+                    g.DrawLine(pen, pRight - nw * 0.8f, pTop + nw, pRight, pTop);
+                    // Eraser cap at bottom-left (short perpendicular line)
+                    float ex = r.Width * 0.12f, ey = r.Height * 0.12f;
+                    g.DrawLine(pen, pLeft - ex * 0.5f, pBot - ey, pLeft + ex, pBot + ey * 0.5f);
+                    break;
+
+                case 8: // Bold X (UNA — Unable)
+                    float xm = r.Width * 0.18f;
+                    g.DrawLine(pen, r.X + xm, r.Y, r.Right - xm, r.Bottom);
+                    g.DrawLine(pen, r.Right - xm, r.Y, r.X + xm, r.Bottom);
+                    break;
+
+                case 9: // Lightning bolt (WX Deviation)
+                    PointF[] bolt = {
+                        new PointF(cx + hw * 0.4f, r.Y + r.Height * 0.05f),
+                        new PointF(cx - hw * 0.1f, cy + r.Height * 0.05f),
+                        new PointF(cx + hw * 0.2f, cy),
+                        new PointF(cx - hw * 0.5f, r.Bottom - r.Height * 0.05f)
+                    };
+                    g.DrawLines(pen, bolt);
+                    break;
+
+                case 11: // U-turn / back-on-route arrow
+                    // Arc sweeping 180° from right, then arrow pointing left
+                    float arcX = r.X + r.Width * 0.12f;
+                    float arcY = r.Y + r.Height * 0.1f;
+                    float arcW = r.Width * 0.76f;
+                    float arcH = r.Height * 0.65f;
+                    g.DrawArc(pen, arcX, arcY, arcW, arcH, 0, 180);
+                    // Arrow at left end pointing left
+                    float aLx = arcX, aLy = arcY + arcH;
+                    g.DrawLine(pen, aLx, aLy, aLx + r.Width * 0.22f, aLy - r.Height * 0.2f);
+                    g.DrawLine(pen, aLx, aLy, aLx + r.Width * 0.22f, aLy + r.Height * 0.2f);
+                    break;
+
+                case 12: // Clock ◷ (WHEN READY)
+                    g.DrawEllipse(pen, r.X + 1, r.Y + 1, r.Width - 2, r.Height - 2);
+                    g.DrawLine(pen, cx, cy, cx, r.Y + r.Height * 0.22f);          // 12-hand
+                    g.DrawLine(pen, cx, cy, cx + r.Width * 0.28f, cy + r.Height * 0.1f); // 3-hand
+                    break;
+
+                case 13: // Clock + arrival tick (ETA)
+                    g.DrawEllipse(pen, r.X + 1, r.Y + 1, r.Width - 2, r.Height - 2);
+                    g.DrawLine(pen, cx, cy, cx, r.Y + r.Height * 0.22f);
+                    g.DrawLine(pen, cx, cy, cx + r.Width * 0.3f, cy + r.Height * 0.15f);
+                    // Small v-tick at bottom of circle for "arrival"
+                    g.DrawLine(pen, cx - hw * 0.3f, r.Bottom - r.Height * 0.15f,
+                                    cx,             r.Bottom - r.Height * 0.05f);
+                    g.DrawLine(pen, cx,             r.Bottom - r.Height * 0.05f,
+                                    cx + hw * 0.3f, r.Bottom - r.Height * 0.15f);
+                    break;
+
+                case 14: // Transfer / NDA forward arrow →
+                    float tMid = cy;
+                    float tLeft  = r.X + r.Width * 0.1f;
+                    float tRight = r.Right - r.Width * 0.1f;
+                    g.DrawLine(pen, tLeft, tMid, tRight, tMid);
+                    g.DrawLine(pen, tRight, tMid, tRight - r.Width * 0.28f, tMid - hh * 0.55f);
+                    g.DrawLine(pen, tRight, tMid, tRight - r.Width * 0.28f, tMid + hh * 0.55f);
+                    // Second shorter line below for "next data"
+                    g.DrawLine(pen, tLeft, tMid + hh * 0.7f, tRight - r.Width * 0.2f, tMid + hh * 0.7f);
+                    break;
+
+                case 15: // Flag (OTA — report)
+                    float fPole = r.X + r.Width * 0.2f;
+                    g.DrawLine(pen, fPole, r.Y + r.Height * 0.05f, fPole, r.Bottom - r.Height * 0.05f);
+                    PointF[] flag = {
+                        new PointF(fPole, r.Y + r.Height * 0.08f),
+                        new PointF(r.Right - r.Width * 0.1f, r.Y + r.Height * 0.32f),
+                        new PointF(fPole, r.Y + r.Height * 0.58f)
+                    };
+                    g.FillPolygon(fill, flag);
+                    break;
+
+                case 16: // Racetrack hold pattern
+                    float rw  = r.Width  * 0.33f;
+                    float rh2 = r.Height * 0.82f;
+                    float rtY = r.Y + r.Height * 0.09f;
+                    float rtXL = r.X + r.Width * 0.08f;
+                    float rtXR = r.Right - r.Width * 0.08f - rw;
+                    // Left semicircle
+                    g.DrawArc(pen, rtXL, rtY, rw, rh2, 90, 180);
+                    // Right semicircle
+                    g.DrawArc(pen, rtXR, rtY, rw, rh2, -90, 180);
+                    // Connecting straight lines top and bottom
+                    g.DrawLine(pen, rtXL + rw * 0.5f, rtY,           rtXR + rw * 0.5f, rtY);
+                    g.DrawLine(pen, rtXL + rw * 0.5f, rtY + rh2, rtXR + rw * 0.5f, rtY + rh2);
+                    break;
+            }
+        }
     }
 }

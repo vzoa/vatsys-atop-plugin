@@ -37,7 +37,6 @@ namespace NATPlugin
 
         public static List<Track> Tracks { get; set; } = new List<Track>();
         public static List<Sigmets> SigmetAreas { get; set; } = new List<Sigmets>();
-        public static List<Sigmet> Sigmets { get; set; } = new List<Sigmet>();
         public static List<Notam> Notams { get; set; } = new List<Notam>();
         public static DateTime? LastUpdated { get; set; }
         private static Timer UpdateTimer { get; set; } = new Timer();
@@ -187,14 +186,6 @@ namespace NATPlugin
                 
                 // Store the new sigmets
                 SigmetAreas = sigmets;
-                
-                // Also update the Sigmets list for backward compatibility
-                Sigmets = sigmets.Select(s => new Sigmet
-                {
-                    SeriesId = s.Id,
-                    ValidTimeFrom = (int)new DateTimeOffset(s.Start).ToUnixTimeSeconds(),
-                    ValidTimeTo = (int)new DateTimeOffset(s.End).ToUnixTimeSeconds()
-                }).ToList();
 
                 // Ensure ASD redraws after SIGMET map/area update.
                 MMI.RequestRedraw(true);
@@ -213,7 +204,8 @@ namespace NATPlugin
                 {
                     var mapPath = EnsureSigmetMapPath();
                     WriteSigmetXmlMap(mapPath, sigmets);
-                    UpsertRuntimeSigmetMap(sigmets);
+                    // SIGMETs are displayed via the XML map file; skip adding them as runtime REST_NTZ_DAIW entries.
+                    // UpsertRuntimeSigmetMap(sigmets);
                 }
                 catch (Exception ex)
                 {
@@ -253,13 +245,13 @@ namespace NATPlugin
                 writer.WriteAttributeString("Type", "REST_NTZ_DAIW");
                 writer.WriteAttributeString("Name", SigmetMapName);
                 writer.WriteAttributeString("Priority", "1");
-                writer.WriteAttributeString("CustomColourName", "PRDArea");
+                writer.WriteAttributeString("CustomColourName", "RoyalBlue");
 
                 foreach (var sigmet in sigmets.Where(s => s.Fixes != null && s.Fixes.Count >= 3))
                 {
                     writer.WriteStartElement("Line");
                     writer.WriteAttributeString("Name", $"SIGMET {sigmet.Id}");
-                    writer.WriteAttributeString("Pattern", "Dashed");
+                    writer.WriteAttributeString("Pattern", "Solid");
                     writer.WriteString(ToMapPointString(sigmet.Fixes));
                     writer.WriteEndElement();
 
@@ -293,7 +285,7 @@ namespace NATPlugin
                     Category = DisplayMaps.MapCategories.ASD,
                     Pattern = DisplayMaps.Map.Patterns.Solid,
                     Priority = 1,
-                    CustomColourName = "PRDArea"
+                    CustomColourName = "RoyalBlue"
                 };
                 DisplayMaps.Maps.Add(map);
             }
@@ -301,7 +293,7 @@ namespace NATPlugin
             map.Type = DisplayMaps.MapTypes.REST_NTZ_DAIW;
             map.Category = DisplayMaps.MapCategories.ASD;
             map.Priority = 1;
-            map.CustomColourName = "PRDArea";
+            map.CustomColourName = "RoyalBlue";
             map.Lines.Clear();
             map.Infills.Clear();
             map.Symbols.Clear();
@@ -313,7 +305,7 @@ namespace NATPlugin
                 var line = new DisplayMaps.Map.Line
                 {
                     Name = $"SIGMET {sigmet.Id}",
-                    Pattern = DisplayMaps.Map.Patterns.Dashed
+                    Pattern = DisplayMaps.Map.Patterns.Solid
                 };
 
                 foreach (var fix in sigmet.Fixes)

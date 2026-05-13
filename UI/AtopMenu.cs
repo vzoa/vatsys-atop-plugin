@@ -21,6 +21,16 @@ public static class AtopMenu
 
     private static ClearanceWindowClassic? _clearanceWindow;
 
+    internal static void AtopDebugLog(string message)
+    {
+        try
+        {
+            var path = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "atop_debug.txt");
+            System.IO.File.AppendAllText(path, $"[{DateTime.Now:HH:mm:ss.fff}] {message}{Environment.NewLine}");
+        }
+        catch { }
+    }
+
     static AtopMenu()
     {
         InitializeActivationToggle();
@@ -106,21 +116,24 @@ public static class AtopMenu
     /// Opens the ATOP Clearance window for a specific callsign.
     /// Can be called from label/strip click handlers.
     /// </summary>
-    public static void OpenClearanceWindow(string callsign)
+    public static void OpenClearanceWindow(FDP2.FDR fdr)
     {
-        if (string.IsNullOrEmpty(callsign)) return;
+        if (fdr == null) return;
 
         MMI.InvokeOnGUI(() =>
         {
             try
             {
+                AtopDebugLog($"OpenClearanceWindow: fdr.Callsign='{fdr.Callsign}' Thread={System.Threading.Thread.CurrentThread.ManagedThreadId}");
                 if (_clearanceWindow == null)
                     _clearanceWindow = new ClearanceWindowClassic();
 
-                _clearanceWindow.ShowForCallsign(callsign);
+                _clearanceWindow.ShowForCallsign(fdr);
+                AtopDebugLog($"OpenClearanceWindow: returned from ShowForCallsign OK");
             }
             catch (Exception ex)
             {
+                AtopDebugLog($"OpenClearanceWindow EXCEPTION: {ex}");
                 Errors.Add(new Exception($"AtopMenu.OpenClearanceWindow: {ex.Message}", ex));
             }
         });
