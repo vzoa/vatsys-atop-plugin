@@ -271,7 +271,6 @@ public class ClearanceViewModel : INotifyPropertyChanged
     private string _callsign = "";
     private string _route = "";
     private string _selectedCategory = "Vert";
-    private string? _selectedSubCategory;
     private readonly Dictionary<int, AtopUplinkTemplate> _masterLookup = new();
     private AtopUplinkMessagesConfig? _config;
 
@@ -285,6 +284,10 @@ public class ClearanceViewModel : INotifyPropertyChanged
     // Downlinks awaiting response
     private readonly List<AtopDownlinkInfo> _openDownlinks = new();
     private int? _replyToDownlinkId;
+    private Guid? _replyDialogueId;
+
+    // Full live CPDLC dialogue transcript (uplinks + downlinks) from CPDLCPlugin's DialogueStore
+    private readonly List<AtopDialogueMessage> _dialogueMessages = new();
 
     // Response / feedback area
     private string _responseText = "";
@@ -320,22 +323,6 @@ public class ClearanceViewModel : INotifyPropertyChanged
             _selectedCategory = value;
             _selectedTemplateIndex = -1;
             OnPropertyChanged();
-            OnPropertyChanged(nameof(SubCategories));
-            // Do not auto-select a subgroup; keep template list empty
-            // until the controller explicitly picks a shortcut button.
-            SelectedSubCategory = null;
-        }
-    }
-
-    public string? SelectedSubCategory
-    {
-        get => _selectedSubCategory;
-        set
-        {
-            if (_selectedSubCategory == value) return;
-            _selectedSubCategory = value;
-            _selectedTemplateIndex = -1;
-            OnPropertyChanged();
             OnPropertyChanged(nameof(VisibleTemplates));
         }
     }
@@ -347,20 +334,6 @@ public class ClearanceViewModel : INotifyPropertyChanged
         {
             _selectedTemplateIndex = value;
             OnPropertyChanged();
-        }
-    }
-
-    public IReadOnlyList<string> SubCategories
-    {
-        get
-        {
-            if (_selectedCategory == "Pre-Fmt")
-                return new[] { "Permanent" };
-
-            if (MopsMenuStructure.TryGetValue(_selectedCategory, out var groups))
-                return groups.Where(g => g.SubGroup != null).Select(g => g.SubGroup!).ToArray();
-
-            return Array.Empty<string>();
         }
     }
 
@@ -381,20 +354,21 @@ public class ClearanceViewModel : INotifyPropertyChanged
                 return permanentItems;
             }
 
-            if (_selectedSubCategory != null && MopsMenuStructure.TryGetValue(_selectedCategory, out var groups))
+            // Flattened: show every template for the selected category directly,
+            // regardless of MOPS subgroup (subgroups still drive the category dropdown menu).
+            if (MopsMenuStructure.TryGetValue(_selectedCategory, out var groups))
             {
-                var group = groups.FirstOrDefault(g => g.SubGroup == _selectedSubCategory);
-                if (group != default)
+                var items = new List<TemplateDisplayItem>();
+                foreach (var (_, messageIds) in groups)
                 {
-                    var items = new List<TemplateDisplayItem>();
-                    foreach (var id in group.MessageIds)
+                    foreach (var id in messageIds)
                     {
                         var master = ResolveTemplate(id);
                         if (master != null)
                             items.Add(BuildDisplayItem(master, new AtopMessageReference { MessageId = id }));
                     }
-                    return items;
                 }
+                return items;
             }
 
             return Array.Empty<TemplateDisplayItem>();
@@ -424,10 +398,27 @@ public class ClearanceViewModel : INotifyPropertyChanged
 
     public IReadOnlyList<AtopDownlinkInfo> OpenDownlinks => _openDownlinks;
 
+    /// <summary>
+    /// The full live CPDLC dialogue transcript for the loaded callsign, sourced directly from
+    /// CPDLCPlugin's DialogueStore (both uplinks and downlinks, chronologically ordered).
+    /// </summary>
+    public IReadOnlyList<AtopDialogueMessage> DialogueMessages => _dialogueMessages;
+
     public int? ReplyToDownlinkId
     {
         get => _replyToDownlinkId;
         set { _replyToDownlinkId = value; OnPropertyChanged(); OnPropertyChanged(nameof(IsReplyMode)); }
+    }
+
+    /// <summary>
+    /// The dialogue that <see cref="ReplyToDownlinkId"/> belongs to. Required alongside
+    /// ReplyToDownlinkId to send a reply — the CPDLC server's ReplyToDownlinkRequest needs both
+    /// the dialogue ID and the downlink message ID to identify which conversation to reply within.
+    /// </summary>
+    public Guid? ReplyDialogueId
+    {
+        get => _replyDialogueId;
+        set { _replyDialogueId = value; OnPropertyChanged(); }
     }
 
     public bool IsReplyMode => _replyToDownlinkId.HasValue;
@@ -540,16 +531,21 @@ public class ClearanceViewModel : INotifyPropertyChanged
         _openDownlinks.AddRange(CpdlcPluginBridge.GetOpenDownlinkDetails(callsign));
         OnPropertyChanged(nameof(OpenDownlinks));
 
+        // Load the full live CPDLC dialogue transcript (uplinks + downlinks) from CPDLCPlugin
+        _dialogueMessages.Clear();
+        _dialogueMessages.AddRange(CpdlcPluginBridge.GetDialogueMessages(callsign));
+        OnPropertyChanged(nameof(DialogueMessages));
+
         // Never auto-enter reply mode on a fresh open — caller must explicitly set ReplyToDownlinkId
-        // when the window is opened specifically to respond to an incoming CPDLC request.
+        // (and ReplyDialogueId) when the window is opened specifically to respond to an incoming
+        // CPDLC request.
         ReplyToDownlinkId = null;
+        ReplyDialogueId = null;
         OnPropertyChanged(nameof(AutomatedResponseTemplates));
 
         // Refresh everything
         _selectedTemplateIndex = -1;
-        OnPropertyChanged(nameof(SubCategories));
-        // Keep templates empty on open until the user picks a shortcut.
-        SelectedSubCategory = null;
+        OnPropertyChanged(nameof(VisibleTemplates));
     }
 
     // -------------------------------------------------------------------------
@@ -921,7 +917,9 @@ public class ClearanceViewModel : INotifyPropertyChanged
         ProposedProfileBridge.Clear(_callsign);
         ClearConstruction();
         _replyToDownlinkId = null;
+        _replyDialogueId = null;
         OnPropertyChanged(nameof(ReplyToDownlinkId));
+        OnPropertyChanged(nameof(ReplyDialogueId));
         OnPropertyChanged(nameof(IsReplyMode));
         OnPropertyChanged(nameof(AutomatedResponseTemplates));
         OnPropertyChanged(nameof(HasActiveProbeState));
@@ -970,6 +968,14 @@ public class ClearanceViewModel : INotifyPropertyChanged
 
         if (!ValidateConstruction()) return;
 
+        // A detected conflict must be explicitly overridden (OVRD) before any clearance can be
+        // sent — applies to both the CPDLC and HF paths.
+        if (_conflictDetected && !_overrideActive)
+        {
+            ResponseText = "Conflict detected. Press OVRD to override before sending.";
+            return;
+        }
+
         var connState = CpdlcPluginBridge.GetConnectionState(_callsign);
         if (connState == CpdlcPluginBridge.CpdlcConnectionState.NotConnected ||
             connState == CpdlcPluginBridge.CpdlcConnectionState.Unknown)
@@ -996,15 +1002,37 @@ public class ClearanceViewModel : INotifyPropertyChanged
             if (rt > maxResponseType) maxResponseType = rt;
         }
 
-        var content = string.Join(". ", parts);
+        // UNABLE responses must match the server's exact-string auto-archive check
+        // (Dialogue.ShouldAutoArchive), e.g. "UNABLE DUE TO TRAFFIC" with no punctuation —
+        // everything else uses the normal ". "-separated message format.
+        var content = _constructionLines.Count > 0 && _constructionLines[0].Reference.MessageId == 0
+            ? string.Join(" ", parts)
+            : string.Join(". ", parts);
 
-        CpdlcPluginBridge.SendUplink(_callsign, _replyToDownlinkId, maxResponseType, content);
+        CpdlcPluginBridge.SendUplink(_callsign, _replyDialogueId, _replyToDownlinkId, maxResponseType, content);
 
         ResponseText = "Message sent.";
         IsSent = true;
         _replyToDownlinkId = null;
+        _replyDialogueId = null;
         OnPropertyChanged(nameof(ReplyToDownlinkId));
+        OnPropertyChanged(nameof(ReplyDialogueId));
         OnPropertyChanged(nameof(IsReplyMode));
+        RefreshDialogueMessages();
+    }
+
+    /// <summary>
+    /// Reloads the live CPDLC dialogue transcript from CPDLCPlugin's DialogueStore for the
+    /// currently loaded callsign. Called after a send so the transcript reflects the outcome
+    /// immediately (best-effort — the store updates as soon as CPDLCPlugin processes the send).
+    /// </summary>
+    private void RefreshDialogueMessages()
+    {
+        if (string.IsNullOrEmpty(_callsign)) return;
+
+        _dialogueMessages.Clear();
+        _dialogueMessages.AddRange(CpdlcPluginBridge.GetDialogueMessages(_callsign));
+        OnPropertyChanged(nameof(DialogueMessages));
     }
 
     public void ExecuteSendHf()
@@ -1012,21 +1040,45 @@ public class ClearanceViewModel : INotifyPropertyChanged
         if (_constructionLines.Count == 0) return;
         if (!ValidateConstruction()) return;
 
+        // A detected conflict must be explicitly overridden (OVRD) before any clearance can be
+        // sent — applies even when sending via HF (e.g. SND button toggled to "HF").
+        if (_conflictDetected && !_overrideActive)
+        {
+            ResponseText = "Conflict detected. Press OVRD to override before sending.";
+            return;
+        }
+
         // Build human-readable clearance text — no CPDLC @param@ wrappers.
+        // Prefix each message per ATCC phraseology:
+        //   WilcoUnable (1) → ATCC, AffirmativeNegative (2) → ATCR, Roger/NoResponse → ATCA
         var parts = new List<string>();
         foreach (var line in _constructionLines)
         {
             var text = line.Template.Template;
             foreach (var kvp in line.ParameterValues)
                 text = text.Replace($"[{kvp.Key}]", kvp.Value);
-            parts.Add(text);
+            var rt = line.Reference.ResponseType ?? line.Template.ResponseType;
+            var prefix = rt == 1 ? "ATCC" : rt == 2 ? "ATCR" : "ATCA";
+            parts.Add($"{prefix} {text}");
+
+            // Append REPORT LEVEL after vertical clearances (IDs 19-41, excluding blocks 30-32)
+            // that have a filled [lev] parameter
+            var msgId = line.Reference.MessageId;
+            if (msgId >= 19 && msgId <= 41 && msgId != 30 && msgId != 31 && msgId != 32
+                && line.ParameterValues.TryGetValue("lev", out var reportLev)
+                && !string.IsNullOrWhiteSpace(reportLev))
+            {
+                parts.Add($"REPORT LEVEL {reportLev}");
+            }
         }
 
         Network.SendRadioMessage($"{_callsign} {string.Join(". ", parts)}");
         ResponseText = "Message sent (HF).";
         IsSent = true;
         _replyToDownlinkId = null;
+        _replyDialogueId = null;
         OnPropertyChanged(nameof(ReplyToDownlinkId));
+        OnPropertyChanged(nameof(ReplyDialogueId));
         OnPropertyChanged(nameof(IsReplyMode));
     }
 

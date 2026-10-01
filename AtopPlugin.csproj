@@ -233,6 +233,9 @@
     <EmbeddedResource Include="PACOTS\TDMWindow.resx">
       <DependentUpon>TDMWindow.cs</DependentUpon>
     </EmbeddedResource>
+    <EmbeddedResource Include="Resources\ClearanceWindow\*.JPG">
+      <LogicalName>AtopPlugin.Resources.ClearanceWindow.%(Filename)%(Extension)</LogicalName>
+    </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
