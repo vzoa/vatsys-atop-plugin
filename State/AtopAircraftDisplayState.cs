@@ -74,7 +74,10 @@ public class AtopAircraftDisplayState
     private static string GetCpdlcAdsbSymbol(AtopAircraftState atopAircraftState)
     {
         var adsb = atopAircraftState.Fdr.ADSB;
-        var cpdlc = atopAircraftState.CalculatedFlightData.Cpdlc;
+        var bridgeState = CpdlcPluginBridge.GetConnectionState(atopAircraftState.Fdr.Callsign);
+        var cpdlc = atopAircraftState.CalculatedFlightData.Cpdlc
+            && bridgeState is CpdlcPluginBridge.CpdlcConnectionState.CurrentDataAuthority
+                or CpdlcPluginBridge.CpdlcConnectionState.NextDataAuthority;
         return (adsb, cpdlc) switch
         {
             { adsb: true, cpdlc: true } => Symbols.CpdlcAndAdsb,
@@ -100,13 +103,18 @@ public class AtopAircraftDisplayState
 
     private static string GetLateralFlag(AtopAircraftState atopAircraftState)
     {
+        var calculated = atopAircraftState.CalculatedFlightData;
+
+        // RNP10-equipped aircraft show L50 regardless of CPDLC/ADS-C connection status.
+        if (calculated.Rnp10)
+            return Symbols.L50;
+
         if (!HasActiveDatalinkConnection(atopAircraftState))
             return Symbols.Empty;
 
-        return atopAircraftState.CalculatedFlightData switch
+        return calculated switch
         {
             { Adsc: true, Cpdlc: true, Rnp4: true } => Symbols.L23,
-            { Adsc: true, Cpdlc: true, Rnp10: true } => Symbols.L50,
             _ => Symbols.Empty
         };
     }
