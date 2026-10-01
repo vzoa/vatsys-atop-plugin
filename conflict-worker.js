@@ -866,12 +866,14 @@ function calculateAreaOfConflict(fdr1, fdr2, lateralSep) {
     const conflictSegments = [];
     const route1 = fdr1.parsedRoute;
     const route2 = fdr2.parsedRoute;
+    const bufferRadii = getLegBufferRadii(fdr1, lateralSep);
     
     for (let i = 1; i < route1.length; i++) {
         const polygon = createProtectedAirspace(
             route1[i - 1],
             route1[i],
-            lateralSep
+            bufferRadii.left,
+            bufferRadii.right
         );
         
         for (let j = 1; j < route2.length; j++) {
@@ -938,20 +940,48 @@ function calculateAreaOfConflict(fdr1, fdr2, lateralSep) {
     return conflictSegments;
 }
 
-function createProtectedAirspace(point1, point2, radius) {
+/**
+ * NAS-MD-4714 6.2.8.3.2.3 "Leg Deviation Buffer" (Figure 6-45): while an aircraft has an active
+ * lateral deviation clearance, it could be anywhere within the deviation, so its protected-
+ * airspace buffer widens by the deviation distance on the cleared side (left/right of track)
+ * while the opposite side stays at the normal lateral separation minima.
+ */
+function getLegBufferRadii(fdr, baseRadius) {
+    if (!fdr.hasDeviation || !(fdr.deviationNm > 0)) {
+        return { left: baseRadius, right: baseRadius };
+    }
+    if (fdr.deviationDir === 'L') {
+        return { left: baseRadius + fdr.deviationNm, right: baseRadius };
+    }
+    if (fdr.deviationDir === 'R') {
+        return { left: baseRadius, right: baseRadius + fdr.deviationNm };
+    }
+    return { left: baseRadius, right: baseRadius };
+}
+
+/**
+ * Builds the protected-airspace "stadium" polygon around a route leg. When radiusLeft and
+ * radiusRight differ (an active deviation — see getLegBufferRadii), the end-cap semicircles
+ * interpolate smoothly between the two so the buffer is exactly radiusLeft along the pure-left
+ * offset line and radiusRight along the pure-right offset line, per Figure 6-45.
+ */
+function createProtectedAirspace(point1, point2, radiusLeft, radiusRight) {
+    if (radiusRight === undefined) radiusRight = radiusLeft;
     const polygon = [];
     const track = calculateTrack(point1, point2);
     
-    // Create semicircle around point1
+    // Semicircle behind point1: sweeps from pure-left (angle=0) to pure-right (angle=180).
     for (let angle = 0; angle <= 180; angle += 15) {
         const heading = track - 90 - angle;
-        polygon.push(calculatePointFromBearingDistance(point1, radius, heading));
+        const r = radiusLeft + (radiusRight - radiusLeft) * (angle / 180);
+        polygon.push(calculatePointFromBearingDistance(point1, r, heading));
     }
     
-    // Create semicircle around point2
+    // Semicircle ahead of point2: sweeps from pure-right (angle=0) to pure-left (angle=180).
     for (let angle = 0; angle <= 180; angle += 15) {
         const heading = track + 90 - angle;
-        polygon.push(calculatePointFromBearingDistance(point2, radius, heading));
+        const r = radiusRight + (radiusLeft - radiusRight) * (angle / 180);
+        polygon.push(calculatePointFromBearingDistance(point2, r, heading));
     }
     
     polygon.push(polygon[0]); // Close polygon

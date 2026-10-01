@@ -1,5 +1,6 @@
 using AtopPlugin.Conflict;
 using AtopPlugin.Logic;
+using AtopPlugin.State;
 using AtopPlugin.UI;
 using Newtonsoft.Json;
 using System;
@@ -612,6 +613,8 @@ namespace AtopPlugin.Helpers
             if (fdr == null || _connectedClients.Count == 0) return;
 
             var calcData = Logic.FlightDataCalculator.GetCalculatedFlightData(fdr);
+            DeviationStateManager.EvaluateAutoRejoin(fdr.Callsign, DateTime.UtcNow);
+            var deviation = DeviationStateManager.GetActiveDeviation(fdr.Callsign);
 
             var data = new
             {
@@ -640,7 +643,10 @@ namespace AtopPlugin.Helpers
                     p2Filed = calcData.Pbcs,
                     cpdlcLoggedOn = IsCpdlcLoggedOn(fdr.Callsign),
                     rvsmApproved = fdr.RVSM,
-                    isJet = fdr.PerformanceData?.IsJet ?? false
+                    isJet = fdr.PerformanceData?.IsJet ?? false,
+                    hasDeviation = deviation != null,
+                    deviationNm = deviation?.DeviationNm ?? 0,
+                    deviationDir = deviation?.Direction ?? ""
                 },
                 Timestamp = DateTime.UtcNow
             };
@@ -745,6 +751,7 @@ namespace AtopPlugin.Helpers
             if (_connectedClients.Count == 0) return;
 
             var calcData = FlightDataCalculator.GetCalculatedFlightData(fdr);
+            var deviation = DeviationStateManager.GetActiveDeviation(fdr.Callsign);
 
             var data = new
             {
@@ -770,7 +777,10 @@ namespace AtopPlugin.Helpers
                     p2Filed = calcData.Pbcs,
                     cpdlcLoggedOn = IsCpdlcLoggedOn(fdr.Callsign),
                     rvsmApproved = fdr.RVSM,
-                    isJet = fdr.PerformanceData?.IsJet ?? false
+                    isJet = fdr.PerformanceData?.IsJet ?? false,
+                    hasDeviation = deviation != null,
+                    deviationNm = deviation?.DeviationNm ?? 0,
+                    deviationDir = deviation?.Direction ?? ""
                 },
                 Timestamp = DateTime.UtcNow
             };
@@ -825,6 +835,8 @@ namespace AtopPlugin.Helpers
                     fdr.State != FDP2.FDR.FDRStates.STATE_FINISHED
                 ).Select(fdr => {
                     var calcData = FlightDataCalculator.GetCalculatedFlightData(fdr);
+                    DeviationStateManager.EvaluateAutoRejoin(fdr.Callsign, DateTime.UtcNow);
+                    var deviation = DeviationStateManager.GetActiveDeviation(fdr.Callsign);
                     return new
                     {
                         Callsign = fdr.Callsign,
@@ -846,7 +858,10 @@ namespace AtopPlugin.Helpers
                         p2Filed = calcData.Pbcs,
                         cpdlcLoggedOn = IsCpdlcLoggedOn(fdr.Callsign),
                         rvsmApproved = fdr.RVSM,
-                        isJet = fdr.PerformanceData?.IsJet ?? false
+                        isJet = fdr.PerformanceData?.IsJet ?? false,
+                        hasDeviation = deviation != null,
+                        deviationNm = deviation?.DeviationNm ?? 0,
+                        deviationDir = deviation?.Direction ?? ""
                     };
                 }).ToList();
                 

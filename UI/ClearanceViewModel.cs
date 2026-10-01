@@ -7,6 +7,7 @@ using System.Text.RegularExpressions;
 using AtopPlugin.Conflict;
 using AtopPlugin.Helpers;
 using AtopPlugin.Models;
+using AtopPlugin.State;
 using vatsys;
 using static vatsys.FDP2.FDR.ExtractedRoute;
 
@@ -1009,6 +1010,7 @@ public class ClearanceViewModel : INotifyPropertyChanged
             ? string.Join(" ", parts)
             : string.Join(". ", parts);
 
+        ApplyDeviationStateFromConstruction();
         CpdlcPluginBridge.SendUplink(_callsign, _replyDialogueId, _replyToDownlinkId, maxResponseType, content);
 
         ResponseText = "Message sent.";
@@ -1072,6 +1074,7 @@ public class ClearanceViewModel : INotifyPropertyChanged
             }
         }
 
+        ApplyDeviationStateFromConstruction();
         Network.SendRadioMessage($"{_callsign} {string.Join(". ", parts)}");
         ResponseText = "Message sent (HF).";
         IsSent = true;
@@ -1080,6 +1083,72 @@ public class ClearanceViewModel : INotifyPropertyChanged
         OnPropertyChanged(nameof(ReplyToDownlinkId));
         OnPropertyChanged(nameof(ReplyDialogueId));
         OnPropertyChanged(nameof(IsReplyMode));
+    }
+
+    // Deviation/offset uplinks: OFFSET (64/65/66) and CLEARED TO DEVIATE (82), each with [doff]/[dir].
+    private static readonly HashSet<int> DeviationOffsetMessageIds = new() { 64, 65, 66, 82 };
+    private const int ProceedBackOnRouteMessageId = 67;
+    private const int RejoinByPositionMessageId = 68;
+    private const int RejoinByTimeMessageId = 69;
+
+    /// <summary>
+    /// Inspects the sent construction lines for deviation/offset and rejoin-route messages and
+    /// updates <see cref="DeviationStateManager"/> so the conflict probe can widen this
+    /// aircraft's protected-airspace buffer on the cleared side while the deviation is active.
+    /// </summary>
+    private void ApplyDeviationStateFromConstruction()
+    {
+        if (string.IsNullOrWhiteSpace(_callsign)) return;
+
+        foreach (var line in _constructionLines)
+        {
+            var msgId = line.Reference.MessageId;
+
+            if (DeviationOffsetMessageIds.Contains(msgId))
+            {
+                if (line.ParameterValues.TryGetValue("doff", out var doffText) &&
+                    double.TryParse(doffText, out var doffNm) &&
+                    line.ParameterValues.TryGetValue("dir", out var dir))
+                {
+                    DeviationStateManager.RecordDeviation(_callsign, doffNm, dir);
+                }
+            }
+            else if (msgId == ProceedBackOnRouteMessageId)
+            {
+                DeviationStateManager.RecordRejoin(_callsign, DeviationRejoinType.Immediate);
+            }
+            else if (msgId == RejoinByPositionMessageId)
+            {
+                line.ParameterValues.TryGetValue("pos", out var pos);
+                DeviationStateManager.RecordRejoin(_callsign, DeviationRejoinType.ByPosition, position: pos);
+            }
+            else if (msgId == RejoinByTimeMessageId)
+            {
+                if (line.ParameterValues.TryGetValue("time", out var timeText) &&
+                    TryParseClearanceTime(timeText, out var rejoinTime))
+                {
+                    DeviationStateManager.RecordRejoin(_callsign, DeviationRejoinType.ByTime, timeUtc: rejoinTime);
+                }
+            }
+        }
+    }
+
+    // Clearance times are entered as HHmm (e.g. "1430"); roll to tomorrow if that time has
+    // already passed today, since these are always near-term rejoin instructions.
+    private static bool TryParseClearanceTime(string text, out DateTime timeUtc)
+    {
+        timeUtc = default;
+        text = text?.Trim() ?? "";
+        if (text.Length != 4 || !int.TryParse(text, out var hhmm)) return false;
+
+        var hour = hhmm / 100;
+        var minute = hhmm % 100;
+        if (hour > 23 || minute > 59) return false;
+
+        var now = DateTime.UtcNow;
+        timeUtc = new DateTime(now.Year, now.Month, now.Day, hour, minute, 0, DateTimeKind.Utc);
+        if (timeUtc < now.AddHours(-1)) timeUtc = timeUtc.AddDays(1);
+        return true;
     }
 
     /// <summary>
