@@ -37,6 +37,8 @@ public class AtopMessageReference
 
 public class AtopDownlinkInfo
 {
+    public string Callsign { get; set; } = "";
+    public Guid DialogueId { get; set; }
     public int MessageId { get; set; }
     public string Content { get; set; } = "";
     public DateTimeOffset Received { get; set; }
@@ -51,4 +53,28 @@ public class AtopUplinkMessagesConfig
     public AtopUplinkTemplate[] MasterMessages { get; set; } = Array.Empty<AtopUplinkTemplate>();
     public AtopMessageReference[] PermanentMessages { get; set; } = Array.Empty<AtopMessageReference>();
     public AtopMessageGroup[] Groups { get; set; } = Array.Empty<AtopMessageGroup>();
+}
+
+public enum AtopDialogueDirection
+{
+    Uplink,
+    Downlink
+}
+
+/// <summary>
+/// A single message (uplink or downlink) from the aircraft's live CPDLC dialogue,
+/// as tracked by CPDLCPlugin's own DialogueStore. Used to show the ATOP Clearance
+/// window's message history against the actual CPDLC conversation rather than a
+/// separately-maintained copy.
+/// </summary>
+public class AtopDialogueMessage
+{
+    public Guid DialogueId { get; set; }
+    public AtopDialogueDirection Direction { get; set; }
+    public int MessageId { get; set; }
+    public int? MessageReference { get; set; }
+    public string Content { get; set; } = "";
+    public DateTimeOffset Time { get; set; }
+    public bool IsClosed { get; set; }
+    public bool IsAcknowledged { get; set; }
 }

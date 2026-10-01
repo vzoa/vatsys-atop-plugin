@@ -8,6 +8,10 @@ let useMockData = false;
 let conflictWorker = null;
 let fdrCache = new Map(); // Cache FDRs received from plugin
 
+// Sector Queue Window state
+let sectorQueue = []; // { id, priority, msgType, sourceType, acid, content, time }
+let selectedQueueItemId = null;
+
 // Window dragging state
 let dragState = {
     isDragging: false,
@@ -23,6 +27,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initButtonHandlers();
     initConflictWorker();
     initSectorQueueClock();
+    initSectorQueueButtons();
     connectWebSocket();
     
     // Initial render of empty conflict table
@@ -193,6 +198,8 @@ function connectWebSocket() {
             updateConnectionStatus('Connected', 'connected');
             // Explicitly request inhibition areas to ensure worker has them
             ws.send(JSON.stringify({ Type: 'RequestInhibitionAreas' }));
+            // Explicitly request the Sector Queue snapshot (CPDLC + buffered SYS/TXT history)
+            ws.send(JSON.stringify({ Type: 'RequestQueueSnapshot' }));
         };
 
         ws.onclose = () => {
@@ -244,6 +251,9 @@ function connectWebSocket() {
                     break;
                 case 'InhibitionAreas':
                     handleInhibitionAreas(data);
+                    break;
+                case 'QueueMessage':
+                    handleQueueMessage(data);
                     break;
                 case 'Error':
                     showError(data.Message);
@@ -556,6 +566,145 @@ function updateSectorQueueClock() {
     
     const dateEl = document.getElementById('sq-date');
     if (dateEl) dateEl.textContent = dateStr;
+}
+
+// ============================================
+// SECTOR QUEUE WINDOW - Message Queue (Figure 3-3)
+// Aggregates CPDLC downlinks (CPD, via CpdlcPluginBridge), vatSys native
+// System Messages (SYS), and vatSys Controller/ATC Messages (TXT) into a
+// single priority-sorted Message Summary List.
+// ============================================
+
+const SQ_PRIORITY_ORDER = { EM: 0, UR: 1, NM: 2 };
+
+// Handles a single 'QueueMessage' broadcast from the plugin — upserts by Id
+// so repeated CPDLC snapshots don't create duplicate rows.
+function handleQueueMessage(data) {
+    const item = {
+        id: data.Id,
+        priority: (data.Priority || 'NM').toUpperCase(),
+        msgType: data.MsgType || '',
+        sourceType: data.SourceType || data.MsgType || '',
+        acid: data.Acid || '',
+        content: data.Content || '',
+        time: data.Time
+    };
+
+    const idx = sectorQueue.findIndex(q => q.id === item.id);
+    if (idx >= 0) {
+        sectorQueue[idx] = item;
+    } else {
+        sectorQueue.push(item);
+    }
+
+    renderSectorQueue();
+}
+
+function formatQueueTime(iso) {
+    if (!iso) return '';
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return '';
+    return d.toTimeString().substring(0, 8);
+}
+
+function renderSectorQueue() {
+    const list = document.getElementById('sq-queue-list');
+    if (!list) return;
+
+    const sorted = [...sectorQueue].sort((a, b) => {
+        const pa = SQ_PRIORITY_ORDER[a.priority] ?? 2;
+        const pb = SQ_PRIORITY_ORDER[b.priority] ?? 2;
+        if (pa !== pb) return pa - pb;
+        return new Date(a.time) - new Date(b.time);
+    });
+
+    list.innerHTML = '';
+
+    sorted.forEach(item => {
+        const row = document.createElement('div');
+        row.className = `sq-queue-item sq-${item.priority.toLowerCase()}`;
+        if (item.id === selectedQueueItemId) row.classList.add('selected');
+
+        row.innerHTML = `
+            <span class="sq-col-priority">${item.priority}</span>
+            <span class="sq-col-type">${item.msgType}</span>
+            <span class="sq-col-acid">${item.acid}</span>
+            <span class="sq-col-time">${formatQueueTime(item.time)}</span>
+        `;
+        row.addEventListener('click', () => selectQueueItem(item.id));
+
+        list.appendChild(row);
+    });
+
+    updateSectorQueueLauncher();
+}
+
+// Updates the persistent SECTOR launcher button: message count, and colour
+// reflecting the highest-priority message currently queued (EM > UR > normal).
+function updateSectorQueueLauncher() {
+    const btn = document.getElementById('sq-launcher-btn');
+    const countEl = document.getElementById('sq-launcher-count');
+    if (!btn || !countEl) return;
+
+    countEl.textContent = sectorQueue.length.toString();
+
+    const hasEm = sectorQueue.some(q => q.priority === 'EM');
+    const hasUr = sectorQueue.some(q => q.priority === 'UR');
+
+    btn.classList.toggle('sq-has-em', hasEm);
+    btn.classList.toggle('sq-has-ur', !hasEm && hasUr);
+}
+
+function selectQueueItem(id) {
+    selectedQueueItemId = id;
+    renderSectorQueue();
+
+    const item = sectorQueue.find(q => q.id === id);
+    const textEl = document.getElementById('sq-text-content');
+    if (!textEl) return;
+
+    textEl.textContent = item ? (item.acid ? `${item.acid} : ${item.content}` : item.content) : '';
+}
+
+function initSectorQueueButtons() {
+    document.getElementById('sq-launcher-btn')?.addEventListener('click', () => {
+        const win = document.getElementById('sector-queue-window');
+        if (!win) return;
+
+        const isHidden = win.style.display === 'none';
+        win.style.display = isHidden ? '' : 'none';
+        if (isHidden) activateWindow(win);
+    });
+
+    document.getElementById('sq-btn-delete')?.addEventListener('click', () => {
+        if (!selectedQueueItemId) return;
+        sectorQueue = sectorQueue.filter(q => q.id !== selectedQueueItemId);
+        selectedQueueItemId = null;
+        const textEl = document.getElementById('sq-text-content');
+        if (textEl) textEl.textContent = '';
+        renderSectorQueue();
+    });
+
+    document.getElementById('sq-btn-close')?.addEventListener('click', () => {
+        const win = document.getElementById('sector-queue-window');
+        if (win) win.style.display = 'none';
+    });
+
+    document.getElementById('sq-btn-process')?.addEventListener('click', () => {
+        const item = sectorQueue.find(q => q.id === selectedQueueItemId);
+        // Only CPDLC entries have a processing window (ATOP Clearance window) — per spec,
+        // "Not all messages have a processing window; in this case, Process has no effect."
+        if (!item || item.sourceType !== 'CPD' || !item.acid) return;
+        ws?.send(JSON.stringify({ Type: 'ProcessQueueMessage', Callsign: item.acid }));
+    });
+
+    document.getElementById('sq-btn-route')?.addEventListener('click', () => {
+        showResponse('Route is not yet implemented for this message.');
+    });
+
+    document.getElementById('sq-btn-print')?.addEventListener('click', () => {
+        window.print();
+    });
 }
 
 // ============================================

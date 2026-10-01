@@ -10,8 +10,15 @@
     <!-- Connection Status -->
     <div class="motif-connection-status" id="connection-status">Disconnected</div>
 
+    <!-- Sector Queue Launcher — persistent button; count + colour reflect the highest
+         priority message currently queued (EM=red, UR=yellow, none=normal). -->
+    <button class="sq-launcher" id="sq-launcher-btn">
+        <span class="sq-launcher-label">SECTOR</span>
+        <span class="sq-launcher-count" id="sq-launcher-count">0</span>
+    </button>
+
     <!-- Sector Queue Window - ATOP Style per reference -->
-    <div class="motif-window active" id="sector-queue-window" style="left: 600px; top: 50px; width: 615px; height: 298px;">
+    <div class="motif-window active" id="sector-queue-window" style="left: 600px; top: 50px; width: 615px; height: 420px; display: none;">
         <div class="motif-titlebar">
             <span class="motif-title">CWP1 - default - SIMUL</span>
         </div>
@@ -50,13 +57,39 @@
             </div>
         </div>
         
+        <!-- Column Headers -->
+        <div class="sq-column-header">
+            <span class="sq-col-priority"></span>
+            <span class="sq-col-type">Type</span>
+            <span class="sq-col-acid">ACID</span>
+            <span class="sq-col-time">Time</span>
+        </div>
+
         <!-- Queue List Area (vertical stretch) -->
         <div class="sq-queue-area" id="sq-queue-area">
             <div class="sq-queue-content" id="sq-queue-list">
                 <!-- Queue items populated here -->
             </div>
         </div>
+
+        <!-- Separator Bar -->
+        <div class="sq-separator"></div>
+
+        <!-- Message Text Area -->
+        <div class="sq-text-area" id="sq-text-area">
+            <div class="sq-text-content" id="sq-text-content"></div>
+        </div>
+
+        <!-- Buttons -->
+        <div class="sq-button-bar">
+            <button class="sq-btn" id="sq-btn-process">Process</button>
+            <button class="sq-btn" id="sq-btn-route">Route</button>
+            <button class="sq-btn" id="sq-btn-print">Print</button>
+            <button class="sq-btn" id="sq-btn-delete">Delete</button>
+            <button class="sq-btn" id="sq-btn-close">Close</button>
+        </div>
     </div>
+
 
     <!-- Conflict Summary Window - ATOP Style -->
     <div class="motif-window active" id="conflict-summary" style="left: 50px; top: 50px; width: 520px;">

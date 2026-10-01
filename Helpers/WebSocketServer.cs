@@ -1,5 +1,6 @@
 using AtopPlugin.Conflict;
 using AtopPlugin.Logic;
+using AtopPlugin.UI;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
@@ -37,9 +38,134 @@ namespace AtopPlugin.Helpers
 
         public static AtopWebSocketServer Instance => _instance ?? (_instance = new AtopWebSocketServer());
 
+        // In-memory replay buffer for native SYS/TXT messages piped from vatSys's ChatWindow
+        // event stream, so a newly-connected browser tab sees recent history, not just new events.
+        private const int MaxQueueMessageHistory = 200;
+        private readonly List<object> _queueMessageHistory = new List<object>();
+
         private AtopWebSocketServer(int port = 8181)
         {
             _port = port;
+
+            // Pipe vatSys's native "System Messages" (SUP) and "Controller Messages" (ATC) chat
+            // streams — the same events vatsys.ChatWindow subscribes to — into the Sector Queue
+            // window as SYS/TXT queue entries.
+            Network.SystemMessagesChanged += OnNativeSystemMessage;
+            Network.ATCMessagesChanged += OnNativeAtcMessage;
+        }
+
+        private void OnNativeSystemMessage(object sender, Network.GenericMessageEventArgs e)
+        {
+            _ = BroadcastNativeMessageAsync("SYS", e.Message);
+        }
+
+        private void OnNativeAtcMessage(object sender, Network.GenericMessageEventArgs e)
+        {
+            _ = BroadcastNativeMessageAsync("TXT", e.Message);
+        }
+
+        private async Task BroadcastNativeMessageAsync(string msgType, GenericMessage msg)
+        {
+            if (msg == null) return;
+
+            try
+            {
+                var id = $"{msgType}-{msg.Address}-{msg.TimeStamp:o}";
+                var data = new
+                {
+                    Type = "QueueMessage",
+                    Id = id,
+                    Priority = "NM",
+                    MsgType = msgType,
+                    SourceType = msgType,
+                    Acid = msg.Address ?? "",
+                    Content = msg.Message ?? "",
+                    Time = msg.TimeStamp.ToString("o")
+                };
+
+                lock (_queueMessageHistory)
+                {
+                    _queueMessageHistory.Add(data);
+                    while (_queueMessageHistory.Count > MaxQueueMessageHistory)
+                        _queueMessageHistory.RemoveAt(0);
+                }
+
+                await BroadcastAsync(data);
+            }
+            catch (Exception ex)
+            {
+                Errors.Add(new Exception($"AtopWebSocketServer.BroadcastNativeMessageAsync: {ex.Message}", ex));
+            }
+        }
+
+        /// <summary>
+        /// Broadcasts a single Sector Queue entry (Figure 3-3 Message Queue Window) to the webapp.
+        /// Used for CPDLC downlinks (MsgType "CPD"), vatSys system messages ("SYS"), and vatSys
+        /// controller/ATC messages ("TXT").
+        /// </summary>
+        public async Task BroadcastQueueMessageAsync(string id, string priority, string msgType, string sourceType,
+            string acid, string content, DateTime time)
+        {
+            var data = new
+            {
+                Type = "QueueMessage",
+                Id = id,
+                Priority = priority,
+                MsgType = msgType,
+                SourceType = sourceType,
+                Acid = acid,
+                Content = content,
+                Time = time.ToString("o")
+            };
+
+            await BroadcastAsync(data);
+        }
+
+        /// <summary>
+        /// Broadcasts every currently-open CPDLC downlink (across all aircraft) to the webapp as
+        /// Sector Queue entries. Called whenever a client connects so it gets the current picture,
+        /// not just messages arriving from that point forward. Not buffered in
+        /// <see cref="_queueMessageHistory"/> since GetAllOpenDownlinks() is always re-queried fresh.
+        /// </summary>
+        public async Task BroadcastCpdlcQueueSnapshotAsync()
+        {
+            if (_connectedClients.Count == 0) return;
+
+            try
+            {
+                foreach (var downlink in CpdlcPluginBridge.GetAllOpenDownlinks())
+                {
+                    await BroadcastQueueMessageAsync(
+                        id: $"CPD-{downlink.DialogueId}-{downlink.MessageId}",
+                        priority: "NM",
+                        msgType: "CPD",
+                        sourceType: "CPD",
+                        acid: downlink.Callsign,
+                        content: downlink.Content,
+                        time: downlink.Received.UtcDateTime);
+                }
+            }
+            catch (Exception ex)
+            {
+                Errors.Add(new Exception($"BroadcastCpdlcQueueSnapshotAsync: {ex.Message}", ex));
+            }
+        }
+
+        /// <summary>
+        /// Replays buffered SYS/TXT history to newly-connected clients (CPDLC entries are replayed
+        /// separately via <see cref="BroadcastCpdlcQueueSnapshotAsync"/> since those come from the
+        /// live DialogueStore rather than an in-memory buffer).
+        /// </summary>
+        private async Task ReplayQueueMessageHistoryAsync()
+        {
+            List<object> snapshot;
+            lock (_queueMessageHistory)
+            {
+                snapshot = _queueMessageHistory.ToList();
+            }
+
+            foreach (var item in snapshot)
+                await BroadcastAsync(item);
         }
 
         public void Start()
@@ -79,6 +205,9 @@ namespace AtopPlugin.Helpers
                         lock (_connectedClients) _connectedClients.Add(wsContext.WebSocket);
                         // Send inhibition areas to new client so conflict worker can filter
                         _ = BroadcastInhibitionAreasAsync();
+                        // Bring the new client up to date on the Sector Queue window's contents
+                        _ = ReplayQueueMessageHistoryAsync();
+                        _ = BroadcastCpdlcQueueSnapshotAsync();
                         _ = HandleClientAsync(wsContext.WebSocket, ct);
                     }
                     else
@@ -154,10 +283,41 @@ namespace AtopPlugin.Helpers
                 {
                     await BroadcastInhibitionAreasAsync();
                 }
+                else if (request?.Type == "RequestQueueSnapshot")
+                {
+                    await ReplayQueueMessageHistoryAsync();
+                    await BroadcastCpdlcQueueSnapshotAsync();
+                }
+                else if (request?.Type == "ProcessQueueMessage")
+                {
+                    HandleProcessQueueMessage(request.Callsign);
+                }
             }
             catch (Exception ex)
             {
                 Errors.Add(new Exception($"WebSocket Message Error: {ex.Message}"));
+            }
+        }
+
+        /// <summary>
+        /// Handles the Sector Queue window's "Process" button for a CPDLC queue entry — opens the
+        /// ATOP Clearance window for the aircraft, matching the Message Queue Window spec's
+        /// "opens the appropriate window for the selected message" behaviour.
+        /// </summary>
+        private void HandleProcessQueueMessage(string callsign)
+        {
+            if (string.IsNullOrWhiteSpace(callsign)) return;
+
+            try
+            {
+                var fdrIndex = FDP2.GetFDRIndex(callsign);
+                if (fdrIndex == -1) return;
+
+                AtopMenu.OpenClearanceWindow(FDP2.GetFDRs[fdrIndex]);
+            }
+            catch (Exception ex)
+            {
+                Errors.Add(new Exception($"HandleProcessQueueMessage: {ex.Message}", ex));
             }
         }
 
@@ -474,6 +634,11 @@ namespace AtopPlugin.Helpers
                     rnp4 = calcData.Rnp4,
                     rnp10 = calcData.Rnp10,
                     hasDatalink = calcData.Cpdlc,
+                    // PBCS reduced separation requires filed RSP180/P2 equipage AND an actively
+                    // logged-on CPDLC connection — equipage alone (hasDatalink) is not sufficient.
+                    rsp180 = calcData.Pbcs,
+                    p2Filed = calcData.Pbcs,
+                    cpdlcLoggedOn = IsCpdlcLoggedOn(fdr.Callsign),
                     rvsmApproved = fdr.RVSM,
                     isJet = fdr.PerformanceData?.IsJet ?? false
                 },
@@ -540,6 +705,18 @@ namespace AtopPlugin.Helpers
         }
 
         /// <summary>
+        /// Returns true if the aircraft has an actively logged-on CPDLC connection (CDA or NDA).
+        /// PBCS reduced separation requires this in addition to filed RSP180/P2 equipage —
+        /// equipage alone does not qualify.
+        /// </summary>
+        private static bool IsCpdlcLoggedOn(string callsign)
+        {
+            var state = CpdlcPluginBridge.GetConnectionState(callsign);
+            return state is CpdlcPluginBridge.CpdlcConnectionState.CurrentDataAuthority
+                or CpdlcPluginBridge.CpdlcConnectionState.NextDataAuthority;
+        }
+
+        /// <summary>
         /// Requests a conflict probe from the webapp for a specific callsign
         /// Per ATOP spec 12.1.1, probes are event-driven on FDR updates
         /// </summary>
@@ -589,6 +766,9 @@ namespace AtopPlugin.Helpers
                     rnp4 = calcData.Rnp4,
                     rnp10 = calcData.Rnp10,
                     hasDatalink = calcData.Cpdlc,
+                    rsp180 = calcData.Pbcs,
+                    p2Filed = calcData.Pbcs,
+                    cpdlcLoggedOn = IsCpdlcLoggedOn(fdr.Callsign),
                     rvsmApproved = fdr.RVSM,
                     isJet = fdr.PerformanceData?.IsJet ?? false
                 },
@@ -662,6 +842,9 @@ namespace AtopPlugin.Helpers
                         rnp4 = calcData.Rnp4,
                         rnp10 = calcData.Rnp10,
                         hasDatalink = calcData.Cpdlc,
+                        rsp180 = calcData.Pbcs,
+                        p2Filed = calcData.Pbcs,
+                        cpdlcLoggedOn = IsCpdlcLoggedOn(fdr.Callsign),
                         rvsmApproved = fdr.RVSM,
                         isJet = fdr.PerformanceData?.IsJet ?? false
                     };
