@@ -236,14 +236,59 @@ function checkConflict(fdr1, fdr2) {
     // Sort by start time
     uninhibitedSegments.sort((a, b) => a.startTime - b.startTime);
     const firstConflict = uninhibitedSegments[0];
-    
+
+    // Classify the SPECIFIC leg pair that produced this conflict segment (not the
+    // whole-route bearing) per NAS-MD-4714 6.2.5.7.1.3 — this determines both the
+    // reported conflict type and which separation standard applies.
+    const leg1 = firstConflict.route1Leg;
+    const leg2 = firstConflict.route2Leg;
+    const legAngle = leg1 && leg2
+        ? (() => {
+            let a = Math.abs(calculateTrack(leg1.start, leg1.end) - calculateTrack(leg2.start, leg2.end));
+            return a > 180 ? 360 - a : a;
+        })()
+        : calculateTrackAngle(fdr1, fdr2);
+    const legClass = leg1 && leg2
+        ? classifyLegPairStandard(leg1.start, leg1.end, leg2.start, leg2.end, legAngle)
+        : { reportType: determineConflictType(legAngle), standard: determineConflictType(legAngle) };
+
     // 5. Longitudinal Separation Check
-    const longTimeSep = getLongitudinalTimeMinima(fdr1, fdr2);
-    const longTimeAct = Math.abs(firstConflict.endTime - firstConflict.startTime);
+    const longTimeSep = getLongitudinalTimeMinima(fdr1, fdr2, legAngle, legClass.standard);
     const longDistSep = getLongitudinalDistanceMinima(fdr1, fdr2);
     const longDistAct = calculateDistance(firstConflict.startLatLon, firstConflict.endLatLon);
-    
-    const lossOfSep = longTimeAct < longTimeSep || longDistAct < longDistSep;
+
+    let longTimeAct;
+    let crossingResult = null;
+    let lossOfSep;
+
+    if (legClass.reportType === 'Crossing' && leg1 && leg2) {
+        // Per 6.2.5.7.1.3: for crossing tracks, longitudinal separation is determined by
+        // the time differential between each aircraft's ETA at the geometric crossing
+        // point of the two legs — NOT by how long one aircraft's route spends inside the
+        // other's static lateral-protection corridor. A conflict is declared purely on
+        // this differential, even if the corridor-transit windows below are disjoint,
+        // since ETA estimates carry ~±3min uncertainty (the aircraft can still cross in
+        // close proximity despite the windows not overlapping).
+        crossingResult = crossingTrackTimeDifferential(leg1.start, leg1.end, leg2.start, leg2.end);
+        if (crossingResult) {
+            longTimeAct = crossingResult.timeDiff;
+            lossOfSep = longTimeAct < longTimeSep;
+            console.log(`[ConflictWorker]   ${pair}: CROSSING TRACK TEST (6.2.5.7.1.3) — leg angle=${legAngle.toFixed(1)}° standard=${legClass.standard} | ETA diff at crossing point=${(longTimeAct/60000).toFixed(1)}min sep=${(longTimeSep/60000).toFixed(1)}min | LOS=${lossOfSep}`);
+        } else {
+            // Legs nearly parallel or missing ETO data — no single crossing point to
+            // test against. Fall back to the corridor-transit method as a safety net
+            // rather than silently skipping the longitudinal check.
+            longTimeAct = Math.abs(firstConflict.endTime - firstConflict.startTime);
+            lossOfSep = longTimeAct < longTimeSep || longDistAct < longDistSep;
+            console.log(`[ConflictWorker]   ${pair}: crossing point could not be computed (parallel legs / missing ETO) — falling back to corridor-transit test`);
+        }
+    } else {
+        // Same-direction / reciprocal (including the Continuously Diverging Tracks
+        // exception) — unchanged corridor-transit + distance method.
+        longTimeAct = Math.abs(firstConflict.endTime - firstConflict.startTime);
+        lossOfSep = longTimeAct < longTimeSep || longDistAct < longDistSep;
+    }
+
     console.log(`[ConflictWorker]   ${pair}: longTime act=${(longTimeAct/60000).toFixed(1)}min sep=${(longTimeSep/60000).toFixed(1)}min | longDist act=${longDistAct.toFixed(1)}nm sep=${longDistSep}nm | LOS=${lossOfSep}`);
     
     if (!lossOfSep) {
@@ -277,22 +322,21 @@ function checkConflict(fdr1, fdr2) {
         return null; // Too far in future
     }
     
-    // Calculate track angle using proper method
-    const trkAngle = calculateTrackAngle(fdr1, fdr2);
-    
-    console.log(`[ConflictWorker]   ${pair}: ** CONFLICT DETECTED ** status=${status} type=${determineConflictType(trkAngle)} angle=${trkAngle.toFixed(1)}°`);
+    // Report the leg-pair-specific classification (per 6.2.5.9), not the coarser
+    // whole-route bearing — this is what actually governed the separation test above.
+    console.log(`[ConflictWorker]   ${pair}: ** CONFLICT DETECTED ** status=${status} type=${legClass.reportType} legAngle=${legAngle.toFixed(1)}°`);
     
     return {
         intruderCallsign: fdr1.callsign,
         activeCallsign: fdr2.callsign,
         status: status,
-        conflictType: determineConflictType(trkAngle),
+        conflictType: legClass.reportType,
         earliestLos: new Date(firstConflict.startTime).toISOString(),
         latestLos: new Date(firstConflict.endTime).toISOString(),
         latSep: latSep,
         verticalSep: verticalSep,
         verticalAct: verticalAct,
-        trkAngle: trkAngle,
+        trkAngle: legAngle,
         longTimeAct: longTimeAct,
         longDistAct: longDistAct,
         startLat: firstConflict.startLatLon.lat,
@@ -389,7 +433,9 @@ function clipSegmentToNonInhibited(seg, altFL1, altFL2) {
             startLatLon: crossing,
             endLatLon: seg.endLatLon,
             startTime: crossingTime,
-            endTime: seg.endTime
+            endTime: seg.endTime,
+            route1Leg: seg.route1Leg,
+            route2Leg: seg.route2Leg
         };
     } else {
         // End is in radar area — clip end to the boundary crossing
@@ -397,7 +443,9 @@ function clipSegmentToNonInhibited(seg, altFL1, altFL2) {
             startLatLon: seg.startLatLon,
             endLatLon: crossing,
             startTime: seg.startTime,
-            endTime: crossingTime
+            endTime: crossingTime,
+            route1Leg: seg.route1Leg,
+            route2Leg: seg.route2Leg
         };
     }
 }
@@ -437,16 +485,26 @@ function findInhibitionBoundaryCrossing(from, to, altFL1, altFL2) {
 // ============================================
 
 function passesTemporalTest(fdr1, fdr2) {
-    const start1 = fdr1.atd ? new Date(fdr1.atd).getTime() : 0;
-    const end1 = fdr1.parsedRoute.length > 0 && fdr1.parsedRoute[fdr1.parsedRoute.length - 1].eto
-        ? new Date(fdr1.parsedRoute[fdr1.parsedRoute.length - 1].eto).getTime()
+    // Use ATD as start, falling back to first waypoint ETO, then to now.
+    const firstEto1 = fdr1.parsedRoute.find(wp => wp.eto)?.eto;
+    const firstEto2 = fdr2.parsedRoute.find(wp => wp.eto)?.eto;
+    const lastEto1  = [...fdr1.parsedRoute].reverse().find(wp => wp.eto)?.eto;
+    const lastEto2  = [...fdr2.parsedRoute].reverse().find(wp => wp.eto)?.eto;
+
+    const start1 = fdr1.atd
+        ? new Date(fdr1.atd).getTime()
+        : firstEto1 ? new Date(firstEto1).getTime() : Date.now();
+    const end1 = lastEto1
+        ? new Date(lastEto1).getTime()
         : Date.now() + 24 * 3600000;
-    
-    const start2 = fdr2.atd ? new Date(fdr2.atd).getTime() : 0;
-    const end2 = fdr2.parsedRoute.length > 0 && fdr2.parsedRoute[fdr2.parsedRoute.length - 1].eto
-        ? new Date(fdr2.parsedRoute[fdr2.parsedRoute.length - 1].eto).getTime()
+
+    const start2 = fdr2.atd
+        ? new Date(fdr2.atd).getTime()
+        : firstEto2 ? new Date(firstEto2).getTime() : Date.now();
+    const end2 = lastEto2
+        ? new Date(lastEto2).getTime()
         : Date.now() + 24 * 3600000;
-    
+
     return !(start1 > end2 || start2 > end1);
 }
 
@@ -534,10 +592,15 @@ function getLateralMinima(fdr1, fdr2) {
     return 100; // Pacific default
 }
 
-function getLongitudinalTimeMinima(fdr1, fdr2) {
+function getLongitudinalTimeMinima(fdr1, fdr2, angleOverride, standardOverride) {
     // Per NAS-MD-4714 Section 6.2.4.3 - Longitudinal Time Separation
     // Per 6.2.4.3.2 - MNT minimum is 5 minutes, basic is 10 min
-    const trackType = determineConflictType(calculateTrackAngle(fdr1, fdr2));
+    const angle = angleOverride !== undefined ? angleOverride : calculateTrackAngle(fdr1, fdr2);
+    // standardOverride lets the crossing-track test (6.2.5.7.1.3) pick which
+    // separation *standard* applies for a 45°-135° leg pair, since crossing
+    // tracks 45°-<90° use the same-direction standard while 90°-135° use the
+    // opposite-direction standard — they are NOT both just "15 minutes".
+    const trackType = standardOverride || determineConflictType(angle);
     
     // Check if both are jets (turbojets qualify for MNT)
     const isJet1 = fdr1.isJet === true;
@@ -567,9 +630,129 @@ function getLongitudinalTimeMinima(fdr1, fdr2) {
             
         case 'Crossing':
         default:
-            // Crossing tracks - 15 minutes
+            // Fallback only — real crossing-track handling picks the same/opposite
+            // standard explicitly via standardOverride (see classifyLegPairStandard).
             return 15 * 60 * 1000;
     }
+}
+
+// ============================================
+// CROSSING TRACK LONGITUDINAL TEST
+// Per NAS-MD-4714 6.2.5.7.1.3 "Crossing Track" / 6.2.8.4.11 "Crossing Track
+// Longitudinal Test": for crossing tracks (45°-135° between the SPECIFIC
+// conflicting leg pair, not the whole-route bearing), longitudinal separation
+// is determined by finding the geometric crossing point of the two legs and
+// comparing each aircraft's independently-estimated time of arrival there —
+// NOT by how long one aircraft's route spends inside the other's lateral
+// protection corridor (which is what the rest of this file's polygon method
+// measures, and is only valid for Same/Reciprocal geometry).
+// ============================================
+
+/**
+ * Geometric intersection of two infinite lines through (p1,p2) and (p3,p4).
+ * Unlike lineIntersection(), this is NOT clipped to the segment bounds —
+ * 6.2.8.4.11.1.4/.1.6 ("Find Crossing Point ETAs" / "Extrapolated Crossing
+ * Point ETA Adjustment") explicitly allow the crossing point to lie beyond
+ * the reported route legs.
+ */
+function lineIntersectionExtrapolated(p1, p2, p3, p4) {
+    const denom = (p4.lon - p3.lon) * (p2.lat - p1.lat) - (p4.lat - p3.lat) * (p2.lon - p1.lon);
+    if (Math.abs(denom) < 1e-7) return null; // parallel/near-parallel legs — no single crossing point
+
+    const ua = ((p4.lat - p3.lat) * (p1.lon - p3.lon) - (p4.lon - p3.lon) * (p1.lat - p3.lat)) / denom;
+    return {
+        lat: p1.lat + ua * (p2.lat - p1.lat),
+        lon: p1.lon + ua * (p2.lon - p1.lon)
+    };
+}
+
+/**
+ * Estimates an aircraft's ETA at an arbitrary point along a specific route
+ * leg, extrapolating linearly from the leg's own endpoint ETOs if the point
+ * lies outside the leg. Mirrors 6.2.8.4.11.1.4 "Find Crossing Point ETAs".
+ */
+function estimateEtaAtPoint(legStart, legEnd, point) {
+    if (!legStart.eto || !legEnd.eto) return null;
+
+    const legDist = calculateDistance(legStart, legEnd);
+    const pointDist = calculateDistance(legStart, point);
+    const ratio = legDist > 0 ? pointDist / legDist : 0;
+
+    const t0 = new Date(legStart.eto).getTime();
+    const t1 = new Date(legEnd.eto).getTime();
+    return t0 + ratio * (t1 - t0);
+}
+
+/**
+ * Signed along-track distance of `point` relative to `legStart`, positive in
+ * the direction of `legEnd`. Used to tell whether a geometric crossing point
+ * lies ahead of or behind an aircraft's current leg.
+ */
+function signedProgressAlongLeg(legStart, legEnd, point) {
+    const legTrack = calculateTrack(legStart, legEnd);
+    const bearingToPoint = calculateTrack(legStart, point);
+    const distToPoint = calculateDistance(legStart, point);
+    const angleDiff = Math.abs(((bearingToPoint - legTrack + 540) % 360) - 180);
+    return angleDiff > 90 ? -distToPoint : distToPoint;
+}
+
+/**
+ * NAS-MD-4714 6.2.5.7.1.3 — classifies a specific leg pair by crossing angle
+ * and picks which longitudinal separation *standard* applies (distinct from
+ * the reporting "conflict type"): angles 45°-<90° use the same-direction
+ * standard, 90°-135° use the opposite-direction standard. Tracks in the
+ * 45°-<90° range that continuously diverge are instead treated as same-
+ * direction tracks entirely (both classification and standard), per the
+ * "Continuously Diverging Tracks" exception.
+ *
+ * NOTE: the formal geometric definition of "Continuously Diverging Tracks" is
+ * given in Paragraph 6.2.5.9 (Reporting Aircraft to Aircraft Conflicts), which
+ * wasn't available when this was written. This uses a practical proxy: the
+ * legs are treated as diverging if their (possibly extrapolated) crossing
+ * point lies behind BOTH aircraft's current position on their own leg — i.e.
+ * they've already passed the point they'd otherwise converge at, so they're
+ * moving apart rather than towards each other. If this proxy doesn't match
+ * the spec's intent, supply Paragraph 6.2.5.9 and this can be corrected.
+ */
+function classifyLegPairStandard(leg1Start, leg1End, leg2Start, leg2End, angle) {
+    if (angle < CONFIG.sameTrackMaxAngle) return { reportType: 'Same', standard: 'Same' };
+    if (angle > CONFIG.reciprocalMinAngle) return { reportType: 'Reciprocal', standard: 'Reciprocal' };
+
+    if (angle < 90) {
+        const crossPoint = lineIntersectionExtrapolated(leg1Start, leg1End, leg2Start, leg2End);
+        if (crossPoint) {
+            const progress1 = signedProgressAlongLeg(leg1Start, leg1End, crossPoint);
+            const progress2 = signedProgressAlongLeg(leg2Start, leg2End, crossPoint);
+            if (progress1 < 0 && progress2 < 0) {
+                // Continuously Diverging Tracks exception — treat as same-direction.
+                return { reportType: 'Same', standard: 'Same' };
+            }
+        }
+        return { reportType: 'Crossing', standard: 'Same' };
+    }
+
+    // 90°-135° — opposite (reciprocal) direction separation standard applies.
+    return { reportType: 'Crossing', standard: 'Reciprocal' };
+}
+
+/**
+ * NAS-MD-4714 6.2.5.7.1.3: for a crossing leg pair, finds the geometric
+ * crossing point and each aircraft's independently-estimated ETA there, and
+ * returns their time differential. A conflict is declared purely on this
+ * differential — even when the two aircraft's individual lateral-buffer
+ * transit intervals (as computed by calculateAreaOfConflict) are disjoint,
+ * since ETA estimates carry ~±3min uncertainty and the aircraft may still
+ * cross in close proximity despite the buffer-transit windows not overlapping.
+ */
+function crossingTrackTimeDifferential(leg1Start, leg1End, leg2Start, leg2End) {
+    const crossPoint = lineIntersectionExtrapolated(leg1Start, leg1End, leg2Start, leg2End);
+    if (!crossPoint) return null;
+
+    const eta1 = estimateEtaAtPoint(leg1Start, leg1End, crossPoint);
+    const eta2 = estimateEtaAtPoint(leg2Start, leg2End, crossPoint);
+    if (eta1 === null || eta2 === null) return null;
+
+    return { crossPoint, eta1, eta2, timeDiff: Math.abs(eta1 - eta2) };
 }
 
 function calculateTrackAngle(fdr1, fdr2) {
@@ -703,6 +886,12 @@ function calculateAreaOfConflict(fdr1, fdr2, lateralSep) {
                 const t0 = interpolateTime(route2[j - 1], route2[j], intersections[0]);
                 const t1 = interpolateTime(route2[j - 1], route2[j], intersections[1]);
                 
+                // Skip this segment if either endpoint has no ETO — we cannot place it in time.
+                if (t0 === null || t1 === null) {
+                    console.log(`[ConflictWorker]   ${fdr1.callsign} vs ${fdr2.callsign}: segment skipped — missing ETO on route2 waypoints (cannot determine conflict time)`);
+                    continue;
+                }
+                
                 // Ensure chronological order (intersection order != time order)
                 const earlier = t0 <= t1 ? 0 : 1;
                 const later = 1 - earlier;
@@ -734,7 +923,13 @@ function calculateAreaOfConflict(fdr1, fdr2, lateralSep) {
                     startLatLon: intersections[earlier],
                     endLatLon: intersections[later],
                     startTime: segStartTime,
-                    endTime: segEndTime
+                    endTime: segEndTime,
+                    // Tag with the specific leg pair that produced this segment so the
+                    // crossing-track longitudinal test (6.2.5.7.1.3) can compute the
+                    // actual geometric crossing point for these two legs specifically,
+                    // rather than the whole-route bearing.
+                    route1Leg: { start: route1[i - 1], end: route1[i] },
+                    route2Leg: { start: route2[j - 1], end: route2[j] }
                 });
             }
         }
@@ -801,7 +996,8 @@ function lineIntersection(p1, p2, p3, p4) {
 }
 
 function interpolateTime(wp1, wp2, point) {
-    if (!wp1.eto || !wp2.eto) return Date.now();
+    // If either endpoint has no ETO we cannot place this segment in time — skip it.
+    if (!wp1.eto || !wp2.eto) return null;
     
     const totalDist = calculateDistance(wp1, wp2);
     const partialDist = calculateDistance(wp1, point);
