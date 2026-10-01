@@ -169,7 +169,8 @@ public static class LabelItemRenderer
                     .FirstOrDefault();
 
                 if (IsAltitudeRequestDownlink(downlink))
-                    AtopMenu.OpenAltitudeWindow(fdr, e.Track, openedFromCommIcon: true, replyDownlinkMessageId: downlink!.MessageId);
+                    AtopMenu.OpenAltitudeWindow(fdr, e.Track, openedFromCommIcon: true,
+                        replyDownlinkMessageId: downlink!.MessageId, replyDialogueId: downlink.DialogueId);
                 else
                     AtopMenu.OpenClearanceWindow(fdr);
             }

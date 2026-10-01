@@ -9,7 +9,6 @@ using System.Collections.Generic;
 using System.Data;
 using System.Drawing;
 using System.Linq;
-using System.Reflection;
 using System.Windows.Forms;
 using vatsys;
 using vatsys.Plugin;
@@ -61,6 +60,7 @@ namespace vatsys_atop_plugin.UI
 
         private object datablock;
         private bool _virtualProbePending;
+        private bool _probeResultShown;
         private bool _overrideActive;
         private bool _conflictBlocked;
         private bool _searchInProgress;
@@ -68,6 +68,7 @@ namespace vatsys_atop_plugin.UI
         private int? _currentSearchLevel;
         private bool _openedFromCommIcon;
         private int? _replyDownlinkMessageId;
+        private Guid? _replyDialogueId;
 
         private static AltitudeWindow instance;
 
@@ -123,35 +124,38 @@ namespace vatsys_atop_plugin.UI
             }
         }
 
-        public static AltitudeWindow GetInstance(FDP2.FDR sourcefdr, Track dataBlock, bool openedFromCommIcon = false, int? replyDownlinkMessageId = null)
+        public static AltitudeWindow GetInstance(FDP2.FDR sourcefdr, Track dataBlock, bool openedFromCommIcon = false, int? replyDownlinkMessageId = null, Guid? replyDialogueId = null)
         {
             if (instance == null || instance.IsDisposed)
             {
                 instance = new AltitudeWindow(sourcefdr, dataBlock);
-                instance.BindToSource(sourcefdr, dataBlock, openedFromCommIcon, replyDownlinkMessageId);
+                instance.BindToSource(sourcefdr, dataBlock, openedFromCommIcon, replyDownlinkMessageId, replyDialogueId);
                 instance.TopMost = true;
             }
             else
             {
-                instance.BindToSource(sourcefdr, dataBlock, openedFromCommIcon, replyDownlinkMessageId);
+                instance.BindToSource(sourcefdr, dataBlock, openedFromCommIcon, replyDownlinkMessageId, replyDialogueId);
                 instance.TopMost = true;
             }
             return instance;
         }
 
-        private void BindToSource(FDP2.FDR sourcefdr, Track dataBlock, bool openedFromCommIcon = false, int? replyDownlinkMessageId = null)
+        private void BindToSource(FDP2.FDR sourcefdr, Track dataBlock, bool openedFromCommIcon = false, int? replyDownlinkMessageId = null, Guid? replyDialogueId = null)
         {
             this.datablock = (object)dataBlock;
             this.source = (object)sourcefdr;
 
             _virtualProbePending = false;
+            _probeResultShown = false;
             _overrideActive = false;
             _conflictBlocked = false;
             _searchInProgress = false;
             _pendingSearchLevels.Clear();
             _currentSearchLevel = null;
             _openedFromCommIcon = openedFromCommIcon;
-            _replyDownlinkMessageId = ResolveReplyDownlinkMessageId(sourcefdr.Callsign, replyDownlinkMessageId);
+            var (resolvedMessageId, resolvedDialogueId) = ResolveReplyDownlink(sourcefdr.Callsign, replyDownlinkMessageId, replyDialogueId);
+            _replyDownlinkMessageId = resolvedMessageId;
+            _replyDialogueId = resolvedDialogueId;
 
             InitializeAltitudeItems();
             ResetSearchResults();
@@ -202,15 +206,16 @@ namespace vatsys_atop_plugin.UI
             return TryParseAltitude(item.Text, out altitude) ? altitude : 0;
         }
 
-        private static int? ResolveReplyDownlinkMessageId(string callsign, int? explicitReplyDownlinkMessageId)
+        private static (int? MessageId, Guid? DialogueId) ResolveReplyDownlink(string callsign, int? explicitReplyDownlinkMessageId, Guid? explicitReplyDialogueId)
         {
             if (explicitReplyDownlinkMessageId.HasValue)
-                return explicitReplyDownlinkMessageId;
+                return (explicitReplyDownlinkMessageId, explicitReplyDialogueId);
 
-            return CpdlcPluginBridge.GetOpenDownlinkDetails(callsign)
+            var latest = CpdlcPluginBridge.GetOpenDownlinkDetails(callsign)
                 .OrderByDescending(d => d.Received)
-                .Select(d => (int?)d.MessageId)
                 .FirstOrDefault();
+
+            return latest != null ? (latest.MessageId, latest.DialogueId) : (null, null);
         }
 
         private void ResetSearchResults()
@@ -256,7 +261,7 @@ namespace vatsys_atop_plugin.UI
 
         private void SyncCancelButtonState()
         {
-            btn_cancel.Enabled = _searchInProgress || _virtualProbePending || HasSharedProbeState();
+            btn_cancel.Enabled = _searchInProgress || _virtualProbePending || _probeResultShown || HasSharedProbeState();
         }
 
         private void UpdateSearchButtonState()
@@ -559,6 +564,7 @@ namespace vatsys_atop_plugin.UI
             if (!_virtualProbePending) return;
 
             _virtualProbePending = false;
+            _probeResultShown = true;
             _overrideActive = false;
 
             bool hasAlert = conflicts.ActualConflicts.Count > 0 || conflicts.ImminentConflicts.Count > 0;
@@ -648,103 +654,72 @@ namespace vatsys_atop_plugin.UI
                     timeInputValid = byTimeDate >= DateTime.UtcNow;
                 }
 
-
-
-                Type networkType = typeof(Network);
-
-                if (networkType != null)
+                // Build the clearance content once — shared by the CPDLC data-link path and the
+                // HF/voice fallback (which just prepends an ATCC phraseology prefix below).
+                string content;
+                if (climbByCheck.Checked && timeInputValid && prl > uppercfl)
                 {
-                    object networkInstance = networkType.GetField("Instance", BindingFlags.NonPublic | BindingFlags.Static).GetValue(null); //Activator.CreateInstance(networkType);
+                    content = "DESCEND TO REACH F" + listAlt + " BY " + fld_time.Text + " REPORT LEVEL F" + listAlt;
+                }
+                else if (climbByCheck.Checked && timeInputValid && prl < uppercfl)
+                {
+                    content = "CLIMB TO REACH F" + listAlt + " BY " + fld_time.Text + " REPORT LEVEL F" + listAlt;
+                }
+                else if (lowercfl != -1 && uppercfl >= prl && prl >= lowercfl && lowercfl != uppercfl)
+                {
+                    content = "MAINTAIN BLOCK F" + listAlt;
+                }
+                else if (lowercfl != -1 && prl < lowercfl && lowercfl != uppercfl)
+                {
+                    content = "CLIMB TO AND MAINTAIN BLOCK " + listAlt;
+                }
+                else if (lowercfl != -1 && prl > uppercfl && lowercfl != uppercfl)
+                {
+                    content = "DESCEND TO AND MAINTAIN BLOCK " + listAlt;
+                }
+                else if (prl > uppercfl)
+                {
+                    content = "DESCEND TO AND MAINTAIN F" + listAlt + " REPORT LEVEL F" + listAlt;
+                }
+                else if (prl < uppercfl)
+                {
+                    content = "CLIMB TO AND MAINTAIN F" + listAlt + " REPORT LEVEL F" + listAlt;
+                }
+                else
+                {
+                    content = "MAINTAIN F" + listAlt;
+                }
 
-                    MethodInfo sendTextMessageMethod = networkType.GetMethod("SendTextMessage", BindingFlags.NonPublic | BindingFlags.Instance);
-
-                    if (sendTextMessageMethod != null && FlightDataCalculator.GetCalculatedFlightData((FDP2.FDR)source).Cpdlc && btn_send.Text != "HF")
+                // Try CPDLC data-link first, via CpdlcPluginBridge — the same mechanism the
+                // Clearance window uses — instead of reflecting into vatSys's private
+                // Network.SendTextMessage, which never touched the real CPDLC dialogue/server at
+                // all. responseType 1 = WilcoUnable, matching these altitude-instruction message
+                // templates in the CPDLC uplink message library.
+                if (btn_send.Text != "HF" && FlightDataCalculator.GetCalculatedFlightData((FDP2.FDR)source).Cpdlc)
+                {
+                    var connState = CpdlcPluginBridge.GetConnectionState(cs);
+                    if (connState == CpdlcPluginBridge.CpdlcConnectionState.CurrentDataAuthority ||
+                        connState == CpdlcPluginBridge.CpdlcConnectionState.NextDataAuthority)
                     {
-
-                        if (climbByCheck.Checked && timeInputValid && prl > uppercfl)
-                        {
-                            sendTextMessageMethod.Invoke(networkInstance, new object[] { ((FDP2.FDR)source).Callsign, " DESCEND TO REACH " + "F" + listAlt + " BY " + fld_time.Text + " REPORT LEVEL " + "F" + listAlt });
-                            cpdlcMessageSent = true;
-                        }
-                        else if (climbByCheck.Checked && timeInputValid && prl < uppercfl)
-                        {
-                            sendTextMessageMethod.Invoke(networkInstance, new object[] { ((FDP2.FDR)source).Callsign, " CLIMB TO REACH " + "F" + listAlt + " BY " + fld_time.Text + " REPORT LEVEL " + "F" + listAlt });
-                            cpdlcMessageSent = true;
-                        }
-                        else if (lowercfl != -1 && uppercfl >= prl && prl >= lowercfl && lowercfl != uppercfl)
-                        {
-                            sendTextMessageMethod.Invoke(networkInstance, new object[] { ((FDP2.FDR)source).Callsign, " MAINTAIN BLOCK " + "F" + listAlt });
-                            cpdlcMessageSent = true;
-                        }
-                        else if (lowercfl != -1 && prl < lowercfl && lowercfl != uppercfl)
-                        {
-                            sendTextMessageMethod.Invoke(networkInstance, new object[] { ((FDP2.FDR)source).Callsign, " CLIMB TO AND MAINTAIN BLOCK " + listAlt });
-                            cpdlcMessageSent = true;
-                        }
-                        else if (lowercfl != -1 && prl > uppercfl && lowercfl != uppercfl)
-                        {
-                            sendTextMessageMethod.Invoke(networkInstance, new object[] { ((FDP2.FDR)source).Callsign, " DESCEND TO AND MAINTAIN BLOCK " + listAlt });
-                            cpdlcMessageSent = true;
-                        }
-                        else if (prl > uppercfl)
-                        {
-                            sendTextMessageMethod.Invoke(networkInstance, new object[] { ((FDP2.FDR)source).Callsign, " DESCEND TO AND MAINTAIN " + "F" + listAlt + " REPORT LEVEL " + "F" + listAlt });
-                            cpdlcMessageSent = true;
-                        }
-                        else if (prl < uppercfl)
-                        {
-                            sendTextMessageMethod.Invoke(networkInstance, new object[] { ((FDP2.FDR)source).Callsign, " CLIMB TO AND MAINTAIN " + "F" + listAlt + " REPORT LEVEL " + "F" + listAlt });
-                            cpdlcMessageSent = true;
-                        }
-                        else
-                        {
-                            sendTextMessageMethod.Invoke(networkInstance, new object[] { ((FDP2.FDR)source).Callsign, " MAINTAIN " + "F" + listAlt });
-                            cpdlcMessageSent = true;
-                        }
+                        CpdlcPluginBridge.SendUplink(cs, _replyDialogueId, _replyDownlinkMessageId, 1, content);
+                        cpdlcMessageSent = true;
                     }
                 }
-                if (!Network.PrimaryFrequencySet)
+
+                if (!cpdlcMessageSent)
                 {
-                    Errors.Add(new Exception("No primary frequency set for CPDLC")
+                    // Voice/HF fallback requires an active primary frequency; CPDLC data-link
+                    // does not, so this check only applies to the radio path.
+                    if (!Network.PrimaryFrequencySet)
                     {
-                        Source = "CPDLC"
-                    });
-                    return;
-                }
-                else if (btn_send.Text == "HF" || !FlightDataCalculator.GetCalculatedFlightData((FDP2.FDR)source).Cpdlc)
-                {
-                    if (climbByCheck.Checked && timeInputValid && prl > uppercfl)
-                    {
-                        Network.SendRadioMessage(cs + " ATCC DESCEND TO REACH " + "F" + listAlt + " BY " + fld_time.Text + " REPORT LEVEL " + "F" + listAlt);
+                        Errors.Add(new Exception("No primary frequency set for CPDLC")
+                        {
+                            Source = "CPDLC"
+                        });
+                        return;
                     }
-                    else if (climbByCheck.Checked && timeInputValid && prl < uppercfl)
-                    {
-                        Network.SendRadioMessage(cs + " ATCC CLIMB TO REACH " + "F" + listAlt + " BY " + fld_time.Text + " REPORT LEVEL " + "F" + listAlt);
-                    }
-                    else if (lowercfl != -1 && uppercfl >= prl && prl >= lowercfl && lowercfl != uppercfl)
-                    {
-                        Network.SendRadioMessage(cs + " ATCC MAINTAIN BLOCK " + "F" + listAlt);
-                    }
-                    else if (lowercfl != -1 && prl < lowercfl && lowercfl != uppercfl)
-                    {
-                        Network.SendRadioMessage(cs + " ATCC CLIMB TO AND MAINTAIN BLOCK " + listAlt);
-                    }
-                    else if (lowercfl != -1 && prl > uppercfl && lowercfl != uppercfl)
-                    {
-                        Network.SendRadioMessage(cs + " ATCC DESCEND TO AND MAINTAIN BLOCK " + listAlt);
-                    }
-                    else if (prl > uppercfl)
-                    {
-                        Network.SendRadioMessage(cs + " ATCC DESCEND TO AND MAINTAIN " + "F" + listAlt + " REPORT LEVEL " + "F" + listAlt);
-                    }
-                    else if (prl < uppercfl)
-                    {
-                        Network.SendRadioMessage(cs + " ATCC CLIMB TO AND MAINTAIN " + "F" + listAlt + " REPORT LEVEL " + "F" + listAlt);
-                    }
-                    else
-                    {
-                        Network.SendRadioMessage(cs + " ATCC MAINTAIN " + "F" + listAlt);
-                    }
+
+                    Network.SendRadioMessage(cs + " ATCC " + content);
                 }
 
                 if (cpdlcMessageSent)
@@ -752,6 +727,7 @@ namespace vatsys_atop_plugin.UI
                     ProposedProfileBridge.MarkSentPendingReadback(cs);
                 }
 
+                _probeResultShown = false;
                 SyncCancelButtonState();
             }
             catch
@@ -878,12 +854,12 @@ namespace vatsys_atop_plugin.UI
 
         private void btn_unable_Click(object sender, EventArgs e)
         {
-            if (!(source is FDP2.FDR sourceFdr) || !_replyDownlinkMessageId.HasValue)
+            if (!(source is FDP2.FDR sourceFdr) || !_replyDownlinkMessageId.HasValue || !_replyDialogueId.HasValue)
                 return;
 
             try
             {
-                CpdlcPluginBridge.SendUnable(_replyDownlinkMessageId.Value, sourceFdr.Callsign, "DUE TO TRAFFIC");
+                CpdlcPluginBridge.SendUnable(_replyDialogueId.Value, _replyDownlinkMessageId.Value, sourceFdr.Callsign, "DUE TO TRAFFIC");
                 _virtualProbePending = false;
                 _overrideActive = false;
                 btn_response.Text = "UNABLE";
@@ -905,6 +881,7 @@ namespace vatsys_atop_plugin.UI
             if (source is FDP2.FDR sourceFdr)
                 ProposedProfileBridge.Clear(sourceFdr.Callsign);
             _searchInProgress = false;
+            _probeResultShown = false;
             _pendingSearchLevels.Clear();
             _currentSearchLevel = null;
             ResetSearchResults();

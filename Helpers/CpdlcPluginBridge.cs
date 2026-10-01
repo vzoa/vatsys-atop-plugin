@@ -67,6 +67,13 @@ public static class CpdlcPluginBridge
     private static Type? _downlinkMessageType;
     private static PropertyInfo? _msgIsClosedProp;
     private static PropertyInfo? _msgIsAcknowledgedProp;
+    private static PropertyInfo? _msgMessageIdProp;
+    private static PropertyInfo? _msgMessageReferenceProp;
+
+    // UplinkMessageDto properties (for full dialogue transcript)
+    private static Type? _uplinkMessageType;
+    private static PropertyInfo? _uplinkContentProp;
+    private static PropertyInfo? _uplinkSentProp;
 
     // MediatR IMediator — resolved from ServiceProvider
     private static Type? _mediatorType;
@@ -74,14 +81,27 @@ public static class CpdlcPluginBridge
     // OpenEditorWindowRequest type and constructor
     private static Type? _openEditorRequestType;
 
-    // SendUplinkRequest type and constructor
-    private static Type? _sendUplinkRequestType;
+    // BeginDialogueRequest(Recipient, ResponseType, Content) — starts a new dialogue (no reply target)
+    private static Type? _beginDialogueRequestType;
 
-    // SendStandbyUplinkRequest type and constructor
+    // ReplyToDownlinkRequest(Recipient, DialogueId, DownlinkMessageId, ResponseType, Content) — replies within an existing dialogue
+    private static Type? _replyToDownlinkRequestType;
+
+    // SendStandbyUplinkRequest(DialogueId, DownlinkMessageId, Recipient) type and constructor
     private static Type? _sendStandbyRequestType;
 
-    // SendUnableUplinkRequest type and constructor
+    // SendUnableUplinkRequest(DialogueId, DownlinkMessageId, Recipient, Reason) type and constructor
     private static Type? _sendUnableRequestType;
+
+    // ConnectRequest type and constructor
+    private static Type? _connectRequestType;
+
+    // DisconnectRequest type (parameterless)
+    private static Type? _disconnectRequestType;
+
+    // PluginConfiguration properties for connect
+    private static PropertyInfo? _configServerEndpointProp;
+    private static PropertyInfo? _configStationsProp;
 
     // UplinkMessagesConfiguration — from PluginConfiguration.UplinkMessages
     private static Type? _pluginConfigType;
@@ -123,9 +143,13 @@ public static class CpdlcPluginBridge
     // Dialogue ID
     private static PropertyInfo? _dialogueIdProp;
 
-    // Cache to avoid repeated reflection per frame
-    private static readonly ConcurrentDictionary<string, CpdlcConnectionState> _connectionCache = new();
-    private static readonly ConcurrentDictionary<string, bool> _downlinkCache = new();
+    // Cache to avoid repeated reflection per frame — case-insensitive because the CPDLC server's
+    // reported callsign casing isn't guaranteed to match vatSys's FDR.Callsign casing exactly
+    // (e.g. an aircraft's ACARS/CPDLC client may log on with different casing). Without this,
+    // GetConnectionState/HasOpenDownlinks would silently miss a genuinely-cached connection right
+    // after logon whenever the casing differs, making the CPDLC symbol never appear.
+    private static readonly ConcurrentDictionary<string, CpdlcConnectionState> _connectionCache = new(StringComparer.OrdinalIgnoreCase);
+    private static readonly ConcurrentDictionary<string, bool> _downlinkCache = new(StringComparer.OrdinalIgnoreCase);
     private static DateTime _lastCacheRefresh = DateTime.MinValue;
     private static readonly TimeSpan CacheLifetime = TimeSpan.FromSeconds(2);
 
@@ -184,10 +208,17 @@ public static class CpdlcPluginBridge
         var connManager = _connectionManagerProp?.GetValue(_cpdlcPlugin);
         if (connManager == null) return;
 
-        var isConnected = (bool?)_connMgrIsConnectedProp?.GetValue(connManager) ?? false;
+        // _connMgrIsConnectedProp may be null if SignalRConnectionManager type name didn't match —
+        // fall back to a dynamic lookup on the runtime object so we don't silently skip the cache.
+        var isConnectedProp = _connMgrIsConnectedProp
+            ?? connManager.GetType().GetProperty("IsConnected", BindingFlags.Public | BindingFlags.Instance);
+        var isConnected = (bool?)isConnectedProp?.GetValue(connManager) ?? false;
         if (!isConnected) return;
 
-        var stationId = _connMgrStationIdentifierProp?.GetValue(connManager) as string;
+        // Same resilience for StationIdentifier.
+        var stationIdPropInfo = _connMgrStationIdentifierProp
+            ?? connManager.GetType().GetProperty("StationIdentifier", BindingFlags.Public | BindingFlags.Instance);
+        var stationId = stationIdPropInfo?.GetValue(connManager) as string;
         if (string.IsNullOrEmpty(stationId)) return;
 
         var sp = _serviceProviderProp?.GetValue(_cpdlcPlugin) as IServiceProvider;
@@ -206,18 +237,41 @@ public static class CpdlcPluginBridge
         foreach (var conn in connections)
         {
             var callsign = _connCallsignProp?.GetValue(conn) as string;
-            var connStationId = _connStationIdProp?.GetValue(conn) as string;
             var daState = _connDataAuthorityStateProp?.GetValue(conn);
 
             if (string.IsNullOrEmpty(callsign)) continue;
+            var key = callsign!; // non-null guaranteed by IsNullOrEmpty guard above
 
-            // Only track connections for our station
-            if (!string.Equals(connStationId, stationId, StringComparison.OrdinalIgnoreCase)) continue;
+            // Only track connections for our station — but only apply the filter when we
+            // successfully resolved the StationId property.  If _connStationIdProp is null
+            // (property name mismatch in this CPDLCPlugin version) every connection would
+            // read as null and be filtered out, leaving the cache permanently empty.
+            if (_connStationIdProp != null)
+            {
+                var connStationId = _connStationIdProp.GetValue(conn) as string;
+                if (!string.Equals(connStationId, stationId, StringComparison.OrdinalIgnoreCase)) continue;
+            }
 
-            if (Equals(daState, _cdaValue))
-                _connectionCache[callsign] = CpdlcConnectionState.CurrentDataAuthority;
-            else if (Equals(daState, _ndaValue))
-                _connectionCache[callsign] = CpdlcConnectionState.NextDataAuthority;
+            // Prefer the pre-initialized enum values for a fast equality check.
+            // Fall back to string-name matching when the DataAuthorityState type lookup
+            // failed (e.g. ILRepack renamed the type), which would leave _cdaValue/_ndaValue
+            // null and cause Equals(daState, null) to always be false — silently emptying
+            // the cache for every aircraft.
+            if (_cdaValue != null && _ndaValue != null)
+            {
+                if (Equals(daState, _cdaValue))
+                    _connectionCache[key] = CpdlcConnectionState.CurrentDataAuthority;
+                else if (Equals(daState, _ndaValue))
+                    _connectionCache[key] = CpdlcConnectionState.NextDataAuthority;
+            }
+            else if (daState != null)
+            {
+                var stateName = daState.ToString() ?? "";
+                if (stateName.IndexOf("CurrentDataAuthority", StringComparison.OrdinalIgnoreCase) >= 0)
+                    _connectionCache[key] = CpdlcConnectionState.CurrentDataAuthority;
+                else if (stateName.IndexOf("NextDataAuthority", StringComparison.OrdinalIgnoreCase) >= 0)
+                    _connectionCache[key] = CpdlcConnectionState.NextDataAuthority;
+            }
         }
     }
 
@@ -359,7 +413,7 @@ public static class CpdlcPluginBridge
             _connDataAuthorityStateProp = connType.GetProperty("DataAuthorityState");
         }
 
-        // 8. DataAuthorityState enum — in CPDLCServer.Contracts assembly
+        // 8. DataAuthorityState enum — may be a separate assembly or ILRepacked into CPDLCPlugin
         Assembly? contractsAssembly = null;
         foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
         {
@@ -369,10 +423,11 @@ public static class CpdlcPluginBridge
                 break;
             }
         }
+        // ILRepack merges CPDLCServer.Contracts into CPDLCPlugin.dll — fall back to that
+        var contractsOrPlugin = contractsAssembly ?? cpdlcAssembly;
 
-        if (contractsAssembly != null)
         {
-            var daStateType = contractsAssembly.GetType("CPDLCServer.Contracts.DataAuthorityState");
+            var daStateType = contractsOrPlugin.GetType("CPDLCServer.Contracts.DataAuthorityState");
             if (daStateType != null)
             {
                 _cdaValue = Enum.Parse(daStateType, "CurrentDataAuthority");
@@ -387,10 +442,9 @@ public static class CpdlcPluginBridge
             _dialogueAllMethod = _dialogueStoreType.GetMethod("All");
         }
 
-        // 10. Dialogue DTO types — in contracts assembly
-        if (contractsAssembly != null)
+        // 10. Dialogue DTO types — may be in separate contracts assembly or ILRepacked into CPDLCPlugin
         {
-            var dialogueDtoType = contractsAssembly.GetType("CPDLCServer.Contracts.DialogueDto");
+            var dialogueDtoType = contractsOrPlugin.GetType("CPDLCServer.Contracts.DialogueDto");
             if (dialogueDtoType != null)
             {
                 _dialogueCallsignProp = dialogueDtoType.GetProperty("AircraftCallsign");
@@ -399,7 +453,7 @@ public static class CpdlcPluginBridge
                 _dialogueMessagesProp = dialogueDtoType.GetProperty("Messages");
             }
 
-            _downlinkMessageType = contractsAssembly.GetType("CPDLCServer.Contracts.DownlinkMessageDto");
+            _downlinkMessageType = contractsOrPlugin.GetType("CPDLCServer.Contracts.DownlinkMessageDto");
             if (_downlinkMessageType != null)
             {
                 _downlinkContentProp = _downlinkMessageType.GetProperty("Content");
@@ -408,37 +462,61 @@ public static class CpdlcPluginBridge
                 _downlinkResponseTypeProp = _downlinkMessageType.GetProperty("ResponseType");
             }
 
-            var baseMsgType = contractsAssembly.GetType("CPDLCServer.Contracts.CpdlcMessageDto");
+            var baseMsgType = contractsOrPlugin.GetType("CPDLCServer.Contracts.CpdlcMessageDto");
             if (baseMsgType != null)
             {
                 _msgIsClosedProp = baseMsgType.GetProperty("IsClosed");
                 _msgIsAcknowledgedProp = baseMsgType.GetProperty("IsAcknowledged");
+                _msgMessageIdProp = baseMsgType.GetProperty("MessageId");
+                _msgMessageReferenceProp = baseMsgType.GetProperty("MessageReference");
             }
 
-            _uplinkResponseTypeEnum = contractsAssembly.GetType("CPDLCServer.Contracts.CpdlcUplinkResponseType");
+            _uplinkMessageType = contractsOrPlugin.GetType("CPDLCServer.Contracts.UplinkMessageDto");
+            if (_uplinkMessageType != null)
+            {
+                _uplinkContentProp = _uplinkMessageType.GetProperty("Content");
+                _uplinkSentProp = _uplinkMessageType.GetProperty("Sent");
+            }
+
+            _uplinkResponseTypeEnum = contractsOrPlugin.GetType("CPDLCServer.Contracts.CpdlcUplinkResponseType");
         }
 
-        // 11. MediatR IMediator — find through loaded assemblies
-        foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
+        // 11. MediatR IMediator — CPDLCPlugin is deployed as a single ILRepack-merged assembly
+        // (see the RepackPlugin build target, which merges MediatR + all other deps into
+        // CPDLCPlugin.dll with internalize:false). The canonical IMediator type used by its
+        // DI container therefore lives directly inside cpdlcAssembly. Check there FIRST —
+        // scanning other loaded assemblies first risked binding to an unrelated same-named
+        // MediatR.IMediator type (different Type identity), which would silently make
+        // sp.GetService(_mediatorType) return null and drop every uplink send.
+        _mediatorType = cpdlcAssembly.GetType("MediatR.IMediator");
+        if (_mediatorType == null)
         {
-            if (asm.GetName().Name == "MediatR.Contracts" || asm.GetName().Name == "MediatR")
+            foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
             {
-                _mediatorType = asm.GetType("MediatR.IMediator");
-                if (_mediatorType != null) break;
+                if (asm.GetName().Name == "MediatR.Contracts" || asm.GetName().Name == "MediatR")
+                {
+                    _mediatorType = asm.GetType("MediatR.IMediator");
+                    if (_mediatorType != null) break;
+                }
             }
         }
 
         // 12. MediatR request types in CPDLCPlugin.Messages namespace
-        _sendUplinkRequestType = cpdlcAssembly.GetType("CPDLCPlugin.Messages.SendUplinkRequest");
+        _beginDialogueRequestType = cpdlcAssembly.GetType("CPDLCPlugin.Messages.BeginDialogueRequest");
+        _replyToDownlinkRequestType = cpdlcAssembly.GetType("CPDLCPlugin.Messages.ReplyToDownlinkRequest");
         _sendStandbyRequestType = cpdlcAssembly.GetType("CPDLCPlugin.Messages.SendStandbyUplinkRequest");
         _sendUnableRequestType = cpdlcAssembly.GetType("CPDLCPlugin.Messages.SendUnableUplinkRequest");
         _openEditorRequestType = cpdlcAssembly.GetType("CPDLCPlugin.Messages.OpenEditorWindowRequest");
+        _connectRequestType = cpdlcAssembly.GetType("CPDLCPlugin.Messages.ConnectRequest");
+        _disconnectRequestType = cpdlcAssembly.GetType("CPDLCPlugin.Messages.DisconnectRequest");
 
         // 13. PluginConfiguration — for reading message templates
         _pluginConfigType = cpdlcAssembly.GetType("CPDLCPlugin.Configuration.PluginConfiguration");
         if (_pluginConfigType != null)
         {
             _uplinkMessagesProp = _pluginConfigType.GetProperty("UplinkMessages");
+            _configServerEndpointProp = _pluginConfigType.GetProperty("ServerEndpoint");
+            _configStationsProp = _pluginConfigType.GetProperty("Stations");
         }
 
         // 14. UplinkMessagesConfiguration properties
@@ -486,9 +564,8 @@ public static class CpdlcPluginBridge
         }
 
         // 19. DialogueDto.Id
-        if (contractsAssembly != null)
         {
-            var dialogueDtoType = contractsAssembly.GetType("CPDLCServer.Contracts.DialogueDto");
+            var dialogueDtoType = contractsOrPlugin.GetType("CPDLCServer.Contracts.DialogueDto");
             if (dialogueDtoType != null)
             {
                 _dialogueIdProp = dialogueDtoType.GetProperty("Id");
@@ -499,6 +576,57 @@ public static class CpdlcPluginBridge
                      && _serviceProviderProp != null
                      && _aircraftConnectionStoreType != null
                      && _storeAllMethod != null;
+    }
+
+    /// <summary>
+    /// Returns a diagnostic string describing bridge initialization state and live connection cache.
+    /// </summary>
+    public static string GetDiagnostics()
+    {
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine($"=== CpdlcPluginBridge Diagnostics ===");
+        sb.AppendLine($"Initialized: {_initialized}");
+        sb.AppendLine($"Available:   {_available}");
+        sb.AppendLine($"Plugin instance found: {_cpdlcPlugin != null}");
+        sb.AppendLine($"ConnectionManagerProp: {_connectionManagerProp != null}");
+        sb.AppendLine($"ServiceProviderProp:   {_serviceProviderProp != null}");
+        sb.AppendLine($"AircraftConnectionStoreType: {_aircraftConnectionStoreType != null}");
+        sb.AppendLine($"StoreAllMethod: {_storeAllMethod != null}");
+        sb.AppendLine($"CDA enum value: {_cdaValue}");
+        sb.AppendLine($"NDA enum value: {_ndaValue}");
+        sb.AppendLine($"MediatorType found: {_mediatorType != null} ({_mediatorType?.FullName})");
+        sb.AppendLine($"BeginDialogueRequestType found: {_beginDialogueRequestType != null}");
+        sb.AppendLine($"ReplyToDownlinkRequestType found: {_replyToDownlinkRequestType != null}");
+        sb.AppendLine($"UplinkResponseTypeEnum found: {_uplinkResponseTypeEnum != null}");
+
+        if (_available && _cpdlcPlugin != null)
+        {
+            try
+            {
+                var connManager = _connectionManagerProp?.GetValue(_cpdlcPlugin);
+                var isConnected = (bool?)_connMgrIsConnectedProp?.GetValue(connManager) ?? false;
+                var stationId = _connMgrStationIdentifierProp?.GetValue(connManager) as string;
+                sb.AppendLine($"ConnectionManager.IsConnected: {isConnected}");
+                sb.AppendLine($"ConnectionManager.StationIdentifier: '{stationId}'");
+            }
+            catch (Exception ex)
+            {
+                sb.AppendLine($"ConnectionManager read error: {ex.Message}");
+            }
+
+            // Force a fresh cache refresh
+            _lastCacheRefresh = DateTime.MinValue;
+            try { RefreshConnectionCache(); } catch (Exception ex) { sb.AppendLine($"Cache refresh error: {ex.Message}"); }
+
+            sb.AppendLine($"Connection cache ({_connectionCache.Count} entries):");
+            foreach (var kvp in _connectionCache)
+                sb.AppendLine($"  {kvp.Key} => {kvp.Value}");
+
+            if (_connectionCache.Count == 0)
+                sb.AppendLine("  (empty — no aircraft logged on to our station)");
+        }
+
+        return sb.ToString();
     }
 
     // =========================================================================
@@ -650,6 +778,8 @@ public static class CpdlcPluginBridge
                 var isArchived = (bool?)_dialogueIsArchivedProp?.GetValue(dialogue) ?? true;
                 if (isClosed && isArchived) continue;
 
+                var dialogueId = _dialogueIdProp?.GetValue(dialogue) is Guid dgId ? dgId : Guid.Empty;
+
                 var messages = _dialogueMessagesProp?.GetValue(dialogue) as IEnumerable;
                 if (messages == null) continue;
 
@@ -663,6 +793,7 @@ public static class CpdlcPluginBridge
 
                     results.Add(new AtopDownlinkInfo
                     {
+                        DialogueId = dialogueId,
                         MessageId = (int?)_downlinkMessageIdProp?.GetValue(msg) ?? 0,
                         Content = _downlinkContentProp?.GetValue(msg) as string ?? "",
                         Received = _downlinkReceivedProp?.GetValue(msg) is DateTimeOffset dto ? dto : DateTimeOffset.MinValue,
@@ -676,6 +807,155 @@ public static class CpdlcPluginBridge
         catch (Exception ex)
         {
             Errors.Add(new Exception($"CpdlcPluginBridge.GetOpenDownlinkDetails: {ex.Message}", ex));
+        }
+
+        return results;
+    }
+
+    /// <summary>
+    /// Gets detailed downlink message info across ALL aircraft (not scoped to a single callsign) —
+    /// used to populate the Sector Queue window with pending CPDLC downlinks needing attention.
+    /// Returns empty list if unavailable.
+    /// </summary>
+    public static List<AtopDownlinkInfo> GetAllOpenDownlinks()
+    {
+        var results = new List<AtopDownlinkInfo>();
+        if (!IsAvailable) return results;
+
+        try
+        {
+            var sp = _serviceProviderProp?.GetValue(_cpdlcPlugin) as IServiceProvider;
+            if (sp == null || _dialogueStoreType == null || _dialogueAllMethod == null) return results;
+
+            var dialogueStore = sp.GetService(_dialogueStoreType);
+            if (dialogueStore == null) return results;
+
+            var task = _dialogueAllMethod.Invoke(dialogueStore, new object[] { CancellationToken.None });
+            var awaiter = task!.GetType().GetMethod("GetAwaiter")!.Invoke(task, null);
+            var dialogues = awaiter!.GetType().GetMethod("GetResult")!.Invoke(awaiter, null) as Array;
+            if (dialogues == null) return results;
+
+            foreach (var dialogue in dialogues)
+            {
+                var isClosed = (bool?)_dialogueIsClosedProp?.GetValue(dialogue) ?? true;
+                var isArchived = (bool?)_dialogueIsArchivedProp?.GetValue(dialogue) ?? true;
+                if (isClosed && isArchived) continue;
+
+                var dlgCallsign = _dialogueCallsignProp?.GetValue(dialogue) as string ?? "";
+                var dialogueId = _dialogueIdProp?.GetValue(dialogue) is Guid dgId ? dgId : Guid.Empty;
+
+                var messages = _dialogueMessagesProp?.GetValue(dialogue) as IEnumerable;
+                if (messages == null) continue;
+
+                foreach (var msg in messages)
+                {
+                    if (_downlinkMessageType == null || !_downlinkMessageType.IsInstanceOfType(msg)) continue;
+
+                    var msgClosed = (bool?)_msgIsClosedProp?.GetValue(msg) ?? true;
+                    var msgAcked = (bool?)_msgIsAcknowledgedProp?.GetValue(msg) ?? true;
+                    if (msgClosed && msgAcked) continue;
+
+                    results.Add(new AtopDownlinkInfo
+                    {
+                        Callsign = dlgCallsign,
+                        DialogueId = dialogueId,
+                        MessageId = (int?)_downlinkMessageIdProp?.GetValue(msg) ?? 0,
+                        Content = _downlinkContentProp?.GetValue(msg) as string ?? "",
+                        Received = _downlinkReceivedProp?.GetValue(msg) is DateTimeOffset dto ? dto : DateTimeOffset.MinValue,
+                        ResponseType = _downlinkResponseTypeProp?.GetValue(msg) is object rt ? (int?)Convert.ToInt32(rt) : null,
+                        IsClosed = msgClosed,
+                        IsAcknowledged = msgAcked
+                    });
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Errors.Add(new Exception($"CpdlcPluginBridge.GetAllOpenDownlinks: {ex.Message}", ex));
+        }
+
+        return results;
+    }
+
+    /// <summary>
+    /// Returns the full message transcript (uplinks + downlinks, chronologically ordered) for the
+    /// aircraft's current (non-archived) CPDLC dialogue, as tracked by CPDLCPlugin's DialogueStore.
+    /// This reflects the actual, live CPDLC conversation rather than a locally re-derived subset,
+    /// so the ATOP Clearance window can show/verify what was really sent and received.
+    /// Returns an empty list if unavailable or no dialogue exists for the callsign.
+    /// </summary>
+    public static List<AtopDialogueMessage> GetDialogueMessages(string callsign)
+    {
+        var results = new List<AtopDialogueMessage>();
+        if (!IsAvailable || string.IsNullOrEmpty(callsign)) return results;
+
+        try
+        {
+            var sp = _serviceProviderProp?.GetValue(_cpdlcPlugin) as IServiceProvider;
+            if (sp == null || _dialogueStoreType == null || _dialogueAllMethod == null) return results;
+
+            var dialogueStore = sp.GetService(_dialogueStoreType);
+            if (dialogueStore == null) return results;
+
+            var task = _dialogueAllMethod.Invoke(dialogueStore, new object[] { CancellationToken.None });
+            var awaiter = task!.GetType().GetMethod("GetAwaiter")!.Invoke(task, null);
+            var dialogues = awaiter!.GetType().GetMethod("GetResult")!.Invoke(awaiter, null) as Array;
+            if (dialogues == null) return results;
+
+            // A DialogueStore only ever holds one active (non-archived) dialogue per aircraft —
+            // that's the "current" conversation shown by the CPDLC plugin's own dialogue window.
+            object? currentDialogue = null;
+            foreach (var dialogue in dialogues)
+            {
+                var dlgCallsign = _dialogueCallsignProp?.GetValue(dialogue) as string;
+                if (!string.Equals(dlgCallsign, callsign, StringComparison.OrdinalIgnoreCase)) continue;
+
+                var isArchived = (bool?)_dialogueIsArchivedProp?.GetValue(dialogue) ?? true;
+                if (isArchived) continue;
+
+                currentDialogue = dialogue;
+                break;
+            }
+
+            if (currentDialogue == null) return results;
+
+            var currentDialogueId = _dialogueIdProp?.GetValue(currentDialogue) is Guid cdgId ? cdgId : Guid.Empty;
+
+            var messages = _dialogueMessagesProp?.GetValue(currentDialogue) as IEnumerable;
+            if (messages == null) return results;
+
+            foreach (var msg in messages)
+            {
+                var isUplink = _uplinkMessageType?.IsInstanceOfType(msg) == true;
+                var isDownlink = !isUplink && _downlinkMessageType?.IsInstanceOfType(msg) == true;
+                if (!isUplink && !isDownlink) continue;
+
+                var content = isUplink
+                    ? _uplinkContentProp?.GetValue(msg) as string ?? ""
+                    : _downlinkContentProp?.GetValue(msg) as string ?? "";
+
+                var time = isUplink
+                    ? (_uplinkSentProp?.GetValue(msg) is DateTimeOffset sent ? sent : DateTimeOffset.MinValue)
+                    : (_downlinkReceivedProp?.GetValue(msg) is DateTimeOffset received ? received : DateTimeOffset.MinValue);
+
+                results.Add(new AtopDialogueMessage
+                {
+                    DialogueId = currentDialogueId,
+                    Direction = isUplink ? AtopDialogueDirection.Uplink : AtopDialogueDirection.Downlink,
+                    MessageId = (int?)_msgMessageIdProp?.GetValue(msg) ?? 0,
+                    MessageReference = _msgMessageReferenceProp?.GetValue(msg) as int?,
+                    Content = content,
+                    Time = time,
+                    IsClosed = (bool?)_msgIsClosedProp?.GetValue(msg) ?? false,
+                    IsAcknowledged = (bool?)_msgIsAcknowledgedProp?.GetValue(msg) ?? false
+                });
+            }
+
+            results.Sort((a, b) => a.Time.CompareTo(b.Time));
+        }
+        catch (Exception ex)
+        {
+            Errors.Add(new Exception($"CpdlcPluginBridge.GetDialogueMessages: {ex.Message}", ex));
         }
 
         return results;
@@ -727,9 +1007,11 @@ public static class CpdlcPluginBridge
                     if (response == null)
                         continue;
 
-                    var responseName = response.ToString();
-                    if (!string.IsNullOrEmpty(responseName)
-                        && responseName.IndexOf("WILCO", StringComparison.OrdinalIgnoreCase) >= 0)
+                    // WILCO is part of the downlink's free-text Content, not its ResponseType
+                    // enum (which is only ever NoResponse/ResponseRequired).
+                    var content = _downlinkContentProp?.GetValue(msg) as string;
+                    if (!string.IsNullOrEmpty(content)
+                        && content.IndexOf("WILCO", StringComparison.OrdinalIgnoreCase) >= 0)
                     {
                         return true;
                     }
@@ -747,20 +1029,39 @@ public static class CpdlcPluginBridge
     /// <summary>
     /// Sends an uplink CPDLC message via CPDLCPlugin's MediatR pipeline.
     /// responseType: 0=NoResponse, 1=WilcoUnable, 2=AffirmativeNegative, 3=Roger
+    /// When <paramref name="dialogueId"/> and <paramref name="replyToDownlinkId"/> are both
+    /// provided, this replies within the existing dialogue (ReplyToDownlinkRequest). Otherwise
+    /// it starts a new dialogue (BeginDialogueRequest) — the server's SendUplink hub method was
+    /// split into these two distinct operations and no longer exists as a single call.
     /// </summary>
-    public static void SendUplink(string callsign, int? replyToDownlinkId, int responseType, string content)
+    public static void SendUplink(string callsign, Guid? dialogueId, int? replyToDownlinkId, int responseType, string content)
     {
         if (!IsAvailable) return;
 
         try
         {
             var mediator = ResolveMediator();
-            if (mediator == null || _sendUplinkRequestType == null || _uplinkResponseTypeEnum == null) return;
+            if (mediator == null || _uplinkResponseTypeEnum == null) return;
 
             var responseTypeValue = Enum.ToObject(_uplinkResponseTypeEnum, responseType);
 
-            // Construct SendUplinkRequest(string Recipient, int? ReplyToDownlinkId, CpdlcUplinkResponseType ResponseType, string Content)
-            var request = Activator.CreateInstance(_sendUplinkRequestType, callsign, replyToDownlinkId, responseTypeValue, content);
+            object? request;
+            if (dialogueId.HasValue && replyToDownlinkId.HasValue)
+            {
+                if (_replyToDownlinkRequestType == null) return;
+
+                // ReplyToDownlinkRequest(string Recipient, Guid DialogueId, int DownlinkMessageId, CpdlcUplinkResponseType ResponseType, string Content)
+                request = Activator.CreateInstance(
+                    _replyToDownlinkRequestType, callsign, dialogueId.Value, replyToDownlinkId.Value, responseTypeValue, content);
+            }
+            else
+            {
+                if (_beginDialogueRequestType == null) return;
+
+                // BeginDialogueRequest(string Recipient, CpdlcUplinkResponseType ResponseType, string Content)
+                request = Activator.CreateInstance(_beginDialogueRequestType, callsign, responseTypeValue, content);
+            }
+
             if (request == null) return;
 
             InvokeMediatorSend(mediator, request);
@@ -774,7 +1075,7 @@ public static class CpdlcPluginBridge
     /// <summary>
     /// Sends a STANDBY response to a downlink message.
     /// </summary>
-    public static void SendStandby(int downlinkMessageId, string callsign)
+    public static void SendStandby(Guid dialogueId, int downlinkMessageId, string callsign)
     {
         if (!IsAvailable) return;
 
@@ -783,8 +1084,8 @@ public static class CpdlcPluginBridge
             var mediator = ResolveMediator();
             if (mediator == null || _sendStandbyRequestType == null) return;
 
-            // Construct SendStandbyUplinkRequest(int DownlinkMessageId, string Recipient)
-            var request = Activator.CreateInstance(_sendStandbyRequestType, downlinkMessageId, callsign);
+            // Construct SendStandbyUplinkRequest(Guid DialogueId, int DownlinkMessageId, string Recipient)
+            var request = Activator.CreateInstance(_sendStandbyRequestType, dialogueId, downlinkMessageId, callsign);
             if (request == null) return;
 
             InvokeMediatorSend(mediator, request);
@@ -798,7 +1099,7 @@ public static class CpdlcPluginBridge
     /// <summary>
     /// Sends an UNABLE response to a downlink message.
     /// </summary>
-    public static void SendUnable(int downlinkMessageId, string callsign, string reason = "")
+    public static void SendUnable(Guid dialogueId, int downlinkMessageId, string callsign, string reason = "")
     {
         if (!IsAvailable) return;
 
@@ -807,7 +1108,8 @@ public static class CpdlcPluginBridge
             var mediator = ResolveMediator();
             if (mediator == null || _sendUnableRequestType == null) return;
 
-            var request = Activator.CreateInstance(_sendUnableRequestType, downlinkMessageId, callsign, reason);
+            // Construct SendUnableUplinkRequest(Guid DialogueId, int DownlinkMessageId, string Recipient, string Reason)
+            var request = Activator.CreateInstance(_sendUnableRequestType, dialogueId, downlinkMessageId, callsign, reason);
             if (request == null) return;
 
             InvokeMediatorSend(mediator, request);
@@ -842,6 +1144,64 @@ public static class CpdlcPluginBridge
         }
     }
 
+    /// <summary>
+    /// Triggers a CPDLC server connect using the first station from the plugin configuration.
+    /// Safe to call when the CPDLC plugin is not installed — no-ops silently.
+    /// </summary>
+    public static void TriggerConnect()
+    {
+        if (!IsAvailable) return;
+
+        try
+        {
+            var mediator = ResolveMediator();
+            if (mediator == null || _connectRequestType == null || _pluginConfigType == null) return;
+
+            var sp = _serviceProviderProp?.GetValue(_cpdlcPlugin) as IServiceProvider;
+            if (sp == null) return;
+
+            var config = sp.GetService(_pluginConfigType);
+            if (config == null) return;
+
+            var serverEndpoint = _configServerEndpointProp?.GetValue(config) as string;
+            var stations = _configStationsProp?.GetValue(config) as string[];
+            if (string.IsNullOrEmpty(serverEndpoint) || stations == null || stations.Length == 0) return;
+
+            var request = Activator.CreateInstance(_connectRequestType, serverEndpoint, stations[0]);
+            if (request == null) return;
+
+            InvokeMediatorSend(mediator, request);
+        }
+        catch (Exception ex)
+        {
+            Errors.Add(new Exception($"CpdlcPluginBridge.TriggerConnect: {ex.Message}", ex));
+        }
+    }
+
+    /// <summary>
+    /// Triggers a CPDLC server disconnect. Safe to call when the CPDLC plugin is not installed,
+    /// or when there is no active connection — no-ops silently in both cases.
+    /// </summary>
+    public static void TriggerDisconnect()
+    {
+        if (!IsAvailable) return;
+
+        try
+        {
+            var mediator = ResolveMediator();
+            if (mediator == null || _disconnectRequestType == null) return;
+
+            var request = Activator.CreateInstance(_disconnectRequestType);
+            if (request == null) return;
+
+            InvokeMediatorSend(mediator, request);
+        }
+        catch (Exception ex)
+        {
+            Errors.Add(new Exception($"CpdlcPluginBridge.TriggerDisconnect: {ex.Message}", ex));
+        }
+    }
+
     private static object? ResolveMediator()
     {
         if (_mediatorType == null) return null;
@@ -852,29 +1212,46 @@ public static class CpdlcPluginBridge
 
     private static void InvokeMediatorSend(object mediator, object request)
     {
-        // IMediator.Send(IRequest, CancellationToken) — returns Task
-        var sendMethod = _mediatorType!.GetMethod("Send", new[] { request.GetType().GetInterfaces().First(i => i.Name.StartsWith("IRequest")), typeof(CancellationToken) });
+        var requestType = request.GetType();
 
-        // Fallback: find Send method that takes object + CancellationToken
+        // MediatR's IMediator (via ISender) exposes two Send overloads:
+        //   Task<TResponse> Send<TResponse>(IRequest<TResponse> request, CancellationToken ct = default)  — generic
+        //   Task<object?>   Send(object request, CancellationToken ct = default)                           — non-generic
+        // Both are declared on ISender, not IMediator itself (IMediator is just an empty marker
+        // interface: "interface IMediator : ISender, IPublisher { }"). Reflecting on _mediatorType
+        // (IMediator) directly returns ZERO methods, since Type.GetMethods() on an interface only
+        // returns members declared on that interface, not inherited ones. Reflect on the concrete
+        // runtime object's type instead, which reliably exposes all implemented interface methods
+        // as public instance methods regardless of interface layering.
+        var mediatorType = mediator.GetType();
+
+        var sendMethod = mediatorType.GetMethods()
+            .FirstOrDefault(m => m.Name == "Send"
+                                  && !m.IsGenericMethodDefinition
+                                  && m.GetParameters() is { Length: 2 } nonGenericParams
+                                  && nonGenericParams[0].ParameterType == typeof(object)
+                                  && nonGenericParams[1].ParameterType == typeof(CancellationToken));
+
         if (sendMethod == null)
         {
-            foreach (var method in _mediatorType.GetMethods())
-            {
-                if (method.Name != "Send") continue;
-                var ps = method.GetParameters();
-                if (ps.Length == 2 && ps[1].ParameterType == typeof(CancellationToken))
-                {
-                    if (ps[0].ParameterType.IsAssignableFrom(request.GetType()) ||
-                        ps[0].ParameterType.IsInterface)
-                    {
-                        sendMethod = method;
-                        break;
-                    }
-                }
-            }
+            var genericSend = mediatorType.GetMethods()
+                .FirstOrDefault(m => m.Name == "Send"
+                                      && m.IsGenericMethodDefinition
+                                      && m.GetParameters() is { Length: 2 } genericParams
+                                      && genericParams[1].ParameterType == typeof(CancellationToken));
+
+            var requestInterface = requestType.GetInterfaces()
+                .FirstOrDefault(i => i.IsGenericType && i.Name.StartsWith("IRequest"));
+
+            if (genericSend != null && requestInterface != null)
+                sendMethod = genericSend.MakeGenericMethod(requestInterface.GetGenericArguments()[0]);
         }
 
-        if (sendMethod == null) return;
+        if (sendMethod == null)
+        {
+            Errors.Add(new Exception($"CpdlcPluginBridge.InvokeMediatorSend: could not resolve a usable IMediator.Send method for request type {requestType.FullName}"));
+            return;
+        }
 
         var task = sendMethod.Invoke(mediator, new[] { request, CancellationToken.None });
         // Fire-and-forget but observe exceptions

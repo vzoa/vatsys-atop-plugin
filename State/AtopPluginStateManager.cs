@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using AtopPlugin.Conflict;
+using AtopPlugin.Helpers;
 using AtopPlugin.UI;
 using vatsys;
 
@@ -143,6 +144,11 @@ public static class AtopPluginStateManager
             }
 
             Activated = newActivationState;
+
+            if (newActivationState)
+                Task.Run(() => CpdlcPluginBridge.TriggerConnect());
+            else
+                Task.Run(() => CpdlcPluginBridge.TriggerDisconnect());
         }
     }
 

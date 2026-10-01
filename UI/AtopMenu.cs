@@ -3,6 +3,7 @@ using System.Threading;
 using System.Windows.Forms;
 using AtopPlugin.Conflict;
 using AtopPlugin.Display;
+using AtopPlugin.Helpers;
 using AtopPlugin.State;
 using vatsys;
 using vatsys.Plugin;
@@ -37,6 +38,7 @@ public static class AtopMenu
         //InitializeSettingsMenu();
         InitializeVersionItem();
         InitializeConflictSummaryWindow();
+        InitializeCpdlcDiagnosticsItem();
         //InitializeAltitudeWindow();
     }
 
@@ -64,6 +66,28 @@ public static class AtopMenu
         };
         conflictWindowItem.Item.Click += (_, _) => MMI.InvokeOnGUI(ConflictSummaryWindow.Show);
         MMI.AddCustomMenuItem(conflictWindowItem);
+    }
+
+    private static void InitializeCpdlcDiagnosticsItem()
+    {
+        var diagnosticsMenuItem = new CustomToolStripMenuItem(CustomToolStripMenuItemWindowType.Main,
+            CustomToolStripMenuItemCategory.Custom, new ToolStripMenuItem("CPDLC Diagnostics"))
+        {
+            CustomCategoryName = CategoryName
+        };
+        diagnosticsMenuItem.Item.Click += (_, _) =>
+        {
+            try
+            {
+                MMI.InvokeOnGUI(() =>
+                    MessageBox.Show(CpdlcPluginBridge.GetDiagnostics(), "CPDLC Diagnostics"));
+            }
+            catch (Exception ex)
+            {
+                Errors.Add(new Exception($"AtopMenu.CpdlcDiagnostics: {ex.Message}", ex));
+            }
+        };
+        MMI.AddCustomMenuItem(diagnosticsMenuItem);
     }
 
     //private static void InitializeSettingsMenu()
@@ -140,7 +164,7 @@ public static class AtopMenu
     }
 
     public static void OpenAltitudeWindow(FDP2.FDR fdr, Track track, bool openedFromCommIcon = false,
-        int? replyDownlinkMessageId = null)
+        int? replyDownlinkMessageId = null, Guid? replyDialogueId = null)
     {
         if (fdr == null || track == null) return;
 
@@ -148,7 +172,7 @@ public static class AtopMenu
         {
             try
             {
-                var window = AltitudeWindow.GetInstance(fdr, track, openedFromCommIcon, replyDownlinkMessageId);
+                var window = AltitudeWindow.GetInstance(fdr, track, openedFromCommIcon, replyDownlinkMessageId, replyDialogueId);
                 window.Show();
                 window.Activate();
             }
